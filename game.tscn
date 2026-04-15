@@ -1,0 +1,150 @@
+[gd_scene load_steps=2 format=3 uid="uid://dnru77rc4lqn5"]
+
+[ext_resource type="Script" path="res://game.gd" id="1_game"]
+
+[node name="Game" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_game")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.06, 0.06, 0.1, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Loading…"
+
+[node name="StatsRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="YouStatsPanel" type="PanelContainer" parent="Margin/VBox/StatsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="YouStatsLabel" type="Label" parent="Margin/VBox/StatsRow/YouStatsPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "You\nPower: 0\nHand: 0\nDeck: 0"
+
+[node name="OppStatsPanel" type="PanelContainer" parent="Margin/VBox/StatsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OppStatsLabel" type="Label" parent="Margin/VBox/StatsRow/OppStatsPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Opponent\nPower: 0\nHand: 0\nDeck: 0"
+
+[node name="SacrificeRow" type="HBoxContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SacrificeHint" type="Label" parent="Margin/VBox/SacrificeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="SacrificeConfirmButton" type="Button" parent="Margin/VBox/SacrificeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Confirm sacrifice"
+
+[node name="SacrificeCancelButton" type="Button" parent="Margin/VBox/SacrificeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel"
+
+[node name="FieldsRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 28
+
+[node name="YourFieldCol" type="VBoxContainer" parent="Margin/VBox/FieldsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="YourFieldTitle" type="Label" parent="Margin/VBox/FieldsRow/YourFieldCol"]
+layout_mode = 2
+text = "Your field"
+
+[node name="FieldYouCards" type="HBoxContainer" parent="Margin/VBox/FieldsRow/YourFieldCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="OppFieldCol" type="VBoxContainer" parent="Margin/VBox/FieldsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="OppFieldTitle" type="Label" parent="Margin/VBox/FieldsRow/OppFieldCol"]
+layout_mode = 2
+text = "Opponent field"
+
+[node name="FieldOppCards" type="HBoxContainer" parent="Margin/VBox/FieldsRow/OppFieldCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="LogLabel" type="RichTextLabel" parent="Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = false
+scroll_active = true
+
+[node name="HandRow" type="HBoxContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 6
+
+[node name="ButtonsRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DiscardDrawButton" type="Button" parent="Margin/VBox/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Discard for draw (once)"
+
+[node name="EndTurnButton" type="Button" parent="Margin/VBox/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "End turn"

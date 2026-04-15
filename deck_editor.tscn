@@ -1,0 +1,173 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgnux6dvl0xc7"]
+
+[ext_resource type="Script" path="res://deck_editor.gd" id="1_deck_editor"]
+
+[node name="DeckEditor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_deck_editor")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.08, 0.1, 1)
+
+[node name="MainMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="RootVBox" type="VBoxContainer" parent="MainMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="MainMargin/RootVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Deck Builder"
+
+[node name="Subtitle" type="Label" parent="MainMargin/RootVBox"]
+layout_mode = 2
+text = "Select a deck, tune card-type counts with + / - / X, or add new card types."
+
+[node name="Split" type="HSplitContainer" parent="MainMargin/RootVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 300
+
+[node name="DecksPanel" type="PanelContainer" parent="MainMargin/RootVBox/Split"]
+layout_mode = 2
+
+[node name="DecksMargin" type="MarginContainer" parent="MainMargin/RootVBox/Split/DecksPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DecksVBox" type="VBoxContainer" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DecksHeader" type="Label" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Load Deck"
+
+[node name="DeckList" type="ItemList" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DeckButtons" type="HBoxContainer" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ReloadDecksButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reload"
+
+[node name="NewDeckButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "New Deck"
+
+[node name="BuilderPanel" type="PanelContainer" parent="MainMargin/RootVBox/Split"]
+layout_mode = 2
+
+[node name="BuilderMargin" type="MarginContainer" parent="MainMargin/RootVBox/Split/BuilderPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="BuilderVBox" type="VBoxContainer" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DeckNameRow" type="HBoxContainer" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DeckNameLabel" type="Label" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/DeckNameRow"]
+layout_mode = 2
+text = "Deck Name"
+
+[node name="DeckNameEdit" type="LineEdit" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/DeckNameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "default_deck"
+
+[node name="TotalsLabel" type="Label" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Rituals 0/19   Incantations 0/21   Total 0/40"
+
+[node name="AddRow" type="HBoxContainer" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddKindOption" type="OptionButton" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/AddRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AddVerbOption" type="OptionButton" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/AddRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AddValueOption" type="OptionButton" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/AddRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AddTypeButton" type="Button" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/AddRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Type"
+
+[node name="CardsScroll" type="ScrollContainer" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DeckCardsList" type="VBoxContainer" parent="MainMargin/RootVBox/Split/BuilderPanel/BuilderMargin/BuilderVBox/CardsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="BottomRow" type="HBoxContainer" parent="MainMargin/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="MainMargin/RootVBox/BottomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Adjust counts to a legal 40-card deck."
+
+[node name="SaveButton" type="Button" parent="MainMargin/RootVBox/BottomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save Deck"
+
+[node name="BackButton" type="Button" parent="MainMargin/RootVBox/BottomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back"
