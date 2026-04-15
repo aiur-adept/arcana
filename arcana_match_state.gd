@@ -389,6 +389,7 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 				mids[int(mid)] = true
 			if not _sacrifice_valid(p, n, mids):
 				return "illegal_sacrifice"
+	var payment_text := _incantation_payment_text(p, n, need_sac, mids)
 	_apply_sacrifice(p, mids)
 	var pl: Dictionary = _players[p]
 	pl["hand"].remove_at(hand_idx)
@@ -401,7 +402,7 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 		wrath_resolved = _wrath_resolve_mids(1 - p, n, wrath_mids)
 	_apply_incantation(p, verb, n, wrath_resolved, insight_target, insight_perm)
 	pl["inc_discard"].append(c)
-	_log("P%d plays %s %d." % [p, verb_raw, n])
+	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	_check_power_win(p)
 	return "ok"
 
@@ -521,6 +522,26 @@ func _apply_sacrifice(p: int, mids: Dictionary) -> void:
 		else:
 			keep.append(x)
 	pl["field"] = keep
+
+
+func _incantation_payment_text(p: int, cost: int, used_sacrifice: bool, mids: Dictionary) -> String:
+	if not used_sacrifice:
+		return "paid via active %d-lane" % cost
+	var field: Array = _players[p]["field"]
+	var values: Array = []
+	var mid_list: Array = []
+	var total := 0
+	for x in field:
+		var mid := int(x["mid"])
+		if not mids.has(mid):
+			continue
+		var v := int(x["value"])
+		total += v
+		values.append(v)
+		mid_list.append(mid)
+	values.sort()
+	mid_list.sort()
+	return "paid by sacrificing mids %s (values %s, total %d for cost %d)" % [str(mid_list), str(values), total, cost]
 
 
 func _apply_incantation(p: int, verb: String, value: int, wrath_mids: Array = [], insight_target: int = -1, insight_perm: Array = []) -> void:
@@ -653,9 +674,7 @@ func _revive_random(p: int, x: int) -> void:
 
 
 func _wrath_destroy_count(value: int) -> int:
-	if value == 2:
-		return 1
-	if value == 3:
+	if value == 4:
 		return 2
 	return 0
 

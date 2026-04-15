@@ -98,6 +98,9 @@ var _game_end_title: Label
 var _game_end_body: Label
 var _game_end_play_again: Button
 var _game_end_main_menu: Button
+var _end_discard_modal: PanelContainer
+var _end_discard_label: Label
+var _end_discard_confirm_button: Button
 
 
 func _is_network_pvp() -> bool:
@@ -116,6 +119,7 @@ func _ready() -> void:
 	_build_insight_overlay()
 	_build_hover_preview_panel()
 	_build_game_end_modal()
+	_build_end_discard_modal()
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	discard_draw_button.pressed.connect(_on_discard_draw_pressed)
 	sacrifice_confirm_button.pressed.connect(_on_sacrifice_confirm_pressed)
@@ -359,7 +363,7 @@ func _card_preview_rules_text(card: Dictionary) -> String:
 		"revive":
 			return "Revive %d: return up to %d random incantation card(s) from your discard to your hand." % [n, n]
 		"wrath":
-			return "Wrath %d: destroy %d opponent ritual(s). (%d destroys 1, %d destroys 2)." % [n, _wrath_destroy_count(n), 2, 3]
+			return "Wrath %d: destroy %d opponent ritual(s)." % [n, _wrath_destroy_count(n)]
 		_:
 			return "Incantation %d." % n
 
@@ -422,6 +426,8 @@ func _load_deck_cards() -> Array:
 			var dv := int(cd.get("value", 4))
 			if dv != 4:
 				continue
+			cd["value"] = 4
+		elif _card_type(cd) == "incantation" and str(cd.get("verb", "")).to_lower() == "wrath":
 			cd["value"] = 4
 		out.append(cd)
 	return out
@@ -518,6 +524,10 @@ func _apply_snap(snap: Dictionary) -> void:
 	end_turn_button.disabled = not mine or _sacrifice_selecting or _insight_open
 	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or _sacrifice_selecting or _insight_open
 	_rebuild_hand(snap.get("your_hand", []))
+	if _selecting_end_discard:
+		_show_end_discard_modal()
+	else:
+		_hide_end_discard_modal()
 
 
 func _end_game_ui(snap: Dictionary) -> void:
@@ -542,6 +552,7 @@ func _end_game_ui(snap: Dictionary) -> void:
 	_clear_sacrifice_mode()
 	_clear_insight_ui()
 	_hide_card_hover_preview()
+	_hide_end_discard_modal()
 	_show_game_end_modal(title, msg)
 
 
@@ -623,6 +634,62 @@ func _hide_game_end_modal() -> void:
 		_game_end_overlay.visible = false
 		_game_end_play_again.disabled = false
 		_game_end_play_again.text = "Play Again"
+
+
+func _build_end_discard_modal() -> void:
+	_end_discard_modal = PanelContainer.new()
+	_end_discard_modal.name = "EndDiscardModal"
+	_end_discard_modal.visible = false
+	_end_discard_modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	_end_discard_modal.z_index = 110
+	_end_discard_modal.anchor_left = 0.5
+	_end_discard_modal.anchor_top = 0.5
+	_end_discard_modal.anchor_right = 0.5
+	_end_discard_modal.anchor_bottom = 0.5
+	_end_discard_modal.offset_left = -180
+	_end_discard_modal.offset_top = -70
+	_end_discard_modal.offset_right = 180
+	_end_discard_modal.offset_bottom = 70
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.08, 0.09, 0.12, 0.97)
+	sb.border_color = Color(0.66, 0.72, 0.86)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(12)
+	_end_discard_modal.add_theme_stylebox_override("panel", sb)
+	add_child(_end_discard_modal)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_end_discard_modal.add_child(margin)
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 10)
+	margin.add_child(v)
+	_end_discard_label = Label.new()
+	_end_discard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_end_discard_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_end_discard_label.text = "Select cards to discard"
+	v.add_child(_end_discard_label)
+	_end_discard_confirm_button = Button.new()
+	_end_discard_confirm_button.text = "Confirm discard"
+	_end_discard_confirm_button.pressed.connect(_on_end_discard_confirm_pressed)
+	v.add_child(_end_discard_confirm_button)
+
+
+func _show_end_discard_modal() -> void:
+	if _end_discard_modal != null:
+		_end_discard_modal.visible = true
+
+
+func _hide_end_discard_modal() -> void:
+	if _end_discard_modal != null:
+		_end_discard_modal.visible = false
+
+
+func _on_end_discard_confirm_pressed() -> void:
+	_confirm_end_turn_discard()
 
 
 func _on_game_end_play_again_pressed() -> void:
@@ -1540,9 +1607,7 @@ func _greedy_wrath_mids(opp_field: Array, need: int) -> Array:
 
 
 func _wrath_destroy_count(value: int) -> int:
-	if value == 2:
-		return 1
-	if value == 3:
+	if value == 4:
 		return 2
 	return 0
 
@@ -1625,9 +1690,36 @@ func _end_discard_indices_from_hand(hand: Array) -> Array:
 	return indices
 
 
+func _confirm_end_turn_discard() -> void:
+	if not _selecting_end_discard:
+		return
+	var snap: Dictionary = _last_snap
+	var hand_sel: Array = snap.get("your_hand", [])
+	var picked := _end_discard_selected_total()
+	if picked < _end_discard_needed:
+		_update_end_discard_status()
+		return
+	var indices := _end_discard_indices_from_hand(hand_sel)
+	_selecting_end_discard = false
+	_end_discard_picked.clear()
+	_hide_end_discard_modal()
+	if _is_network_client():
+		submit_end_turn.rpc_id(1, indices)
+	else:
+		_try_end_turn(_my_player_for_action(), indices)
+
+
 func _update_end_discard_status() -> void:
 	var selected := _end_discard_selected_total()
 	status_label.text = "Select %d card(s) to discard, then press End Turn. Selected %d/%d." % [_end_discard_needed, selected, _end_discard_needed]
+	if _end_discard_label != null:
+		_end_discard_label.text = "Select cards to discard\nSelected %d/%d" % [selected, _end_discard_needed]
+	if _end_discard_confirm_button != null:
+		_end_discard_confirm_button.disabled = selected < _end_discard_needed
+	if _selecting_end_discard:
+		_show_end_discard_modal()
+	else:
+		_hide_end_discard_modal()
 
 
 func _run_cpu_turn() -> void:
@@ -1890,18 +1982,7 @@ func _on_end_turn_pressed() -> void:
 		return
 	var snap: Dictionary = _last_snap
 	if _selecting_end_discard:
-		var hand_sel: Array = snap.get("your_hand", [])
-		var picked := _end_discard_selected_total()
-		if picked < _end_discard_needed:
-			_update_end_discard_status()
-			return
-		var indices := _end_discard_indices_from_hand(hand_sel)
-		_selecting_end_discard = false
-		_end_discard_picked.clear()
-		if _is_network_client():
-			submit_end_turn.rpc_id(1, indices)
-		else:
-			_try_end_turn(_my_player_for_action(), indices)
+		_confirm_end_turn_discard()
 		return
 	var hand: Array = snap.get("your_hand", [])
 	var need := maxi(0, hand.size() - 7)
@@ -1915,6 +1996,7 @@ func _on_end_turn_pressed() -> void:
 	_end_discard_needed = need
 	_end_discard_picked.clear()
 	_update_end_discard_status()
+	_show_end_discard_modal()
 	_rebuild_hand(hand)
 
 

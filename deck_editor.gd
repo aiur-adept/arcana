@@ -1,11 +1,12 @@
 extends Control
 
 const RITUAL_VALUES: Array[int] = [1, 2, 3, 4]
-const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath"]
+const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "dethrone"]
 const INCANTATION_VALUES: Array[int] = [1, 2, 3, 4]
 const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
 const MAX_RITUAL_COPIES := 9
+const MAX_INCANTATION_COPIES := 4
 const DECK_DIR := "user://decks"
 const DECK_EXT := ".json"
 const NOBLE_DEFS := [
@@ -81,7 +82,6 @@ func _configure_add_controls() -> void:
 	add_kind_option.add_item("Ritual")
 	add_kind_option.add_item("Incantation")
 	add_kind_option.add_item("Noble")
-	add_kind_option.add_item("Dethrone")
 	add_verb_option.clear()
 	for verb in INCANTATION_VERBS:
 		add_verb_option.add_item(verb.capitalize())
@@ -222,7 +222,9 @@ func _incantation_values_for_verb(verb: String) -> Array[int]:
 	if verb == "revive":
 		return [1]
 	if verb == "wrath":
-		return [2, 3]
+		return [4]
+	if verb == "dethrone":
+		return [4]
 	return INCANTATION_VALUES
 
 
@@ -269,6 +271,8 @@ func _entry_preview_text(entry: Dictionary) -> String:
 				return "Revive %d\nReturn up to %d random incantation card(s) from your discard to your hand." % [v, v]
 			"wrath":
 				return "Wrath %d\nDestroy %d opponent ritual(s)." % [v, _wrath_destroy_count(v)]
+			"dethrone":
+				return "Dethrone 4\nChoose and destroy an opponent noble."
 		return "%s %d" % [verb.capitalize(), v]
 	if kind == "noble":
 		var nid := str(entry.get("noble_id", ""))
@@ -300,9 +304,7 @@ func _noble_preview_text(noble_id: String) -> String:
 
 
 func _wrath_destroy_count(value: int) -> int:
-	if value == 2:
-		return 1
-	if value == 3:
+	if value == 4:
 		return 2
 	return 0
 
@@ -334,10 +336,13 @@ func _add_selection_entry() -> Dictionary:
 	if kind == "Incantation":
 		if add_verb_option.selected < 0 or add_verb_option.selected >= INCANTATION_VERBS.size():
 			return {}
+		var sel_verb := INCANTATION_VERBS[add_verb_option.selected]
+		if sel_verb == "dethrone":
+			return {"kind": "dethrone", "value": 4}
 		if add_value_option.selected < 0:
 			return {}
 		var ivalue := int(add_value_option.get_item_text(add_value_option.selected))
-		return {"kind": "incantation", "verb": INCANTATION_VERBS[add_verb_option.selected], "value": ivalue}
+		return {"kind": "incantation", "verb": sel_verb, "value": ivalue}
 	if kind == "Noble":
 		if add_verb_option.selected >= 0 and add_verb_option.selected < NOBLE_DEFS.size():
 			var noble: Dictionary = NOBLE_DEFS[add_verb_option.selected]
@@ -517,6 +522,19 @@ func _on_add_type_pressed() -> void:
 		_entries[key_r] = entry_r
 	elif kind == "Incantation":
 		var verb := INCANTATION_VERBS[add_verb_option.selected]
+		if verb == "dethrone":
+			if _entries.has("dethrone"):
+				_increment_entry("dethrone")
+				return
+			var entry_d := {"kind": "dethrone", "value": 4, "count": 0}
+			if not _can_increase_entry(entry_d):
+				_show_cannot_add_status(entry_d)
+				return
+			entry_d["count"] = 1
+			_entries["dethrone"] = entry_d
+			_render_entries()
+			_update_validation()
+			return
 		if not _incantation_values_for_verb(verb).has(value):
 			var legal_values: Array[int] = _incantation_values_for_verb(verb)
 			var legal_text := ",".join(PackedStringArray(legal_values.map(func(v: int) -> String:
@@ -577,6 +595,8 @@ func _can_increase_entry(entry: Dictionary) -> bool:
 			return false
 		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
 	if kind == "incantation" or kind == "dethrone":
+		if count >= MAX_INCANTATION_COPIES:
+			return false
 		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
 	return false
 
@@ -594,8 +614,21 @@ func _show_cannot_add_status(entry: Dictionary) -> void:
 		else:
 			status_label.text = "Cannot add: non-ritual cap is %d." % TARGET_NON_RITUAL_COUNT
 	else:
-		status_label.text = "Cannot add: non-ritual cap is %d." % TARGET_NON_RITUAL_COUNT
+		if int(entry.get("count", 0)) >= MAX_INCANTATION_COPIES:
+			status_label.text = "Cannot add: max %d copies of a given incantation." % MAX_INCANTATION_COPIES
+		else:
+			status_label.text = "Cannot add: non-ritual cap is %d." % TARGET_NON_RITUAL_COUNT
 	status_label.modulate = Color(1, 0.95, 0.6)
+
+
+func _incantation_copy_limit_ok() -> bool:
+	for entry in _entries.values():
+		var kind := str(entry.get("kind", ""))
+		if kind != "incantation" and kind != "dethrone":
+			continue
+		if int(entry.get("count", 0)) > MAX_INCANTATION_COPIES:
+			return false
+	return true
 
 
 func _totals() -> Dictionary:
@@ -635,11 +668,15 @@ func _update_validation() -> void:
 		TARGET_NON_RITUAL_COUNT,
 		total_cards
 	]
-	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT
+	var copies_ok := _incantation_copy_limit_ok()
+	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and copies_ok
 	save_button.disabled = not is_valid
 	if is_valid:
 		status_label.text = "Deck is legal. Save is enabled."
 		status_label.modulate = Color(0.65, 1, 0.65)
+	elif not copies_ok:
+		status_label.text = "Adjust counts: max %d copies of each incantation variant." % MAX_INCANTATION_COPIES
+		status_label.modulate = Color(1, 0.95, 0.6)
 	else:
 		status_label.text = "Adjust counts to a legal 40-card deck."
 		status_label.modulate = Color(1, 0.95, 0.6)
@@ -717,6 +754,10 @@ func _write_json(path: String, payload: Dictionary) -> int:
 
 func _on_save_button_pressed() -> void:
 	var totals := _totals()
+	if not _incantation_copy_limit_ok():
+		status_label.text = "Deck is invalid. You may only have %d copies of each incantation variant." % MAX_INCANTATION_COPIES
+		status_label.modulate = Color(1, 0.55, 0.55)
+		return
 	if totals["rituals"] != TARGET_RITUAL_COUNT or totals["non_ritual"] != TARGET_NON_RITUAL_COUNT:
 		status_label.text = "Deck is invalid. Rituals must be %d and non-ritual cards must be %d." % [TARGET_RITUAL_COUNT, TARGET_NON_RITUAL_COUNT]
 		status_label.modulate = Color(1, 0.55, 0.55)

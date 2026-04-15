@@ -32,6 +32,8 @@ Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maxim
 
 There can be no more than 9 of one ritual card value in the deck, for example you may have 9 4-Rituals.
 
+You may only have 4 copies of a given incantation. For example you can have 4x seek-1, 4x seek-2, and 4x wrath
+
 —
 
 ## Mechanics of Set 1
@@ -44,7 +46,7 @@ Burn X: discard the top 2*X cards of a chosen player's deck
 
 Woe X: a chosen player discards X cards
 
-Wrath 2/3: Choose and destroy 1/2 opponent rituals
+Wrath 4: Choose and destroy 2 opponent rituals
 
 Revive 1: return 1 discarded incantation to hand
 
