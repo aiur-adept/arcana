@@ -106,9 +106,19 @@ func _draw_one_attempt(p: int) -> bool:
 
 func _resolve_empty_deck_loss(trigger_player: int) -> void:
 	empty_deck_end = true
-	winner = 1 - trigger_player
+	var p0_power := ritual_power(0)
+	var p1_power := ritual_power(1)
+	if p0_power > p1_power:
+		winner = 0
+	elif p1_power > p0_power:
+		winner = 1
+	else:
+		winner = -1
 	phase = Phase.GAME_OVER
-	_log("P%d loses by drawing from an empty deck." % trigger_player)
+	if winner >= 0:
+		_log("P%d drew from an empty deck. P%d wins by higher active ritual power (%d vs %d)." % [trigger_player, winner, p0_power, p1_power])
+	else:
+		_log("P%d drew from an empty deck. Game is a draw on active ritual power (%d-%d)." % [trigger_player, p0_power, p1_power])
 
 
 func _check_power_win(p: int) -> void:
