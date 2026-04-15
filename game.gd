@@ -73,6 +73,7 @@ var _locked_sacrifice_mids: Array = []
 
 var _insight_open: bool = false
 var _insight_hand_idx: int = -1
+var _insight_noble_mid: int = -1
 var _insight_n: int = 0
 var _insight_sac: Array = []
 var _insight_target: int = 0
@@ -671,14 +672,27 @@ func _submit_dethrone_play(hand_idx: int, noble_mids: Array) -> void:
 	_broadcast_sync(true)
 
 
-func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array) -> void:
+func _submit_noble_activate_with_insight(noble_mid: int, insight_target: int, insight_perm: Array) -> void:
+	if _is_network_client():
+		submit_activate_noble_with_insight.rpc_id(1, noble_mid, insight_target, insight_perm)
+		_clear_insight_ui()
+		return
+	if _match == null:
+		return
+	if _match.activate_noble_with_insight(_my_player_for_action(), noble_mid, insight_target, insight_perm) != "ok":
+		status_label.text = "Could not activate noble."
+		return
+	_clear_insight_ui()
+	_broadcast_sync(true)
+
+
+func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array, noble_mid: int = -1) -> void:
 	_insight_hand_idx = hand_idx
+	_insight_noble_mid = noble_mid
 	_insight_n = n
 	_insight_sac = sac_mids.duplicate()
 	_pending_inc_hand_idx = hand_idx
-	if _is_network_client() or _match == null:
-		if _is_network_client():
-			submit_play_inc.rpc_id(1, hand_idx, sac_mids, [], -1, [])
+	if _match == null:
 		return
 	_insight_open = true
 	_insight_target = int(_last_snap.get("you", 0))
@@ -695,6 +709,7 @@ func _clear_insight_ui() -> void:
 		_insight_overlay.visible = false
 	_insight_open = false
 	_insight_hand_idx = -1
+	_insight_noble_mid = -1
 	_insight_sac.clear()
 	_insight_order.clear()
 	for c in _insight_cards_row.get_children():
@@ -800,6 +815,9 @@ func _on_insight_confirm_pressed() -> void:
 		else:
 			for i in take:
 				perm.append(i)
+	if _insight_noble_mid >= 0:
+		_submit_noble_activate_with_insight(_insight_noble_mid, _insight_target, perm)
+		return
 	_submit_inc_play_full(_insight_sac, [], _insight_target, perm)
 
 
@@ -1050,6 +1068,11 @@ func _make_noble_card(noble: Dictionary, ours: bool) -> Control:
 
 
 func _on_noble_activate_pressed(noble_mid: int) -> void:
+	var yours: Array = _last_snap.get("your_nobles", [])
+	for noble in yours:
+		if int(noble.get("mid", -1)) == noble_mid and str(noble.get("id", "")) == "indrr_incantation":
+			_begin_insight_ui(-1, 2, [], noble_mid)
+			return
 	if _is_network_client():
 		submit_activate_noble.rpc_id(1, noble_mid)
 		return
@@ -1600,6 +1623,17 @@ func submit_activate_noble(noble_mid: int) -> void:
 		return
 	var pl := _peer_to_player(_sender_peer())
 	if _match.activate_noble(pl, noble_mid) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_activate_noble_with_insight(noble_mid: int, insight_target: int, insight_perm: Array = []) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.activate_noble_with_insight(pl, noble_mid, insight_target, insight_perm) == "ok":
 		_broadcast_sync(true)
 
 

@@ -437,6 +437,31 @@ func activate_noble(p: int, noble_mid: int) -> String:
 	if not can_activate_noble(p, noble_mid):
 		return "illegal"
 	var noble := _find_noble_on_field(p, noble_mid)
+	if str(noble.get("id", "")) == "indrr_incantation":
+		return activate_noble_with_insight(p, noble_mid, -1, [])
+	var hook: Variant = _hook_for_noble(noble)
+	var result: Variant = hook.call("activate", self, p, noble)
+	if typeof(result) != TYPE_DICTIONARY:
+		return "illegal"
+	var rd := result as Dictionary
+	if not bool(rd.get("ok", false)):
+		return "illegal"
+	_mark_noble_used_this_turn(p, noble_mid)
+	var msg := str(rd.get("log", ""))
+	if not msg.is_empty():
+		_log(msg)
+	return "ok"
+
+
+func activate_noble_with_insight(p: int, noble_mid: int, insight_target: int, insight_perm: Array = []) -> String:
+	if not can_activate_noble(p, noble_mid):
+		return "illegal"
+	var noble := _find_noble_on_field(p, noble_mid)
+	if str(noble.get("id", "")) == "indrr_incantation":
+		_apply_incantation(p, "insight", 2, [], insight_target, insight_perm)
+		_mark_noble_used_this_turn(p, noble_mid)
+		_log("P%d activates Indrr (Insight 2)." % p)
+		return "ok"
 	var hook: Variant = _hook_for_noble(noble)
 	var result: Variant = hook.call("activate", self, p, noble)
 	if typeof(result) != TYPE_DICTIONARY:
