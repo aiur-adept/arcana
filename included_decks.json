@@ -1,5 +1,5 @@
 {
-	"deck_count": 6,
+	"deck_count": 9,
 	"decks": [
 		{
 			"cards": [
@@ -225,7 +225,7 @@
 					"4": 3.0
 				}
 			},
-			"deck_name": "default_deck",
+			"deck_name": "incantations_deck",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -815,22 +815,22 @@
 					"verb": "burn"
 				},
 				{
-					"name": "Aeoiu, Noble of Rituals",
+					"name": "Aeoiu, Scion of Rituals",
 					"noble_id": "aeoiu_rituals",
 					"type": "Noble"
 				},
 				{
-					"name": "Aeoiu, Noble of Rituals",
+					"name": "Aeoiu, Scion of Rituals",
 					"noble_id": "aeoiu_rituals",
 					"type": "Noble"
 				},
 				{
-					"name": "Aeoiu, Noble of Rituals",
+					"name": "Aeoiu, Scion of Rituals",
 					"noble_id": "aeoiu_rituals",
 					"type": "Noble"
 				},
 				{
-					"name": "Aeoiu, Noble of Rituals",
+					"name": "Aeoiu, Scion of Rituals",
 					"noble_id": "aeoiu_rituals",
 					"type": "Noble"
 				},
@@ -1236,7 +1236,7 @@
 						"verb": "burn"
 					},
 					{
-						"name": "Aeoiu, Noble of Rituals",
+						"name": "Aeoiu, Scion of Rituals",
 						"noble_id": "aeoiu_rituals",
 						"type": "Noble"
 					},
@@ -1403,6 +1403,725 @@
 				},
 				"schema_version": 1.0
 			}
+		},
+		{
+			"cards": [
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"name": "Zytzr, Noble of Annihilation",
+					"noble_id": "zytzr_annihilation",
+					"type": "Noble"
+				},
+				{
+					"name": "Wndrr, Noble of Incantation",
+					"noble_id": "wndrr_incantation",
+					"type": "Noble"
+				},
+				{
+					"name": "Tmrsk, Scion of Annihilation",
+					"noble_id": "tmrsk_annihilation",
+					"type": "Noble"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "woe"
+				}
+			],
+			"counts": {
+				"dethrones": 0.0,
+				"incantations": {
+					"burn_1": 0.0,
+					"burn_2": 0.0,
+					"burn_3": 0.0,
+					"burn_4": 0.0,
+					"dethrone_4": 0.0,
+					"insight_1": 0.0,
+					"insight_2": 0.0,
+					"insight_3": 0.0,
+					"insight_4": 0.0,
+					"revive_1": 0.0,
+					"seek_1": 0.0,
+					"seek_2": 0.0,
+					"seek_3": 0.0,
+					"seek_4": 0.0,
+					"woe_1": 4.0,
+					"woe_2": 4.0,
+					"woe_3": 4.0,
+					"woe_4": 2.0,
+					"wrath_4": 4.0
+				},
+				"nobles": {
+					"aeoiu_rituals": 0.0,
+					"bndrr_incantation": 0.0,
+					"indrr_incantation": 0.0,
+					"krss_power": 0.0,
+					"rmrsk_emanation": 0.0,
+					"rndrr_incantation": 0.0,
+					"smrsk_occultation": 0.0,
+					"sndrr_incantation": 0.0,
+					"tmrsk_annihilation": 1.0,
+					"trss_power": 0.0,
+					"wndrr_incantation": 1.0,
+					"xytzr_emanation": 0.0,
+					"yrss_power": 0.0,
+					"yytzr_occultation": 0.0,
+					"zytzr_annihilation": 1.0
+				},
+				"rituals": {
+					"1": 6.0,
+					"2": 4.0,
+					"3": 4.0,
+					"4": 5.0
+				}
+			},
+			"deck_name": "annihilation",
+			"rules_snapshot": {
+				"max_ritual_copies": 9.0,
+				"non_ritual_target": 21.0,
+				"ritual_target": 19.0,
+				"total_cards": 40.0
+			},
+			"schema_version": 1.0
+		},
+		{
+			"cards": [
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "insight"
+				},
+				{
+					"name": "Rmrsk, Scion of Emanation",
+					"noble_id": "rmrsk_emanation",
+					"type": "Noble"
+				},
+				{
+					"name": "Sndrr, Noble of Incantation",
+					"noble_id": "sndrr_incantation",
+					"type": "Noble"
+				},
+				{
+					"type": "Dethrone",
+					"value": 4.0
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 3.0,
+					"verb": "seek"
+				}
+			],
+			"counts": {
+				"dethrones": 1.0,
+				"incantations": {
+					"burn_1": 0.0,
+					"burn_2": 0.0,
+					"burn_3": 0.0,
+					"burn_4": 0.0,
+					"dethrone_4": 0.0,
+					"insight_1": 3.0,
+					"insight_2": 3.0,
+					"insight_3": 0.0,
+					"insight_4": 0.0,
+					"revive_1": 0.0,
+					"seek_1": 4.0,
+					"seek_2": 4.0,
+					"seek_3": 4.0,
+					"seek_4": 0.0,
+					"woe_1": 0.0,
+					"woe_2": 0.0,
+					"woe_3": 0.0,
+					"woe_4": 0.0,
+					"wrath_4": 0.0
+				},
+				"nobles": {
+					"aeoiu_rituals": 0.0,
+					"bndrr_incantation": 0.0,
+					"indrr_incantation": 0.0,
+					"krss_power": 0.0,
+					"rmrsk_emanation": 1.0,
+					"rndrr_incantation": 0.0,
+					"smrsk_occultation": 0.0,
+					"sndrr_incantation": 1.0,
+					"tmrsk_annihilation": 0.0,
+					"trss_power": 0.0,
+					"wndrr_incantation": 0.0,
+					"xytzr_emanation": 0.0,
+					"yrss_power": 0.0,
+					"yytzr_occultation": 0.0,
+					"zytzr_annihilation": 0.0
+				},
+				"rituals": {
+					"1": 6.0,
+					"2": 5.0,
+					"3": 4.0,
+					"4": 4.0
+				}
+			},
+			"deck_name": "emanation",
+			"rules_snapshot": {
+				"max_ritual_copies": 9.0,
+				"non_ritual_target": 21.0,
+				"ritual_target": 19.0,
+				"total_cards": 40.0
+			},
+			"schema_version": 1.0
+		},
+		{
+			"cards": [
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 1.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 2.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 3.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"type": "Ritual",
+					"value": 4.0
+				},
+				{
+					"name": "Rmrsk, Scion of Emanation",
+					"noble_id": "rmrsk_emanation",
+					"type": "Noble"
+				},
+				{
+					"name": "Smrsk, Scion of Occultation",
+					"noble_id": "smrsk_occultation",
+					"type": "Noble"
+				},
+				{
+					"name": "Tmrsk, Scion of Annihilation",
+					"noble_id": "tmrsk_annihilation",
+					"type": "Noble"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "woe"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "burn"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "burn"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "burn"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "burn"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4.0,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2.0,
+					"verb": "insight"
+				}
+			],
+			"counts": {
+				"dethrones": 0.0,
+				"incantations": {
+					"burn_1": 0.0,
+					"burn_2": 4.0,
+					"burn_3": 0.0,
+					"burn_4": 0.0,
+					"dethrone_4": 0.0,
+					"insight_1": 0.0,
+					"insight_2": 2.0,
+					"insight_3": 0.0,
+					"insight_4": 0.0,
+					"revive_1": 0.0,
+					"seek_1": 0.0,
+					"seek_2": 4.0,
+					"seek_3": 0.0,
+					"seek_4": 0.0,
+					"woe_1": 0.0,
+					"woe_2": 4.0,
+					"woe_3": 0.0,
+					"woe_4": 0.0,
+					"wrath_4": 4.0
+				},
+				"nobles": {
+					"aeoiu_rituals": 0.0,
+					"bndrr_incantation": 0.0,
+					"indrr_incantation": 0.0,
+					"krss_power": 0.0,
+					"rmrsk_emanation": 1.0,
+					"rndrr_incantation": 0.0,
+					"smrsk_occultation": 1.0,
+					"sndrr_incantation": 0.0,
+					"tmrsk_annihilation": 1.0,
+					"trss_power": 0.0,
+					"wndrr_incantation": 0.0,
+					"xytzr_emanation": 0.0,
+					"yrss_power": 0.0,
+					"yytzr_occultation": 0.0,
+					"zytzr_annihilation": 0.0
+				},
+				"rituals": {
+					"1": 7.0,
+					"2": 5.0,
+					"3": 4.0,
+					"4": 3.0
+				}
+			},
+			"deck_name": "scion_test",
+			"rules_snapshot": {
+				"max_ritual_copies": 9.0,
+				"non_ritual_target": 21.0,
+				"ritual_target": 19.0,
+				"total_cards": 40.0
+			},
+			"schema_version": 1.0
 		}
 	],
 	"exported_at": "2026-04-16T02:53:24",

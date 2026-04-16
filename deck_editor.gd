@@ -254,19 +254,48 @@ func _build_gallery_card(entry: Dictionary, readonly: bool) -> Control:
 		CardPreviewPresenter.hide_preview(_hover_preview)
 	)
 
+	var kind := str(entry.get("kind", ""))
+	var base_bg := Color(0.13, 0.16, 0.21)
+	var base_border := Color(0.42, 0.5, 0.64)
+	var hover_border := Color(0.8, 0.88, 1.0)
+	var disabled_bg := Color(0.1, 0.11, 0.14)
+	var disabled_border := Color(0.3, 0.32, 0.38)
+	var font_color := Color(0.96, 0.96, 0.98)
+	var font_hover_color := Color(0.98, 0.98, 1.0)
+	var font_disabled_color := Color(0.62, 0.66, 0.74)
+	if kind == "ritual":
+		base_border = Color(0.95, 0.78, 0.24)
+		hover_border = Color(1.0, 0.88, 0.42)
+		disabled_border = Color(0.56, 0.5, 0.32)
+		font_color = Color(0.95, 0.78, 0.24)
+		font_hover_color = Color(1.0, 0.88, 0.42)
+		font_disabled_color = Color(0.62, 0.56, 0.38)
+	elif kind == "noble":
+		base_bg = Color(0.13, 0.1, 0.18)
+		base_border = Color(0.84, 0.7, 1.0)
+		hover_border = Color(0.92, 0.82, 1.0)
+		disabled_bg = Color(0.11, 0.09, 0.14)
+		disabled_border = Color(0.46, 0.4, 0.58)
+		font_color = Color(0.96, 0.93, 1.0)
+		font_hover_color = Color(0.99, 0.96, 1.0)
+		font_disabled_color = Color(0.69, 0.64, 0.78)
+
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(10)
 	sb.set_border_width_all(2)
-	sb.bg_color = Color(0.13, 0.16, 0.21)
-	sb.border_color = Color(0.42, 0.5, 0.64)
+	sb.bg_color = base_bg
+	sb.border_color = base_border
 	btn.add_theme_stylebox_override("normal", sb)
 	var sb_hover := sb.duplicate()
-	sb_hover.border_color = Color(0.8, 0.88, 1.0)
+	sb_hover.border_color = hover_border
 	btn.add_theme_stylebox_override("hover", sb_hover)
 	var sb_disabled := sb.duplicate()
-	sb_disabled.bg_color = Color(0.1, 0.11, 0.14)
-	sb_disabled.border_color = Color(0.3, 0.32, 0.38)
+	sb_disabled.bg_color = disabled_bg
+	sb_disabled.border_color = disabled_border
 	btn.add_theme_stylebox_override("disabled", sb_disabled)
+	btn.add_theme_color_override("font_color", font_color)
+	btn.add_theme_color_override("font_hover_color", font_hover_color)
+	btn.add_theme_color_override("font_disabled_color", font_disabled_color)
 
 	card_slot.add_child(btn)
 	return card_slot

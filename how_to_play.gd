@@ -110,6 +110,7 @@ func _spacer(w: float) -> Control:
 func _make_ritual_card(value: int, active: bool) -> Control:
 	var w := RITUAL_CARD_H * RITUAL_CARD_ASPECT
 	var h := RITUAL_CARD_H
+	var ritual_gold := Color(0.95, 0.78, 0.24)
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(w, h)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -117,7 +118,7 @@ func _make_ritual_card(value: int, active: bool) -> Control:
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(2)
 	sb.bg_color = Color(0.04, 0.04, 0.06)
-	sb.border_color = Color(0.95, 0.95, 0.95)
+	sb.border_color = ritual_gold
 	panel.add_theme_stylebox_override("panel", sb)
 	var rv := value
 	panel.mouse_entered.connect(func() -> void:
@@ -134,7 +135,7 @@ func _make_ritual_card(value: int, active: bool) -> Control:
 	lbl.text = str(value)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_color_override("font_color", Color(0.98, 0.98, 0.98))
+	lbl.add_theme_color_override("font_color", ritual_gold)
 	lbl.add_theme_font_size_override("font_size", 26)
 	cc.add_child(lbl)
 	if not active:

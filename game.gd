@@ -1274,10 +1274,20 @@ func _build_crypt_ui() -> void:
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	margin.add_child(vb)
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 10)
+	vb.add_child(title_row)
 	_crypt_modal_title = Label.new()
 	_crypt_modal_title.text = "Your crypt"
 	_crypt_modal_title.add_theme_font_size_override("font_size", 22)
-	vb.add_child(_crypt_modal_title)
+	_crypt_modal_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(_crypt_modal_title)
+	_crypt_modal_close_button = Button.new()
+	_crypt_modal_close_button.text = "X"
+	_crypt_modal_close_button.custom_minimum_size = Vector2(36, 32)
+	_apply_ui_button_padding(_crypt_modal_close_button)
+	_crypt_modal_close_button.pressed.connect(_hide_crypt_modal)
+	title_row.add_child(_crypt_modal_close_button)
 	_crypt_modal_hint = Label.new()
 	_crypt_modal_hint.text = "Hover stacks for preview."
 	vb.add_child(_crypt_modal_hint)
@@ -1288,11 +1298,6 @@ func _build_crypt_ui() -> void:
 	_crypt_modal_list = VBoxContainer.new()
 	_crypt_modal_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_crypt_modal_list)
-	_crypt_modal_close_button = Button.new()
-	_crypt_modal_close_button.text = "Close"
-	_apply_ui_button_padding(_crypt_modal_close_button)
-	_crypt_modal_close_button.pressed.connect(_hide_crypt_modal)
-	vb.add_child(_crypt_modal_close_button)
 
 
 func _your_crypt_cards_from_snap(snap: Dictionary) -> Array:
@@ -1360,6 +1365,8 @@ func _update_crypt_button_and_popups(snap: Dictionary) -> void:
 
 
 func _show_crypt_hover_popup() -> void:
+	if _crypt_focus_zone == "crypt":
+		return
 	if _crypt_modal_overlay.visible:
 		return
 	var cards := _active_crypt_cards_from_snap(_last_snap)
@@ -1455,10 +1462,7 @@ func _on_crypt_button_mouse_exited() -> void:
 func _on_crypt_button_pressed() -> void:
 	_crypt_focus_zone = "crypt"
 	_crypt_focus_opponent = false
-	if _crypt_modal_overlay.visible:
-		_hide_crypt_modal()
-	else:
-		_show_crypt_modal()
+	_show_crypt_modal()
 
 
 func _on_opp_crypt_button_mouse_entered() -> void:
@@ -1474,10 +1478,7 @@ func _on_opp_crypt_button_mouse_exited() -> void:
 func _on_opp_crypt_button_pressed() -> void:
 	_crypt_focus_zone = "crypt"
 	_crypt_focus_opponent = true
-	if _crypt_modal_overlay.visible:
-		_hide_crypt_modal()
-	else:
-		_show_crypt_modal()
+	_show_crypt_modal()
 
 
 func _on_abyss_button_mouse_entered() -> void:
