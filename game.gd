@@ -1,7 +1,6 @@
 extends Control
 
 const IncludedDecks = preload("res://included_decks.gd")
-const CardPreviewPresenter = preload("res://card_preview_presenter.gd")
 
 class InsightDnDSlot extends Panel:
 	var slot_index: int = 0
