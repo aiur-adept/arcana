@@ -819,7 +819,11 @@ func _after_sync_local_cpu() -> void:
 	if _match == null:
 		return
 	var s0 := _match.snapshot(0)
+	var s1 := _match.snapshot(1)
 	if int(s0.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
+		return
+	if bool(s1.get("woe_pending_you_respond", false)):
+		call_deferred("_run_cpu_turn")
 		return
 	if bool(s0.get("mulligan_active", false)):
 		if int(s0.get("current", -1)) == 1:
@@ -885,12 +889,16 @@ func _apply_snap(snap: Dictionary) -> void:
 		ui_block = true
 	if bool(snap.get("woe_pending_you_respond", false)):
 		status_label.text = "Woe: choose %d card(s) from your hand to discard." % int(snap.get("woe_pending_amount", 0))
+	else:
+		_woe_self_picked.clear()
 	if bool(snap.get("woe_pending_waiting", false)):
 		status_label.text = "Waiting for opponent to discard for Woe…"
 	end_turn_button.disabled = not mine or ui_block
 	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or ui_block
 	_rebuild_hand(snap.get("your_hand", []))
-	if _selecting_end_discard:
+	if bool(snap.get("woe_pending_you_respond", false)):
+		_update_woe_discard_status()
+	elif _selecting_end_discard:
 		_show_end_discard_modal()
 	else:
 		_hide_end_discard_modal()
@@ -1123,7 +1131,10 @@ func _show_mulligan_ui(snap: Dictionary) -> void:
 
 
 func _on_end_discard_confirm_pressed() -> void:
-	_confirm_end_turn_discard()
+	if bool(_last_snap.get("woe_pending_you_respond", false)):
+		_confirm_woe_discard()
+	else:
+		_confirm_end_turn_discard()
 
 
 func _on_game_end_play_again_pressed() -> void:
@@ -1929,8 +1940,9 @@ func _rebuild_hand(hand: Variant) -> void:
 		var key := _hand_card_stack_key(card)
 		card_counts[key] = int(card_counts.get(key, 0)) + 1
 	var rendered_keys: Dictionary = {}
-	var group_duplicates := true
 	var mine: bool = int(_last_snap.get("current", -1)) == int(_last_snap.get("you", -2))
+	var woe_you := bool(_last_snap.get("woe_pending_you_respond", false))
+	var group_duplicates := true
 	var ritual_used := mine and bool(_last_snap.get("your_ritual_played", false))
 	var noble_used := mine and bool(_last_snap.get("your_noble_played", false))
 	var idx := 0
@@ -1944,9 +1956,12 @@ func _rebuild_hand(hand: Variant) -> void:
 		var ritual_blocked := ritual_used and ctype == "ritual"
 		var noble_blocked := noble_used and ctype == "noble"
 		var play_type_blocked := (ritual_blocked or noble_blocked) and not _mode_discard_draw and not _selecting_end_discard
-		var is_disabled := (not mine and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked
+		var waiting_input_window := mine or woe_you
+		var is_disabled := (not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked
 		var picked_count := 0
-		if _selecting_end_discard:
+		if woe_you:
+			picked_count = int(_woe_self_picked.get(stack_key, 0))
+		elif _selecting_end_discard:
 			picked_count = int(_end_discard_picked.get(stack_key, 0))
 		var picked := picked_count > 0
 		var stack_count := int(card_counts.get(stack_key, 0))
@@ -2048,6 +2063,16 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		pick_badge.add_theme_font_size_override("font_size", 12)
 		pick_badge.add_theme_color_override("font_color", Color(1.0, 0.86, 0.86))
 		shell.add_child(pick_badge)
+	elif bool(_last_snap.get("woe_pending_you_respond", false)) and picked:
+		var woe_badge := Label.new()
+		woe_badge.text = "W"
+		woe_badge.position = Vector2(depth * shift + 6, 4)
+		woe_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		woe_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		woe_badge.custom_minimum_size = Vector2(16, 16)
+		woe_badge.add_theme_font_size_override("font_size", 12)
+		woe_badge.add_theme_color_override("font_color", Color(1.0, 0.75, 0.75))
+		shell.add_child(woe_badge)
 	return shell
 
 
@@ -2110,26 +2135,23 @@ func _on_hand_pressed(hand_idx: int) -> void:
 	var c: Dictionary = hand[hand_idx]
 	if woe_you:
 		var need_w := int(snap.get("woe_pending_amount", 0))
-		if _woe_self_picked.has(hand_idx):
-			_woe_self_picked.erase(hand_idx)
-		else:
-			if _woe_self_picked.size() < need_w:
-				_woe_self_picked[hand_idx] = true
-		var need_pick := mini(need_w, hand.size())
-		if need_pick > 0 and _woe_self_picked.size() == need_pick:
-			var idxs_v: Array = []
-			for k in _woe_self_picked.keys():
-				idxs_v.append(int(k))
-			idxs_v.sort()
-			if _is_network_client():
-				submit_woe_discard.rpc_id(1, idxs_v)
+		var stack_key_w := _hand_card_stack_key(c)
+		var stack_total_w := 0
+		for card_in_hand_w in hand:
+			if _hand_card_stack_key(card_in_hand_w) == stack_key_w:
+				stack_total_w += 1
+		var stack_picked_w := int(_woe_self_picked.get(stack_key_w, 0))
+		var total_picked_w := _woe_discard_selected_total()
+		if total_picked_w < need_w and stack_picked_w < stack_total_w:
+			_woe_self_picked[stack_key_w] = stack_picked_w + 1
+		elif stack_picked_w > 0:
+			stack_picked_w -= 1
+			if stack_picked_w <= 0:
+				_woe_self_picked.erase(stack_key_w)
 			else:
-				if _match != null:
-					_match.submit_woe_discard(_my_player_for_action(), idxs_v)
-			_woe_self_picked.clear()
-			_broadcast_sync(true)
-		else:
-			_rebuild_hand(hand)
+				_woe_self_picked[stack_key_w] = stack_picked_w
+		_update_woe_discard_status()
+		_rebuild_hand(hand)
 		return
 	if _woe_self_picking and _pending_noble_woe_mid >= 0:
 		if _woe_self_picked.has(hand_idx):
@@ -2470,6 +2492,66 @@ func _update_end_discard_status() -> void:
 		_hide_end_discard_modal()
 
 
+func _woe_discard_selected_total() -> int:
+	var total := 0
+	for v in _woe_self_picked.values():
+		total += int(v)
+	return total
+
+
+func _woe_discard_indices_from_hand(hand: Array) -> Array:
+	var grouped_indices: Dictionary = {}
+	for i in hand.size():
+		var key_i := _hand_card_stack_key(hand[i])
+		if not grouped_indices.has(key_i):
+			grouped_indices[key_i] = []
+		var arr_i: Array = grouped_indices[key_i]
+		arr_i.append(i)
+		grouped_indices[key_i] = arr_i
+	var indices: Array = []
+	for key in _woe_self_picked.keys():
+		var need_from_key := int(_woe_self_picked.get(key, 0))
+		var picks_for_key: Array = grouped_indices.get(key, [])
+		for j in mini(need_from_key, picks_for_key.size()):
+			indices.append(picks_for_key[j])
+	return indices
+
+
+func _update_woe_discard_status() -> void:
+	var need := int(_last_snap.get("woe_pending_amount", 0))
+	var selected := _woe_discard_selected_total()
+	status_label.text = "Woe: select %d card(s). Selected %d/%d." % [need, selected, need]
+	if _end_discard_label != null:
+		_end_discard_label.text = "Woe discard\nSelected %d/%d" % [selected, need]
+	if _end_discard_confirm_button != null:
+		_end_discard_confirm_button.text = "Confirm discard"
+		_end_discard_confirm_button.disabled = selected < need
+	_show_end_discard_modal()
+
+
+func _confirm_woe_discard() -> void:
+	if not bool(_last_snap.get("woe_pending_you_respond", false)):
+		return
+	var need := int(_last_snap.get("woe_pending_amount", 0))
+	if _woe_discard_selected_total() < need:
+		_update_woe_discard_status()
+		return
+	var idxs: Array = _woe_discard_indices_from_hand(_last_snap.get("your_hand", []) as Array)
+	idxs.sort()
+	if _is_network_client():
+		submit_woe_discard.rpc_id(1, idxs)
+		_woe_self_picked.clear()
+	else:
+		if _match != null:
+			var wr := _match.submit_woe_discard(_my_player_for_action(), idxs)
+			if wr != "ok":
+				status_label.text = "Woe discard selection rejected (%s). Re-select cards." % wr
+				_update_woe_discard_status()
+				return
+			_woe_self_picked.clear()
+	_broadcast_sync(true)
+
+
 func _run_cpu_turn() -> void:
 	if _match == null:
 		return
@@ -2479,8 +2561,6 @@ func _run_cpu_turn() -> void:
 		snap = _match.snapshot(1)
 		if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 			return
-		if int(snap.get("current", -1)) != int(snap.get("you", -2)):
-			return
 		if bool(snap.get("woe_pending_you_respond", false)):
 			var hwo: Array = snap.get("your_hand", [])
 			var needw := int(snap.get("woe_pending_amount", 0))
@@ -2489,6 +2569,8 @@ func _run_cpu_turn() -> void:
 				idxsw.append(wi)
 			_try_submit_woe_discard(1, idxsw, false)
 			continue
+		if int(snap.get("current", -1)) != int(snap.get("you", -2)):
+			return
 		var hand: Array = snap.get("your_hand", [])
 		var played_ritual := false
 		for i in hand.size():
