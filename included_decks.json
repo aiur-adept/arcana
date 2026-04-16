@@ -225,7 +225,7 @@
 					"4": 3.0
 				}
 			},
-			"deck_name": "incantations_deck",
+			"deck_name": "Incantations Deck",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -454,7 +454,7 @@
 					"4": 3.0
 				}
 			},
-			"deck_name": "noble_test",
+			"deck_name": "Noble_Test",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -687,7 +687,7 @@
 					"4": 0.0
 				}
 			},
-			"deck_name": "wrathseek-sac",
+			"deck_name": "Wrathseek-Sac",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -923,7 +923,7 @@
 					"4": 5.0
 				}
 			},
-			"deck_name": "Ritual reanimator",
+			"deck_name": "Ritual Reanimator",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -1156,7 +1156,7 @@
 					"4": 8
 				}
 			},
-			"deck_name": "topheavy annihilator",
+			"deck_name": "Topheavy Annihilator",
 			"rules_snapshot": {
 				"max_ritual_copies": 9,
 				"non_ritual_target": 21,
@@ -1635,7 +1635,7 @@
 					"4": 5.0
 				}
 			},
-			"deck_name": "annihilation",
+			"deck_name": "Annihilation",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -1874,7 +1874,7 @@
 					"4": 4.0
 				}
 			},
-			"deck_name": "emanation",
+			"deck_name": "Emanation",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
@@ -2114,7 +2114,7 @@
 					"4": 3.0
 				}
 			},
-			"deck_name": "scion_test",
+			"deck_name": "Scion Test",
 			"rules_snapshot": {
 				"max_ritual_copies": 9.0,
 				"non_ritual_target": 21.0,
