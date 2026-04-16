@@ -89,7 +89,7 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 
 *Zytzr, Noble of Annihilation*: Whenever you *Wrath*, destroy an extra ritual. Whenever you *Woe*, the player discards an additional card.
 
-*Aeoiu, Noble of Rituals*: Once per turn, you may play a Ritual from your crypt.
+*Aeoiu, Scion of Rituals*: Once per turn, you may play a Ritual from your crypt.
 
 #### Cost 3 
 

@@ -3,7 +3,7 @@ extends RefCounted
 func build_definition() -> Dictionary:
 	return {
 		"id": "aeoiu_rituals",
-		"name": "Aeoiu, Noble of Rituals",
+		"name": "Aeoiu, Scion of Rituals",
 		"cost": 4
 	}
 
