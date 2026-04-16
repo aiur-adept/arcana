@@ -32,6 +32,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "edit deck"
 
+[node name="HowToPlayLink" type="LinkButton" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "how to play"
+
 [node name="BottomBar" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 12

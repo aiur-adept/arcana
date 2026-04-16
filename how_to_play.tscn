@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://how_to_play.gd" id="1_howto"]
+
+[node name="HowToPlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_howto")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "How To Play"
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Content" type="RichTextLabel" parent="Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "During Your Turn
+1. Draw — Draw 1 card from your deck.
+2. Play cards — You may play:
+   - Any number of Incantations (provided you have the matching active Ritual, or sacrifice Rituals to cover the cost)
+   - Up to 1 Ritual
+   - Up to 1 Noble
+3. Loot (optional) — Once per turn, you may discard a card to draw a card.
+4. Discard down — At the end of your turn, discard until you have 7 cards in hand.
+
+Quick reminder on Rituals
+A Ritual is only active if all lower-numbered Rituals (down to 1) are also on your field.
+You need an active Ritual of matching value to play Incantations, or you can sacrifice Rituals whose values add up to at least the cost.
+
+Nobles
+Nobles have a cost listed on the card.
+For example, you must have the 4-Ritual active to cast Trss, Noble of Power.
+
+Win Conditions
+- Reach 20 active Ritual power and you win immediately.
+- If a player must draw from an empty deck, the game ends:
+  - Higher active Ritual power wins.
+  - If active Ritual power is tied, the game is a draw."
+
+[node name="BottomRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="BackButton" type="Button" parent="Margin/VBox/BottomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back to Main Menu"

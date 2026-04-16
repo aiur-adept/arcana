@@ -19,6 +19,7 @@ var _deck_paths: Array[String] = []
 func _ready() -> void:
 	%PlayLink.pressed.connect(_on_play_pressed)
 	%DeckEditorLink.pressed.connect(_on_deck_editor_pressed)
+	%HowToPlayLink.pressed.connect(_on_how_to_play_pressed)
 	%ExitButton.pressed.connect(_on_exit_pressed)
 	deck_picker_list.item_selected.connect(_on_deck_picker_item_selected)
 	deck_picker_list.item_activated.connect(_on_deck_picker_item_activated)
@@ -97,6 +98,10 @@ func _play_with_selected_deck(index: int) -> void:
 
 func _on_deck_editor_pressed() -> void:
 	get_tree().change_scene_to_file("res://deck_editor.tscn")
+
+
+func _on_how_to_play_pressed() -> void:
+	get_tree().change_scene_to_file("res://how_to_play.tscn")
 
 
 func _on_exit_pressed() -> void:
