@@ -8,6 +8,8 @@ Players determine who goes first based on a challenge (ie. D20)
 
 Starting hands: 5 cards (with a single london mulligan allowed (draw 5 put one on the bottom of library))
 
+Game zones: hand, field [where rituals and nobles go], crypt [where discarded cards go]
+
 Card types: ritual, incantation, noble
 
 At the start of a player's turn, they draw a card from their deck.
@@ -48,17 +50,31 @@ Woe X: a chosen player discards X cards
 
 Wrath 4: Choose and destroy 2 opponent rituals
 
-Revive 1: return 1 discarded incantation to hand
+Revive 1: you may play 1 incantation from your crypt
 
 Dethrone 4: Choose and destroy an opponent's noble
 
 ### Nobles:
 
+#### Cost 4
+
 Krss, Noble of Power: A low-cost power noble that grants access to incantation lane 1.
 Trss, Noble of Power: A mid-cost power noble that grants access to incantation lane 2.
 Yrss, Noble of Power: A higher-cost power noble that grants access to incantation lane 3.
+
+Xytzr, Noble of Emanation: Whenever you Seek, draw an additional card. Whenever you Insight, look at and additional card.
+Yytzr, Noble of Occultation: Whenever you Burn, add 3 to the number to be discarded. Whenever you Revive, you may sacrifice {2} or more. If you do, you may play an additional card from the crypt.
+Zytzr, Noble of Annihilation: Whenever you wrath, destroy an extra ritual. Whenever you Woe, the player discards an additional card.
+
+Aeoiu, Noble of Rituals: Once per turn, you may play a Ritual from your crypt.
+
+#### Cost 3 
+
 Bndrr, Noble of Incantation: Once per turn, it can activate to cast a spell-like Burn 1 effect.
 Indrr, Noble of Incantation: Once per turn, it can activate to cast a spell-like Insight 2 effect.
 Rndrr, Noble of Incantation: Once per turn, it can activate to cast a spell-like Revive 1 effect.
 Sndrr, Noble of Incantation: Once per turn, it can activate to cast a spell-like Seek 1 effect.
 Wndrr, Noble of Incantation: Once per turn, it can activate to cast a spell-like Woe 1 effect.
+
+
+
