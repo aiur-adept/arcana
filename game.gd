@@ -63,6 +63,11 @@ const INC_PICK_NONE := 0
 const INC_PICK_SAC := 1
 const INC_PICK_WRATH := 2
 const INC_PICK_DETHRONE := 3
+const INC_PICK_BURN_TGT := 4
+const INC_PICK_WOE_TGT := 5
+const INC_PICK_WOE_SELF := 6
+const INC_PICK_REVIVE := 7
+const INC_PICK_YTTR := 8
 var _sacrifice_selecting: bool = false
 var _inc_pick_phase: int = INC_PICK_NONE
 var _pending_inc_hand_idx: int = -1
@@ -74,6 +79,7 @@ var _dethrone_selected_mid: int = -1
 var _sacrifice_selected_mids: Dictionary = {}
 var _wrath_selected_mids: Dictionary = {}
 var _locked_sacrifice_mids: Array = []
+var _effect_sac: Array = []
 
 var _insight_open: bool = false
 var _insight_hand_idx: int = -1
@@ -89,6 +95,41 @@ var _insight_btn_confirm: Button
 var _insight_btn_cancel: Button
 var _insight_btn_yours: Button
 var _insight_btn_opps: Button
+var _insight_revive_crypt_idx: int = -1
+
+var _burn_woe_overlay: Control
+var _burn_woe_title: Label
+var _burn_woe_hint: Label
+var _tgt_left_btn: Button
+var _tgt_right_btn: Button
+var _burn_woe_confirm: Button
+var _burn_woe_cancel: Button
+var _burn_woe_mode: String = ""
+var _pending_mill_target: int = -1
+var _pending_woe_target: int = -1
+var _woe_self_picking: bool = false
+var _woe_self_need: int = 0
+var _woe_self_picked: Dictionary = {}
+var _revive_overlay: Control
+var _revive_crypt_row: VBoxContainer
+var _revive_skip_btn: Button
+var _revive_cancel_btn: Button
+var _revive_pick_phase: bool = false
+var _nested_revive_crypt_idx: int = -1
+var _nested_revive_value: int = 0
+var _wrath_is_revive_nested: bool = false
+var _noble_spell_mid: int = -1
+var _pending_noble_woe_mid: int = -1
+var _revive_ui_for_noble_mid: int = -1
+
+var _yytzr_pending_first_ctx: Dictionary = {}
+var _yytzr_first_step: Dictionary = {}
+var _yytzr_waits_second_crypt: bool = false
+var _yytzr_extra_sac_mids: Array = []
+
+var _aeoiu_overlay: Control
+var _aeoiu_crypt_row: VBoxContainer
+var _aeoiu_noble_mid: int = -1
 
 var _hover_preview_root: Panel
 var _hover_preview_title: Label
@@ -118,11 +159,63 @@ func _is_network_pvp() -> bool:
 	return false
 
 
+func _player_has_noble_id(snap: Dictionary, noble_id: String) -> bool:
+	var nl: Array = snap.get("your_nobles", []) as Array
+	for n in nl:
+		if str(n.get("noble_id", "")) == noble_id:
+			return true
+	return false
+
+
+func _insight_depth_for(snap: Dictionary, base: int) -> int:
+	return base + (1 if _player_has_noble_id(snap, "xytzr_emanation") else 0)
+
+
+func _wrath_effective_destroy_count(snap: Dictionary, n: int) -> int:
+	var b := _wrath_destroy_count(n)
+	if b <= 0:
+		return 0
+	if _player_has_noble_id(snap, "zytzr_annihilation"):
+		return b + 1
+	return b
+
+
+func _woe_discard_count_ui(snap: Dictionary, base_val: int, victim_is_you: bool) -> int:
+	var hand_sz: int
+	if victim_is_you:
+		hand_sz = (snap.get("your_hand", []) as Array).size()
+	else:
+		hand_sz = int(snap.get("opp_hand", 0))
+	var extra := 1 if _player_has_noble_id(snap, "zytzr_annihilation") else 0
+	return mini(base_val + extra, hand_sz)
+
+
+func _yytzr_should_offer_bonus(ctx: Dictionary) -> bool:
+	if _yytzr_waits_second_crypt:
+		return false
+	if _pending_inc_n != 1:
+		return false
+	if not _player_has_noble_id(_last_snap, "yytzr_occultation"):
+		return false
+	var st: Array = ctx.get("revive_steps", []) as Array
+	if st.size() != 1:
+		return false
+	return not bool((st[0] as Dictionary).get("revive_skip", false))
+
+
+func _yytzr_clear_bonus_state() -> void:
+	_yytzr_waits_second_crypt = false
+	_yytzr_first_step = {}
+	_yytzr_extra_sac_mids.clear()
+	_yytzr_pending_first_ctx = {}
+
+
 func _ready() -> void:
 	set_multiplayer_authority(1)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.clip_text = true
 	_build_insight_overlay()
+	_build_burn_woe_revive_overlays()
 	_build_hover_preview_panel()
 	_build_game_end_modal()
 	_build_end_discard_modal()
@@ -252,6 +345,390 @@ func _build_insight_overlay() -> void:
 	_insight_btn_cancel.pressed.connect(_on_insight_cancel_pressed)
 
 
+func _build_burn_woe_revive_overlays() -> void:
+	_burn_woe_overlay = Control.new()
+	_burn_woe_overlay.name = "BurnWoeOverlay"
+	_burn_woe_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_burn_woe_overlay.visible = false
+	_burn_woe_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_burn_woe_overlay.z_index = 99
+	add_child(_burn_woe_overlay)
+	var back := ColorRect.new()
+	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	back.color = Color(0, 0, 0, 0.55)
+	back.mouse_filter = Control.MOUSE_FILTER_STOP
+	_burn_woe_overlay.add_child(back)
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_burn_woe_overlay.add_child(cc)
+	var inner := VBoxContainer.new()
+	cc.add_child(inner)
+	_burn_woe_title = Label.new()
+	inner.add_child(_burn_woe_title)
+	var h := HBoxContainer.new()
+	_tgt_left_btn = Button.new()
+	_tgt_right_btn = Button.new()
+	h.add_child(_tgt_left_btn)
+	h.add_child(_tgt_right_btn)
+	inner.add_child(h)
+	_burn_woe_hint = Label.new()
+	_burn_woe_hint.custom_minimum_size = Vector2(400, 0)
+	inner.add_child(_burn_woe_hint)
+	var row2 := HBoxContainer.new()
+	_burn_woe_confirm = Button.new()
+	_burn_woe_confirm.text = "Confirm"
+	_burn_woe_cancel = Button.new()
+	_burn_woe_cancel.text = "Cancel"
+	row2.add_child(_burn_woe_confirm)
+	row2.add_child(_burn_woe_cancel)
+	inner.add_child(row2)
+	_tgt_left_btn.pressed.connect(_on_burn_woe_left_pressed)
+	_tgt_right_btn.pressed.connect(_on_burn_woe_right_pressed)
+	_burn_woe_confirm.pressed.connect(_on_burn_woe_confirm_pressed)
+	_burn_woe_cancel.pressed.connect(_on_burn_woe_cancel_pressed)
+	_revive_overlay = Control.new()
+	_revive_overlay.name = "ReviveOverlay"
+	_revive_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_revive_overlay.visible = false
+	_revive_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_revive_overlay.z_index = 98
+	add_child(_revive_overlay)
+	var back2 := ColorRect.new()
+	back2.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	back2.color = Color(0, 0, 0, 0.55)
+	_revive_overlay.add_child(back2)
+	var cc2 := CenterContainer.new()
+	cc2.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_revive_overlay.add_child(cc2)
+	var inner2 := VBoxContainer.new()
+	cc2.add_child(inner2)
+	var rt := Label.new()
+	rt.text = "Revive — cast from crypt or skip"
+	inner2.add_child(rt)
+	_revive_crypt_row = VBoxContainer.new()
+	inner2.add_child(_revive_crypt_row)
+	var row3 := HBoxContainer.new()
+	_revive_skip_btn = Button.new()
+	_revive_skip_btn.text = "Skip (no effect)"
+	row3.add_child(_revive_skip_btn)
+	_revive_cancel_btn = Button.new()
+	_revive_cancel_btn.text = "Cancel"
+	row3.add_child(_revive_cancel_btn)
+	inner2.add_child(row3)
+	_revive_skip_btn.pressed.connect(_on_revive_skip_pressed)
+	_revive_cancel_btn.pressed.connect(_on_revive_cancel_pressed)
+	_aeoiu_overlay = Control.new()
+	_aeoiu_overlay.name = "AeoiuOverlay"
+	_aeoiu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_aeoiu_overlay.visible = false
+	_aeoiu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_aeoiu_overlay.z_index = 97
+	add_child(_aeoiu_overlay)
+	var back_a := ColorRect.new()
+	back_a.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	back_a.color = Color(0, 0, 0, 0.55)
+	_aeoiu_overlay.add_child(back_a)
+	var cca := CenterContainer.new()
+	cca.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_aeoiu_overlay.add_child(cca)
+	var inner_a := VBoxContainer.new()
+	cca.add_child(inner_a)
+	var lae := Label.new()
+	lae.text = "Aeoiu — choose a ritual from your crypt"
+	inner_a.add_child(lae)
+	_aeoiu_crypt_row = VBoxContainer.new()
+	inner_a.add_child(_aeoiu_crypt_row)
+	var ae_row := HBoxContainer.new()
+	var ae_cancel := Button.new()
+	ae_cancel.text = "Cancel"
+	ae_row.add_child(ae_cancel)
+	inner_a.add_child(ae_row)
+	ae_cancel.pressed.connect(_on_aeoiu_cancel_pressed)
+
+
+func _clear_burn_woe_overlay() -> void:
+	if _burn_woe_overlay:
+		_burn_woe_overlay.visible = false
+	_burn_woe_mode = ""
+	_inc_pick_phase = INC_PICK_NONE
+
+
+func _clear_woe_self_pick() -> void:
+	_woe_self_picking = false
+	_woe_self_need = 0
+	_woe_self_picked.clear()
+
+
+func _clear_revive_overlay() -> void:
+	if _revive_overlay:
+		_revive_overlay.visible = false
+	_revive_pick_phase = false
+	for c in _revive_crypt_row.get_children():
+		c.queue_free()
+
+
+func _begin_burn_target_ui(hand_idx: int, n: int, sac_mids: Array) -> void:
+	_pending_inc_hand_idx = hand_idx
+	_pending_inc_n = n
+	_effect_sac = sac_mids.duplicate()
+	_burn_woe_mode = "burn"
+	var y := int(_last_snap.get("you", 0))
+	_pending_mill_target = y
+	_burn_woe_title.text = "Burn — choose which deck to mill"
+	_tgt_left_btn.text = "Your deck"
+	_tgt_right_btn.text = "Opponent deck"
+	_burn_woe_hint.text = "Then confirm."
+	_burn_woe_overlay.visible = true
+	_inc_pick_phase = INC_PICK_BURN_TGT
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _begin_woe_target_ui(hand_idx: int, n: int, sac_mids: Array) -> void:
+	_pending_inc_hand_idx = hand_idx
+	_pending_inc_n = n
+	_effect_sac = sac_mids.duplicate()
+	_burn_woe_mode = "woe"
+	var y := int(_last_snap.get("you", 0))
+	_pending_woe_target = y
+	_burn_woe_title.text = "Woe — who discards?"
+	_tgt_left_btn.text = "You"
+	_tgt_right_btn.text = "Opponent"
+	_burn_woe_hint.text = "If you discard, you will choose cards from your hand next."
+	_burn_woe_overlay.visible = true
+	_inc_pick_phase = INC_PICK_WOE_TGT
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_burn_woe_left_pressed() -> void:
+	var y := int(_last_snap.get("you", 0))
+	if _burn_woe_mode == "burn" or _burn_woe_mode == "noble_burn" or _burn_woe_mode == "revive_burn":
+		_pending_mill_target = y
+	elif _burn_woe_mode == "woe" or _burn_woe_mode == "noble_woe" or _burn_woe_mode == "revive_woe":
+		_pending_woe_target = y
+
+
+func _on_burn_woe_right_pressed() -> void:
+	var y := int(_last_snap.get("you", 0))
+	if _burn_woe_mode == "burn" or _burn_woe_mode == "noble_burn" or _burn_woe_mode == "revive_burn":
+		_pending_mill_target = 1 - y
+	elif _burn_woe_mode == "woe" or _burn_woe_mode == "noble_woe" or _burn_woe_mode == "revive_woe":
+		_pending_woe_target = 1 - y
+
+
+func _on_burn_woe_confirm_pressed() -> void:
+	if _burn_woe_mode == "noble_burn":
+		var ctxb := {"mill_target": _pending_mill_target}
+		if _is_network_client():
+			submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "burn", 1, [], ctxb)
+		else:
+			if _match != null:
+				_match.apply_noble_spell_like(_my_player_for_action(), _noble_spell_mid, "burn", 1, [], ctxb)
+		_noble_spell_mid = -1
+		_clear_incantation_flow_ui()
+		_broadcast_sync(true)
+		return
+	if _burn_woe_mode == "noble_woe":
+		var yb := int(_last_snap.get("you", 0))
+		if _pending_woe_target == yb:
+			_clear_burn_woe_overlay()
+			_pending_noble_woe_mid = _noble_spell_mid
+			_woe_self_picking = true
+			_woe_self_need = _woe_discard_count_ui(_last_snap, 1, true)
+			_woe_self_picked.clear()
+			_inc_pick_phase = INC_PICK_WOE_SELF
+			status_label.text = "Wndrr: tap %d card(s) to discard." % _woe_self_need
+		else:
+			var ctxw := {"woe_target": _pending_woe_target}
+			if _is_network_client():
+				submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "woe", 1, [], ctxw)
+			else:
+				if _match != null:
+					_match.apply_noble_spell_like(_my_player_for_action(), _noble_spell_mid, "woe", 1, [], ctxw)
+			_noble_spell_mid = -1
+			_clear_incantation_flow_ui()
+			_broadcast_sync(true)
+		return
+	if _burn_woe_mode == "burn":
+		var ctx := {"mill_target": _pending_mill_target}
+		_submit_inc_play_full(_effect_sac, [], ctx)
+	elif _burn_woe_mode == "revive_burn":
+		var steps := [{"revive_skip": false, "revive_crypt_idx": _nested_revive_crypt_idx, "nested": {"mill_target": _pending_mill_target}}]
+		_finalize_revive_cast({"revive_steps": steps})
+	elif _burn_woe_mode == "woe":
+		var y := int(_last_snap.get("you", 0))
+		if _pending_woe_target == y:
+			_clear_burn_woe_overlay()
+			_woe_self_picking = true
+			_woe_self_need = _woe_discard_count_ui(_last_snap, _pending_inc_n, true)
+			_woe_self_picked.clear()
+			_inc_pick_phase = INC_PICK_WOE_SELF
+			status_label.text = "Woe: tap %d card(s) in your hand to discard." % _woe_self_need
+		else:
+			var ctx2 := {"woe_target": _pending_woe_target}
+			_submit_inc_play_full(_effect_sac, [], ctx2)
+	elif _burn_woe_mode == "revive_woe":
+		var y2 := int(_last_snap.get("you", 0))
+		if _pending_woe_target == y2:
+			_clear_burn_woe_overlay()
+			_woe_self_picking = true
+			_woe_self_need = _woe_discard_count_ui(_last_snap, _nested_revive_value, true)
+			_woe_self_picked.clear()
+			_inc_pick_phase = INC_PICK_WOE_SELF
+			_burn_woe_mode = "revive_woe_self"
+			status_label.text = "Revive Woe: tap %d card(s) to discard." % _woe_self_need
+		else:
+			var ctx3 := {"revive_steps": [{"revive_skip": false, "revive_crypt_idx": _nested_revive_crypt_idx, "nested": {"woe_target": _pending_woe_target}}]}
+			_finalize_revive_cast(ctx3)
+
+
+func _on_burn_woe_cancel_pressed() -> void:
+	_clear_incantation_flow_ui()
+	if not _last_snap.is_empty():
+		_apply_snap(_last_snap)
+
+
+func _begin_revive_hand_ui(hand_idx: int, n: int, sac_mids: Array, for_noble_mid: int = -1) -> void:
+	_revive_ui_for_noble_mid = for_noble_mid
+	_pending_inc_hand_idx = hand_idx
+	_pending_inc_n = n
+	_effect_sac = sac_mids.duplicate()
+	_revive_pick_phase = true
+	for c in _revive_crypt_row.get_children():
+		c.queue_free()
+	var crypt: Array = _last_snap.get("your_inc_discard_cards", []) as Array
+	var idx := 0
+	for card in crypt:
+		if _card_type(card) != "incantation":
+			idx += 1
+			continue
+		var b := Button.new()
+		var v := str(card.get("verb", ""))
+		var vv := int(card.get("value", 0))
+		b.text = "%s %d (crypt #%d)" % [v, vv, idx]
+		var capture := idx
+		b.pressed.connect(func() -> void:
+			_on_revive_crypt_chosen(capture)
+		)
+		_revive_crypt_row.add_child(b)
+		idx += 1
+	_revive_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_revive_skip_pressed() -> void:
+	if _revive_ui_for_noble_mid >= 0:
+		var nm := _revive_ui_for_noble_mid
+		_revive_ui_for_noble_mid = -1
+		var ctxs := {"revive_steps": [{"revive_skip": true}]}
+		if _is_network_client():
+			submit_noble_revive.rpc_id(1, nm, ctxs)
+		else:
+			if _match != null:
+				_match.apply_noble_revive_from_crypt(_my_player_for_action(), nm, ctxs)
+		_clear_incantation_flow_ui()
+		_broadcast_sync(true)
+		return
+	var steps := [{"revive_skip": true}]
+	var ctx := {"revive_steps": steps}
+	if _yytzr_waits_second_crypt:
+		_finalize_revive_cast(ctx)
+	else:
+		_submit_inc_play_full(_effect_sac, [], ctx)
+
+
+func _on_revive_cancel_pressed() -> void:
+	if _yytzr_waits_second_crypt:
+		_yytzr_clear_bonus_state()
+	_clear_incantation_flow_ui()
+	if not _last_snap.is_empty():
+		_apply_snap(_last_snap)
+
+
+func _on_revive_crypt_chosen(crypt_idx: int) -> void:
+	var idisc: Array = _last_snap.get("your_inc_discard_cards", []) as Array
+	if crypt_idx < 0 or crypt_idx >= idisc.size():
+		return
+	var card: Dictionary = idisc[crypt_idx]
+	var v := str(card.get("verb", "")).to_lower()
+	var val := int(card.get("value", 0))
+	_nested_revive_crypt_idx = crypt_idx
+	_nested_revive_value = val
+	_clear_revive_overlay()
+	if v == "seek":
+		var steps := [{"revive_skip": false, "revive_crypt_idx": crypt_idx, "nested": {}}]
+		_finalize_revive_cast({"revive_steps": steps})
+	elif v == "burn":
+		_burn_woe_mode = "revive_burn"
+		_pending_mill_target = int(_last_snap.get("you", 0))
+		_burn_woe_title.text = "Revive: Burn — choose deck"
+		_tgt_left_btn.text = "Your deck"
+		_tgt_right_btn.text = "Opponent deck"
+		_burn_woe_hint.text = "Confirm to cast from crypt."
+		_burn_woe_overlay.visible = true
+		_inc_pick_phase = INC_PICK_BURN_TGT
+	elif v == "woe":
+		_burn_woe_mode = "revive_woe"
+		_pending_woe_target = int(_last_snap.get("you", 0))
+		_burn_woe_title.text = "Revive: Woe — who discards?"
+		_tgt_left_btn.text = "You"
+		_tgt_right_btn.text = "Opponent"
+		_burn_woe_overlay.visible = true
+		_inc_pick_phase = INC_PICK_WOE_TGT
+	elif v == "insight":
+		_begin_insight_ui(_pending_inc_hand_idx, _insight_depth_for(_last_snap, val), _effect_sac, -1, crypt_idx)
+	elif v == "wrath":
+		var wneed := mini(_wrath_effective_destroy_count(_last_snap, val), (_last_snap.get("opp_field", []) as Array).size())
+		if wneed == 0:
+			var steps2 := [{"revive_skip": false, "revive_crypt_idx": crypt_idx, "nested": {"wrath_mids": []}}]
+			_finalize_revive_cast({"revive_steps": steps2})
+		else:
+			_enter_wrath_only_mode(_pending_inc_hand_idx, val, wneed, "Revive Wrath", true)
+	else:
+		status_label.text = "Cannot revive that card type from UI."
+
+
+func _finalize_revive_cast(ctx: Dictionary) -> void:
+	if _revive_ui_for_noble_mid >= 0:
+		var nm := _revive_ui_for_noble_mid
+		_revive_ui_for_noble_mid = -1
+		if _is_network_client():
+			submit_noble_revive.rpc_id(1, nm, ctx)
+		else:
+			if _match != null:
+				_match.apply_noble_revive_from_crypt(_my_player_for_action(), nm, ctx)
+		_clear_incantation_flow_ui()
+		_broadcast_sync(true)
+	else:
+		if _yytzr_waits_second_crypt:
+			var steps2: Array = ctx.get("revive_steps", []) as Array
+			if steps2.is_empty() or bool((steps2[0] as Dictionary).get("revive_skip", false)):
+				var subf := _yytzr_pending_first_ctx.duplicate(true)
+				_yytzr_clear_bonus_state()
+				_submit_inc_play_full(_effect_sac, [], subf)
+				return
+			var s2: Dictionary = (steps2[0] as Dictionary).duplicate(true)
+			var merged := {
+				"revive_steps": [_yytzr_first_step.duplicate(true), s2],
+				"yytzr_extra_sac_mids": _yytzr_extra_sac_mids.duplicate()
+			}
+			_yytzr_clear_bonus_state()
+			_submit_inc_play_full(_effect_sac, [], merged)
+			return
+		if _yytzr_should_offer_bonus(ctx):
+			_yytzr_pending_first_ctx = ctx.duplicate(true)
+			_start_yytzr_bonus_sacrifice_ui()
+			return
+		_submit_inc_play_full(_effect_sac, [], ctx)
+
+
+func _finalize_revive_wrath_submit(wrath_mids: Array) -> void:
+	var ctxw := {"revive_steps": [{"revive_skip": false, "revive_crypt_idx": _nested_revive_crypt_idx, "nested": {"wrath_mids": wrath_mids}}]}
+	_finalize_revive_cast(ctxw)
+
+
 func _build_hover_preview_panel() -> void:
 	_hover_preview_root = Panel.new()
 	_hover_preview_root.name = "CardHoverPreview"
@@ -364,11 +841,11 @@ func _card_preview_rules_text(card: Dictionary) -> String:
 		"insight":
 			return "Insight %d: reorder the top %d card(s) of either deck." % [n, n]
 		"burn":
-			return "Burn %d: discard the top %d card(s) of opponent's deck." % [n, n * 2]
+			return "Burn %d: discard the top %d card(s) of a chosen player's deck." % [n, n * 2]
 		"woe":
-			return "Woe %d: opponent randomly discards %d card(s)." % [n, n]
+			return "Woe %d: a chosen player discards %d chosen card(s) from hand." % [n, n]
 		"revive":
-			return "Revive %d: return up to %d random incantation card(s) from your discard to your hand." % [n, n]
+			return "Revive %d: you may cast %d incantation(s) from your crypt (chosen; no ritual cost)." % [n, n]
 		"wrath":
 			return "Wrath %d: destroy %d opponent ritual(s)." % [n, _wrath_destroy_count(n)]
 		_:
@@ -394,6 +871,14 @@ func _noble_preview_text(card: Dictionary) -> String:
 			return "Activate (once per turn): Revive 1."
 		"indrr_incantation":
 			return "Activate (once per turn): Insight 2."
+		"xytzr_emanation":
+			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at an additional card."
+		"yytzr_occultation":
+			return "Whenever you Burn, add 3 to the number discarded. Whenever you Revive, you may sacrifice 2+ ritual power for an extra crypt cast."
+		"zytzr_annihilation":
+			return "Whenever you Wrath, destroy an extra ritual. Whenever you Woe, the victim discards an additional card."
+		"aeoiu_rituals":
+			return "Activate (once per turn): play a Ritual from your crypt."
 		_:
 			return "Noble effect."
 
@@ -405,6 +890,8 @@ func _noble_cost_for_id(nid: String) -> int:
 		"trss_power":
 			return 3
 		"yrss_power":
+			return 4
+		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation", "aeoiu_rituals":
 			return 4
 		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
 			return 3
@@ -547,8 +1034,17 @@ func _apply_snap(snap: Dictionary) -> void:
 	_hide_mulligan_bar()
 	_hide_game_end_modal()
 	var mine := cur == you
-	end_turn_button.disabled = not mine or _sacrifice_selecting or _insight_open
-	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or _sacrifice_selecting or _insight_open
+	var ui_block := _sacrifice_selecting or _insight_open or _woe_self_picking or bool(snap.get("woe_pending_waiting", false))
+	if _burn_woe_overlay != null and _burn_woe_overlay.visible:
+		ui_block = true
+	if _revive_overlay != null and _revive_overlay.visible:
+		ui_block = true
+	if bool(snap.get("woe_pending_you_respond", false)):
+		status_label.text = "Woe: choose %d card(s) from your hand to discard." % int(snap.get("woe_pending_amount", 0))
+	if bool(snap.get("woe_pending_waiting", false)):
+		status_label.text = "Waiting for opponent to discard for Woe…"
+	end_turn_button.disabled = not mine or ui_block
+	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or ui_block
 	_rebuild_hand(snap.get("your_hand", []))
 	if _selecting_end_discard:
 		_show_end_discard_modal()
@@ -834,7 +1330,8 @@ func _enter_sacrifice_mode(hand_idx: int, need: int, card_label: String) -> void
 	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
-func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: String) -> void:
+func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: String, for_revive: bool = false) -> void:
+	_wrath_is_revive_nested = for_revive
 	_sacrifice_selecting = true
 	_inc_pick_phase = INC_PICK_WRATH
 	_pending_inc_hand_idx = hand_idx
@@ -850,6 +1347,26 @@ func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: Strin
 	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
 	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
 	_rebuild_hand(_last_snap.get("your_hand", []))
+
+
+func _start_yytzr_bonus_sacrifice_ui() -> void:
+	var st: Array = _yytzr_pending_first_ctx.get("revive_steps", []) as Array
+	if st.is_empty():
+		return
+	_yytzr_first_step = (st[0] as Dictionary).duplicate(true)
+	_sacrifice_selecting = true
+	_inc_pick_phase = INC_PICK_YTTR
+	_sacrifice_need = 2
+	_sacrifice_selected_mids.clear()
+	sacrifice_row.visible = true
+	sacrifice_confirm_button.text = "Confirm sacrifice"
+	sacrifice_hint.text = "Yytzr: sacrifice rituals totaling at least 2 for a second crypt cast."
+	_update_inc_modal_ui()
+	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
+	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_hand(_last_snap.get("your_hand", []))
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
 
 
 func _clear_sacrifice_mode() -> void:
@@ -872,7 +1389,10 @@ func _clear_sacrifice_mode() -> void:
 func _update_inc_modal_ui() -> void:
 	if not _sacrifice_selecting:
 		return
-	if _inc_pick_phase == INC_PICK_SAC:
+	if _inc_pick_phase == INC_PICK_YTTR:
+		var sumy := _sacrifice_selected_sum(_last_snap)
+		sacrifice_confirm_button.disabled = sumy < 2
+	elif _inc_pick_phase == INC_PICK_SAC:
 		var sumv := _sacrifice_selected_sum(_last_snap)
 		sacrifice_confirm_button.disabled = sumv < _sacrifice_need
 	elif _inc_pick_phase == INC_PICK_WRATH:
@@ -882,7 +1402,9 @@ func _update_inc_modal_ui() -> void:
 
 
 func _on_sacrifice_field_clicked(mid: int) -> void:
-	if not _sacrifice_selecting or _inc_pick_phase != INC_PICK_SAC:
+	if not _sacrifice_selecting:
+		return
+	if _inc_pick_phase != INC_PICK_SAC and _inc_pick_phase != INC_PICK_YTTR:
 		return
 	if _sacrifice_selected_mids.has(mid):
 		_sacrifice_selected_mids.erase(mid)
@@ -932,23 +1454,32 @@ func _on_dethrone_field_clicked(mid: int) -> void:
 
 
 func _submit_inc_play(sac: Array, wrath_mids: Array) -> void:
-	_submit_inc_play_full(sac, wrath_mids, -1, [])
+	_submit_inc_play_full(sac, wrath_mids, {})
 
 
-func _submit_inc_play_full(sac: Array, wrath_mids: Array, insight_target: int, insight_perm: Array) -> void:
+func _submit_inc_play_full(sac: Array, wrath_mids: Array, ctx: Dictionary = {}) -> void:
 	if _is_network_client():
-		submit_play_inc.rpc_id(1, _pending_inc_hand_idx, sac, wrath_mids, insight_target, insight_perm)
-		_clear_sacrifice_mode()
-		_clear_insight_ui()
+		submit_play_inc.rpc_id(1, _pending_inc_hand_idx, sac, wrath_mids, ctx)
+		_clear_incantation_flow_ui()
 		return
 	if _match == null:
 		return
-	if _match.play_incantation(_my_player_for_action(), _pending_inc_hand_idx, sac, wrath_mids, insight_target, insight_perm) != "ok":
+	if _match.play_incantation(_my_player_for_action(), _pending_inc_hand_idx, sac, wrath_mids, ctx) != "ok":
 		status_label.text = "Could not play incantation."
 		return
+	_clear_incantation_flow_ui()
+	_broadcast_sync(true)
+
+
+func _clear_incantation_flow_ui() -> void:
+	_yytzr_clear_bonus_state()
 	_clear_sacrifice_mode()
 	_clear_insight_ui()
-	_broadcast_sync(true)
+	_clear_burn_woe_overlay()
+	_clear_woe_self_pick()
+	_clear_revive_overlay()
+	_pending_noble_woe_mid = -1
+	_noble_spell_mid = -1
 
 
 func _submit_dethrone_play(hand_idx: int, noble_mids: Array, sacrifice_mids: Array = []) -> void:
@@ -979,9 +1510,10 @@ func _submit_noble_activate_with_insight(noble_mid: int, insight_target: int, in
 	_broadcast_sync(true)
 
 
-func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array, noble_mid: int = -1) -> void:
+func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array, noble_mid: int = -1, revive_crypt_idx: int = -1) -> void:
 	_insight_hand_idx = hand_idx
 	_insight_noble_mid = noble_mid
+	_insight_revive_crypt_idx = revive_crypt_idx
 	_insight_n = n
 	_insight_sac = sac_mids.duplicate()
 	_pending_inc_hand_idx = hand_idx
@@ -1003,6 +1535,7 @@ func _clear_insight_ui() -> void:
 	_insight_open = false
 	_insight_hand_idx = -1
 	_insight_noble_mid = -1
+	_insight_revive_crypt_idx = -1
 	_insight_sac.clear()
 	_insight_order.clear()
 	for c in _insight_cards_row.get_children():
@@ -1111,7 +1644,14 @@ func _on_insight_confirm_pressed() -> void:
 	if _insight_noble_mid >= 0:
 		_submit_noble_activate_with_insight(_insight_noble_mid, _insight_target, perm)
 		return
-	_submit_inc_play_full(_insight_sac, [], _insight_target, perm)
+	if _insight_revive_crypt_idx >= 0:
+		var ctxr := {"revive_steps": [{"revive_skip": false, "revive_crypt_idx": _insight_revive_crypt_idx, "nested": {"insight_target": _insight_target, "insight_perm": perm}}]}
+		if _revive_ui_for_noble_mid >= 0:
+			_finalize_revive_cast(ctxr)
+		else:
+			_submit_inc_play_full(_insight_sac, [], ctxr)
+		return
+	_submit_inc_play_full(_insight_sac, [], {"insight_target": _insight_target, "insight_perm": perm})
 
 
 func _on_insight_cancel_pressed() -> void:
@@ -1124,6 +1664,21 @@ func _on_insight_cancel_pressed() -> void:
 
 func _on_sacrifice_confirm_pressed() -> void:
 	if not _sacrifice_selecting:
+		return
+	if _inc_pick_phase == INC_PICK_YTTR:
+		var sumy := _sacrifice_selected_sum(_last_snap)
+		if sumy < 2:
+			return
+		var sac_y: Array = []
+		for k in _sacrifice_selected_mids.keys():
+			sac_y.append(int(k))
+		var hi_y := _pending_inc_hand_idx
+		var nn_y := _pending_inc_n
+		var esac_y := _effect_sac.duplicate()
+		_yytzr_extra_sac_mids = sac_y
+		_yytzr_waits_second_crypt = true
+		_clear_sacrifice_mode()
+		_begin_revive_hand_ui(hi_y, nn_y, esac_y)
 		return
 	if _inc_pick_phase == INC_PICK_SAC:
 		var sumv := _sacrifice_selected_sum(_last_snap)
@@ -1141,7 +1696,7 @@ func _on_sacrifice_confirm_pressed() -> void:
 			return
 		var verb := str(hand[_pending_inc_hand_idx].get("verb", "")).to_lower()
 		var opp_f: Array = _last_snap.get("opp_field", [])
-		var wneed := mini(_wrath_destroy_count(_pending_inc_n), opp_f.size())
+		var wneed := mini(_wrath_effective_destroy_count(_last_snap, _pending_inc_n), opp_f.size())
 		if verb == "wrath" and wneed > 0:
 			_locked_sacrifice_mids = sac
 			_inc_pick_phase = INC_PICK_WRATH
@@ -1158,7 +1713,25 @@ func _on_sacrifice_confirm_pressed() -> void:
 			var hi := _pending_inc_hand_idx
 			var nn := _pending_inc_n
 			_clear_sacrifice_mode()
-			_begin_insight_ui(hi, nn, sac)
+			_begin_insight_ui(hi, _insight_depth_for(_last_snap, nn), sac)
+			return
+		if verb == "burn":
+			var hi_b := _pending_inc_hand_idx
+			var nn_b := _pending_inc_n
+			_clear_sacrifice_mode()
+			_begin_burn_target_ui(hi_b, nn_b, sac)
+			return
+		if verb == "woe":
+			var hi_w := _pending_inc_hand_idx
+			var nn_w := _pending_inc_n
+			_clear_sacrifice_mode()
+			_begin_woe_target_ui(hi_w, nn_w, sac)
+			return
+		if verb == "revive":
+			var hi_r := _pending_inc_hand_idx
+			var nn_r := _pending_inc_n
+			_clear_sacrifice_mode()
+			_begin_revive_hand_ui(hi_r, nn_r, sac)
 			return
 		_submit_inc_play(sac, [])
 	elif _inc_pick_phase == INC_PICK_WRATH:
@@ -1167,7 +1740,14 @@ func _on_sacrifice_confirm_pressed() -> void:
 		var wm: Array = []
 		for k in _wrath_selected_mids.keys():
 			wm.append(int(k))
-		_submit_inc_play(_locked_sacrifice_mids.duplicate(), wm)
+		if _wrath_is_revive_nested:
+			_wrath_is_revive_nested = false
+			_finalize_revive_wrath_submit(wm)
+			_clear_sacrifice_mode()
+			if _match != null:
+				_broadcast_sync(true)
+			return
+		_submit_inc_play_full(_locked_sacrifice_mids.duplicate(), wm, {})
 	elif _inc_pick_phase == INC_PICK_DETHRONE:
 		if _pending_dethrone_hand_idx < 0 or _dethrone_selected_mid < 0:
 			return
@@ -1176,6 +1756,15 @@ func _on_sacrifice_confirm_pressed() -> void:
 
 func _on_sacrifice_cancel_pressed() -> void:
 	if not _sacrifice_selecting:
+		return
+	if _inc_pick_phase == INC_PICK_YTTR:
+		var pend := _yytzr_pending_first_ctx.duplicate(true)
+		_yytzr_clear_bonus_state()
+		_clear_sacrifice_mode()
+		if not pend.is_empty():
+			_submit_inc_play_full(_effect_sac, [], pend)
+		elif not _last_snap.is_empty():
+			_apply_snap(_last_snap)
 		return
 	_clear_sacrifice_mode()
 	if not _last_snap.is_empty():
@@ -1369,9 +1958,33 @@ func _make_noble_card(noble: Dictionary, ours: bool) -> Control:
 func _on_noble_activate_pressed(noble_mid: int) -> void:
 	var yours: Array = _last_snap.get("your_nobles", [])
 	for noble in yours:
-		if int(noble.get("mid", -1)) == noble_mid and str(noble.get("noble_id", "")) == "indrr_incantation":
-			_begin_insight_ui(-1, 2, [], noble_mid)
+		if int(noble.get("mid", -1)) != noble_mid:
+			continue
+		var nid := str(noble.get("noble_id", ""))
+		if nid == "indrr_incantation":
+			_begin_insight_ui(-1, _insight_depth_for(_last_snap, 2), [], noble_mid)
 			return
+		if nid == "bndrr_incantation":
+			_start_noble_burn(noble_mid)
+			return
+		if nid == "wndrr_incantation":
+			_start_noble_woe(noble_mid)
+			return
+		if nid == "rndrr_incantation":
+			_start_noble_revive(noble_mid)
+			return
+		if nid == "sndrr_incantation":
+			if _is_network_client():
+				submit_noble_spell_like.rpc_id(1, noble_mid, "seek", 1, [], {})
+			else:
+				if _match != null:
+					_match.apply_noble_spell_like(_my_player_for_action(), noble_mid, "seek", 1, [], {})
+			_broadcast_sync(true)
+			return
+		if nid == "aeoiu_rituals":
+			_start_aeoiu_ritual_pick(noble_mid)
+			return
+		break
 	if _is_network_client():
 		submit_activate_noble.rpc_id(1, noble_mid)
 		return
@@ -1380,6 +1993,85 @@ func _on_noble_activate_pressed(noble_mid: int) -> void:
 	if _match.activate_noble(_my_player_for_action(), noble_mid) != "ok":
 		return
 	_broadcast_sync(true)
+
+
+func _start_noble_burn(noble_mid: int) -> void:
+	_noble_spell_mid = noble_mid
+	_burn_woe_mode = "noble_burn"
+	_pending_mill_target = int(_last_snap.get("you", 0))
+	_burn_woe_title.text = "Bndrr — choose deck to mill"
+	_tgt_left_btn.text = "Your deck"
+	_tgt_right_btn.text = "Opponent deck"
+	_burn_woe_hint.text = "Confirm."
+	_burn_woe_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _start_noble_woe(noble_mid: int) -> void:
+	_noble_spell_mid = noble_mid
+	_burn_woe_mode = "noble_woe"
+	_pending_woe_target = int(_last_snap.get("you", 0))
+	_burn_woe_title.text = "Wndrr — who discards?"
+	_tgt_left_btn.text = "You"
+	_tgt_right_btn.text = "Opponent"
+	_burn_woe_hint.text = "Confirm."
+	_burn_woe_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _start_noble_revive(noble_mid: int) -> void:
+	_effect_sac = []
+	_pending_inc_n = 1
+	_pending_inc_hand_idx = -1
+	_begin_revive_hand_ui(-1, 1, [], noble_mid)
+
+
+func _start_aeoiu_ritual_pick(noble_mid: int) -> void:
+	_aeoiu_noble_mid = noble_mid
+	for c in _aeoiu_crypt_row.get_children():
+		c.queue_free()
+	var rg: Array = _last_snap.get("your_ritual_grave_cards", []) as Array
+	var idx := 0
+	for i in rg.size():
+		var card: Dictionary = rg[i]
+		var vv := int(card.get("value", 0))
+		var b := Button.new()
+		b.text = "Ritual %d (grave #%d)" % [vv, idx]
+		var capture := idx
+		b.pressed.connect(func() -> void:
+			_on_aeoiu_grave_chosen(capture)
+		)
+		_aeoiu_crypt_row.add_child(b)
+		idx += 1
+	if _aeoiu_crypt_row.get_child_count() == 0:
+		status_label.text = "No rituals in your crypt."
+		return
+	_aeoiu_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_aeoiu_grave_chosen(grave_idx: int) -> void:
+	var nm := _aeoiu_noble_mid
+	_aeoiu_overlay.visible = false
+	_aeoiu_noble_mid = -1
+	end_turn_button.disabled = false
+	discard_draw_button.disabled = false
+	if _is_network_client():
+		submit_aeoiu_ritual.rpc_id(1, nm, grave_idx)
+	else:
+		if _match != null:
+			_match.apply_aeoiu_ritual_from_crypt(_my_player_for_action(), nm, grave_idx)
+	_broadcast_sync(true)
+
+
+func _on_aeoiu_cancel_pressed() -> void:
+	_aeoiu_overlay.visible = false
+	_aeoiu_noble_mid = -1
+	end_turn_button.disabled = false
+	discard_draw_button.disabled = false
 
 
 func _rebuild_hand(hand: Variant) -> void:
@@ -1556,6 +2248,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 	var snap: Dictionary = _last_snap
 	if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 		return
+	var woe_you := bool(snap.get("woe_pending_you_respond", false))
 	if bool(snap.get("mulligan_active", false)):
 		if int(snap.get("current", -1)) != int(snap.get("you", 0)):
 			return
@@ -1565,12 +2258,97 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			else:
 				_try_mulligan_bottom(_my_player_for_action(), hand_idx)
 		return
-	if int(snap.get("current", -1)) != int(snap.get("you", 0)):
+	if int(snap.get("current", -1)) != int(snap.get("you", 0)) and not woe_you:
 		return
 	var hand: Array = snap.get("your_hand", [])
 	if hand_idx < 0 or hand_idx >= hand.size():
 		return
 	var c: Dictionary = hand[hand_idx]
+	if woe_you:
+		var need_w := int(snap.get("woe_pending_amount", 0))
+		if _woe_self_picked.has(hand_idx):
+			_woe_self_picked.erase(hand_idx)
+		else:
+			if _woe_self_picked.size() < need_w:
+				_woe_self_picked[hand_idx] = true
+		var need_pick := mini(need_w, hand.size())
+		if need_pick > 0 and _woe_self_picked.size() == need_pick:
+			var idxs_v: Array = []
+			for k in _woe_self_picked.keys():
+				idxs_v.append(int(k))
+			idxs_v.sort()
+			if _is_network_client():
+				submit_woe_discard.rpc_id(1, idxs_v)
+			else:
+				if _match != null:
+					_match.submit_woe_discard(_my_player_for_action(), idxs_v)
+			_woe_self_picked.clear()
+			_broadcast_sync(true)
+		else:
+			_rebuild_hand(hand)
+		return
+	if _woe_self_picking and _pending_noble_woe_mid >= 0:
+		if _woe_self_picked.has(hand_idx):
+			_woe_self_picked.erase(hand_idx)
+		else:
+			if _woe_self_picked.size() < _woe_self_need:
+				_woe_self_picked[hand_idx] = true
+		if _woe_self_need > 0 and _woe_self_picked.size() == _woe_self_need:
+			var idxsn: Array = []
+			for kn in _woe_self_picked.keys():
+				idxsn.append(int(kn))
+			idxsn.sort()
+			var ctxn := {"woe_target": int(snap.get("you", 0)), "woe_indices": idxsn}
+			if _is_network_client():
+				submit_noble_spell_like.rpc_id(1, _pending_noble_woe_mid, "woe", 1, [], ctxn)
+			else:
+				if _match != null:
+					_match.apply_noble_spell_like(_my_player_for_action(), _pending_noble_woe_mid, "woe", 1, [], ctxn)
+			_pending_noble_woe_mid = -1
+			_woe_self_picking = false
+			_woe_self_picked.clear()
+			_noble_spell_mid = -1
+			_broadcast_sync(true)
+		else:
+			_rebuild_hand(hand)
+		return
+	if _woe_self_picking and _burn_woe_mode != "revive_woe_self":
+		if _woe_self_picked.has(hand_idx):
+			_woe_self_picked.erase(hand_idx)
+		else:
+			if _woe_self_picked.size() < _woe_self_need:
+				_woe_self_picked[hand_idx] = true
+		if _woe_self_need > 0 and _woe_self_picked.size() == _woe_self_need:
+			var idxs2: Array = []
+			for k2 in _woe_self_picked.keys():
+				idxs2.append(int(k2))
+			idxs2.sort()
+			var ctxw := {"woe_target": int(snap.get("you", 0)), "woe_indices": idxs2}
+			_woe_self_picking = false
+			_woe_self_picked.clear()
+			_submit_inc_play_full(_effect_sac, [], ctxw)
+		else:
+			_rebuild_hand(hand)
+		return
+	if _woe_self_picking and _burn_woe_mode == "revive_woe_self":
+		if _woe_self_picked.has(hand_idx):
+			_woe_self_picked.erase(hand_idx)
+		else:
+			if _woe_self_picked.size() < _woe_self_need:
+				_woe_self_picked[hand_idx] = true
+		if _woe_self_need > 0 and _woe_self_picked.size() == _woe_self_need:
+			var idxs3: Array = []
+			for k3 in _woe_self_picked.keys():
+				idxs3.append(int(k3))
+			idxs3.sort()
+			var ctxv2 := {"revive_steps": [{"revive_skip": false, "revive_crypt_idx": _nested_revive_crypt_idx, "nested": {"woe_target": int(snap.get("you", 0)), "woe_indices": idxs3}}]}
+			_woe_self_picking = false
+			_burn_woe_mode = ""
+			_woe_self_picked.clear()
+			_finalize_revive_cast(ctxv2)
+		else:
+			_rebuild_hand(hand)
+		return
 	if _insight_open:
 		return
 	if _sacrifice_selecting:
@@ -1647,22 +2425,37 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		if ArcanaMatchState.has_lane_for_field(field, n):
 			if verb == "wrath":
 				var opp_field: Array = snap.get("opp_field", [])
-				var wneed := mini(_wrath_destroy_count(n), opp_field.size())
+				var wneed := mini(_wrath_effective_destroy_count(_last_snap, n), opp_field.size())
 				if wneed == 0:
 					if _is_network_client():
-						submit_play_inc.rpc_id(1, hand_idx, [], [], -1, [])
+						submit_play_inc.rpc_id(1, hand_idx, [], [], {})
 					else:
-						_try_play_inc(_my_player_for_action(), hand_idx, [], [], -1, [])
+						_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
 				else:
 					_enter_wrath_only_mode(hand_idx, n, wneed, "%s %d" % [verb, n])
 				return
 			if verb == "insight":
-				_begin_insight_ui(hand_idx, n, [])
+				_begin_insight_ui(hand_idx, _insight_depth_for(_last_snap, n), [])
+				return
+			if verb == "seek":
+				if _is_network_client():
+					submit_play_inc.rpc_id(1, hand_idx, [], [], {})
+				else:
+					_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
+				return
+			if verb == "burn":
+				_begin_burn_target_ui(hand_idx, n, [])
+				return
+			if verb == "woe":
+				_begin_woe_target_ui(hand_idx, n, [])
+				return
+			if verb == "revive":
+				_begin_revive_hand_ui(hand_idx, n, [])
 				return
 			if _is_network_client():
-				submit_play_inc.rpc_id(1, hand_idx, [], [], -1, [])
+				submit_play_inc.rpc_id(1, hand_idx, [], [], {})
 			else:
-				_try_play_inc(_my_player_for_action(), hand_idx, [], [], -1, [])
+				_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
 			return
 		if _field_ritual_total_value(field) < n:
 			status_label.text = "Not enough ritual value on your field to pay for this incantation."
@@ -1735,10 +2528,18 @@ func _try_play_noble(player: int, hand_idx: int, trigger_cpu_check: bool = true)
 	return true
 
 
-func _try_play_inc(player: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], insight_target: int = -1, insight_perm: Array = [], trigger_cpu_check: bool = true) -> void:
+func _try_play_inc(player: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], ctx: Dictionary = {}, trigger_cpu_check: bool = true) -> void:
 	if _match == null:
 		return
-	if _match.play_incantation(player, hand_idx, sacrifice_mids, wrath_mids, insight_target, insight_perm) != "ok":
+	if _match.play_incantation(player, hand_idx, sacrifice_mids, wrath_mids, ctx) != "ok":
+		return
+	_broadcast_sync(trigger_cpu_check)
+
+
+func _try_submit_woe_discard(player: int, indices: Array, trigger_cpu_check: bool = true) -> void:
+	if _match == null:
+		return
+	if _match.submit_woe_discard(player, indices) != "ok":
 		return
 	_broadcast_sync(trigger_cpu_check)
 
@@ -1836,6 +2637,14 @@ func _run_cpu_turn() -> void:
 			return
 		if int(snap.get("current", -1)) != int(snap.get("you", -2)):
 			return
+		if bool(snap.get("woe_pending_you_respond", false)):
+			var hwo: Array = snap.get("your_hand", [])
+			var needw := int(snap.get("woe_pending_amount", 0))
+			var idxsw: Array = []
+			for wi in mini(needw, hwo.size()):
+				idxsw.append(wi)
+			_try_submit_woe_discard(1, idxsw, false)
+			continue
 		var hand: Array = snap.get("your_hand", [])
 		var played_ritual := false
 		for i in hand.size():
@@ -1858,13 +2667,40 @@ func _run_cpu_turn() -> void:
 		if played_noble:
 			continue
 		var noble_field: Array = snap.get("your_nobles", [])
-		for n in noble_field:
-			var nmid := int(n.get("mid", -1))
-			if _match.can_activate_noble(1, nmid):
-				if _match.activate_noble(1, nmid) == "ok":
-					_broadcast_sync(false)
-					await get_tree().create_timer(CPU_ACTION_SEC).timeout
-				break
+		for nn in noble_field:
+			var nmid := int(nn.get("mid", -1))
+			if not _match.can_activate_noble(1, nmid):
+				continue
+			var nid2 := str(nn.get("noble_id", ""))
+			var ok_act := false
+			if nid2 == "bndrr_incantation":
+				ok_act = _match.apply_noble_spell_like(1, nmid, "burn", 1, [], {"mill_target": 0}) == "ok"
+			elif nid2 == "wndrr_incantation":
+				ok_act = _match.apply_noble_spell_like(1, nmid, "woe", 1, [], {"woe_target": 0}) == "ok"
+			elif nid2 == "sndrr_incantation":
+				ok_act = _match.apply_noble_spell_like(1, nmid, "seek", 1, [], {}) == "ok"
+			elif nid2 == "rndrr_incantation":
+				ok_act = _match.apply_noble_revive_from_crypt(1, nmid, {"revive_steps": [{"revive_skip": true}]}) == "ok"
+			elif nid2 == "indrr_incantation":
+				var tgt_i := 0
+				var idn: int = _match.insight_effective_n(1, 2)
+				var peek2: Array = _match.insight_peek_top_cards(tgt_i, idn)
+				var perm_i: Array = []
+				for ii in peek2.size():
+					perm_i.append(ii)
+				ok_act = _match.activate_noble_with_insight(1, nmid, tgt_i, perm_i) == "ok"
+			elif nid2 == "aeoiu_rituals":
+				var rgc: Array = snap.get("your_ritual_grave_cards", []) as Array
+				if rgc.is_empty():
+					ok_act = false
+				else:
+					ok_act = _match.apply_aeoiu_ritual_from_crypt(1, nmid, 0) == "ok"
+			else:
+				ok_act = _match.activate_noble(1, nmid) == "ok"
+			if ok_act:
+				_broadcast_sync(false)
+				await get_tree().create_timer(CPU_ACTION_SEC).timeout
+			break
 		var playable: Array[int] = []
 		for j in hand.size():
 			var ctype := _card_type(hand[j])
@@ -1942,12 +2778,33 @@ func _run_cpu_turn() -> void:
 			if not ArcanaMatchState.has_lane_for_field(snap.get("your_field", []), nv):
 				sac = _greedy_sacrifice_mids(snap, nv)
 			var wm: Array = []
-			if str(hand[pick].get("verb", "")).to_lower() == "wrath":
+			var vrb := str(hand[pick].get("verb", "")).to_lower()
+			if vrb == "wrath":
 				var opp_f: Array = snap.get("opp_field", [])
-				var wn := mini(_wrath_destroy_count(nv), opp_f.size())
+				var wn := mini(_match.effective_wrath_destroy_count(1, nv), opp_f.size())
 				if wn > 0:
 					wm = _greedy_wrath_mids(opp_f, wn)
-			_try_play_inc(1, pick, sac, wm, -1, [], false)
+			var ictx := {}
+			match vrb:
+				"seek":
+					ictx = {}
+				"burn":
+					ictx = {"mill_target": 0}
+				"woe":
+					ictx = {"woe_target": 0}
+				"insight":
+					var tgt0 := 0
+					var idnv: int = _match.insight_effective_n(1, nv)
+					var pk: Array = _match.insight_peek_top_cards(tgt0, idnv)
+					var prm: Array = []
+					for ii in pk.size():
+						prm.append(ii)
+					ictx = {"insight_target": tgt0, "insight_perm": prm}
+				"revive":
+					ictx = {"revive_steps": [{"revive_skip": true}]}
+				_:
+					ictx = {}
+			_try_play_inc(1, pick, sac, wm, ictx, false)
 			await get_tree().create_timer(CPU_ACTION_SEC).timeout
 		break
 	snap = _match.snapshot(1)
@@ -2049,13 +2906,45 @@ func submit_play_noble(hand_idx: int) -> void:
 
 
 @rpc("any_peer", "reliable")
-func submit_play_inc(hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], insight_target: int = -1, insight_perm: Array = []) -> void:
+func submit_play_inc(hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], ctx: Dictionary = {}) -> void:
 	if not multiplayer.is_server():
 		return
 	if _match == null:
 		return
 	var pl := _peer_to_player(_sender_peer())
-	_try_play_inc(pl, hand_idx, sacrifice_mids, wrath_mids, insight_target, insight_perm)
+	_try_play_inc(pl, hand_idx, sacrifice_mids, wrath_mids, ctx)
+
+
+@rpc("any_peer", "reliable")
+func submit_woe_discard(indices: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	_try_submit_woe_discard(pl, indices)
+
+
+@rpc("any_peer", "reliable")
+func submit_noble_spell_like(noble_mid: int, verb: String, value: int, wrath_mids: Array, ctx: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_noble_spell_like(pl, noble_mid, verb, value, wrath_mids, ctx) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_noble_revive(noble_mid: int, ctx: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_noble_revive_from_crypt(pl, noble_mid, ctx) == "ok":
+		_broadcast_sync(true)
 
 
 @rpc("any_peer", "reliable")
@@ -2087,6 +2976,17 @@ func submit_activate_noble_with_insight(noble_mid: int, insight_target: int, ins
 		return
 	var pl := _peer_to_player(_sender_peer())
 	if _match.activate_noble_with_insight(pl, noble_mid, insight_target, insight_perm) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_aeoiu_ritual(noble_mid: int, grave_idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_aeoiu_ritual_from_crypt(pl, noble_mid, grave_idx) == "ok":
 		_broadcast_sync(true)
 
 

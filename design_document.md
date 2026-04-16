@@ -30,7 +30,7 @@ A player wins the game when they have 20 ritual power on the field (only Rituals
 
 Deckbuilding constraints:
 
-Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maximum of 1 Noble of each first name, eg. "Yrss"
+Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maximum of 4 Nobles of each first name, eg. 4 x "Yrss"
 
 There can be no more than 9 of one ritual card value in the deck, for example you may have 9 4-Rituals.
 

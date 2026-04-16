@@ -26,11 +26,67 @@ var _mulligan_bottom_needed: Array[int] = [0, 0]
 var _players: Array[Dictionary]
 var _noble_hooks: Dictionary = {}
 
+var _woe_pending_instigator: int = -1
+var _woe_pending_victim: int = -1
+var _woe_pending_amount: int = 0
+var _woe_pending_spell_card: Variant = null
+var _woe_pending_revive_wrapper: Variant = null
+var _woe_pending_noble_mid: int = -1
+
 
 func _card_kind(c: Variant) -> String:
 	if c == null:
 		return ""
 	return str(c.get("type", "")).to_lower()
+
+
+func _noble_on_field(p: int, noble_id: String) -> bool:
+	for x in _players[p]["noble_field"]:
+		if str(x.get("noble_id", "")) == noble_id:
+			return true
+	return false
+
+
+func insight_effective_n(p: int, base: int) -> int:
+	return base + (1 if _noble_on_field(p, "xytzr_emanation") else 0)
+
+
+func _woe_discard_need(instigator: int, value: int, victim: int) -> int:
+	var hs: int = _players[victim]["hand"].size()
+	var extra := 1 if _noble_on_field(instigator, "zytzr_annihilation") else 0
+	return mini(value + extra, hs)
+
+
+func effective_wrath_destroy_count(instigator: int, value: int) -> int:
+	var base := _wrath_destroy_count(value)
+	if base == 0:
+		return 0
+	if _noble_on_field(instigator, "zytzr_annihilation"):
+		return base + 1
+	return base
+
+
+func can_play_aeoiu_ritual(p: int) -> bool:
+	if ritual_played_this_turn:
+		return false
+	return not (_players[p]["ritual_grave"] as Array).is_empty()
+
+
+func _validate_yytzr_extra_sacrifice(p: int, primary_mids: Dictionary, extra: Array) -> bool:
+	var esum := 0
+	for m in extra:
+		var mid := int(m)
+		if primary_mids.has(mid):
+			return false
+		var found := false
+		for x in _players[p]["field"]:
+			if int(x["mid"]) == mid:
+				esum += int(x["value"])
+				found = true
+				break
+		if not found:
+			return false
+	return esum >= 2
 
 
 func _init(p0_deck: Array, p1_deck: Array, p0_first: bool, p_rng: RandomNumberGenerator) -> void:
@@ -319,12 +375,19 @@ func snapshot(for_player: int) -> Dictionary:
 		"opp_power": ritual_power(opp),
 		"your_inc_disc": _players[for_player]["inc_discard"].size(),
 		"opp_inc_disc": _players[opp]["inc_discard"].size(),
+		"your_inc_discard_cards": _players[for_player]["inc_discard"].duplicate(true),
+		"your_ritual_grave_cards": _players[for_player]["ritual_grave"].duplicate(true),
+		"woe_pending_you_respond": _woe_pending_instigator >= 0 and for_player == _woe_pending_victim,
+		"woe_pending_waiting": _woe_pending_instigator >= 0 and for_player == _woe_pending_instigator,
+		"woe_pending_amount": _woe_pending_amount if _woe_pending_instigator >= 0 else 0,
 		"log": log_lines.duplicate()
 	}
 
 
 func can_play_ritual(p: int, hand_idx: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current or ritual_played_this_turn:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	return c != null and _card_kind(c) == "ritual"
@@ -347,6 +410,8 @@ func play_ritual(p: int, hand_idx: int) -> String:
 
 func can_play_noble(p: int, hand_idx: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current or noble_played_this_turn:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "noble":
@@ -416,8 +481,23 @@ func _noble_play_cost(nid: String) -> int:
 	return int((def as Dictionary).get("cost", 0))
 
 
+func _woe_waiting_on_response() -> bool:
+	return _woe_pending_instigator >= 0
+
+
+func _woe_clear_pending() -> void:
+	_woe_pending_instigator = -1
+	_woe_pending_victim = -1
+	_woe_pending_amount = 0
+	_woe_pending_spell_card = null
+	_woe_pending_revive_wrapper = null
+	_woe_pending_noble_mid = -1
+
+
 func can_play_incantation(p: int, hand_idx: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "incantation":
@@ -432,6 +512,8 @@ func can_play_incantation(p: int, hand_idx: int) -> bool:
 
 func can_play_dethrone(p: int, hand_idx: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "dethrone":
@@ -469,7 +551,395 @@ func _greedy_sacrifice_mids_for_player(p: int, need: int) -> Array:
 	return []
 
 
-func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], insight_target: int = -1, insight_perm: Array = []) -> String:
+func _woe_indices_valid(hand_sz: int, need: int, indices: Array) -> bool:
+	if need <= 0:
+		return indices.is_empty()
+	if indices.size() != need:
+		return false
+	var seen: Dictionary = {}
+	for x in indices:
+		var i := int(x)
+		if i < 0 or i >= hand_sz or seen.has(i):
+			return false
+		seen[i] = true
+	return seen.size() == need
+
+
+func _discard_hand_chosen_indices(target: int, indices: Array) -> void:
+	var pl: Dictionary = _players[target]
+	var hand: Array = pl["hand"]
+	var sorted: Array = indices.duplicate()
+	sorted.sort()
+	for k in range(sorted.size() - 1, -1, -1):
+		var idx := int(sorted[k])
+		_move_hand_card_to_discard(pl, hand, idx)
+	_log("Woe: P%d discards %d chosen card(s)." % [target, indices.size()])
+
+
+func execute_incantation_effect(p: int, verb: String, value: int, wrath_resolved: Array, ctx: Dictionary) -> String:
+	var v := verb.to_lower()
+	var opp := 1 - p
+	match v:
+		"seek":
+			_draw_n(p, value)
+			if _noble_on_field(p, "xytzr_emanation"):
+				_draw_n(p, 1)
+			return "ok"
+		"insight":
+			var tgt := int(ctx.get("insight_target", -1))
+			if tgt != p and tgt != opp:
+				return "illegal_target"
+			var perm: Array = ctx.get("insight_perm", []) as Array
+			var eff := insight_effective_n(p, value)
+			var deck: Array = _players[tgt]["deck"]
+			var take := mini(eff, deck.size())
+			if take >= 2 and not _insight_perm_valid(take, perm):
+				return "illegal_insight_perm"
+			_apply_insight_reorder(tgt, eff, perm)
+			return "ok"
+		"burn":
+			var mt := int(ctx.get("mill_target", -1))
+			if mt != 0 and mt != 1:
+				return "illegal_target"
+			var mill_n := value * 2
+			if _noble_on_field(p, "yytzr_occultation"):
+				mill_n += 3
+			_mill(mt, mill_n)
+			return "ok"
+		"woe":
+			var wt := int(ctx.get("woe_target", -1))
+			if wt != p and wt != opp:
+				return "illegal_target"
+			var hand_sz: int = _players[wt]["hand"].size()
+			var need := _woe_discard_need(p, value, wt)
+			var widx: Array = ctx.get("woe_indices", []) as Array
+			if need > 0 and not _woe_indices_valid(hand_sz, need, widx):
+				return "illegal_woe_indices"
+			if need > 0:
+				_discard_hand_chosen_indices(wt, widx)
+			return "ok"
+		"revive":
+			return "illegal"
+		"wrath":
+			if effective_wrath_destroy_count(p, value) == 0:
+				return "illegal"
+			_destroy_rituals_by_mids(opp, wrath_resolved)
+			return "ok"
+		_:
+			return "ok"
+
+
+func _validate_play_ctx(p: int, verb: String, value: int, wrath_mids: Array, ctx: Dictionary) -> String:
+	var v := verb.to_lower()
+	var opp := 1 - p
+	match v:
+		"insight":
+			var tgt := int(ctx.get("insight_target", -1))
+			if tgt != p and tgt != opp:
+				return "illegal_target"
+			var perm: Array = ctx.get("insight_perm", []) as Array
+			var eff := insight_effective_n(p, value)
+			var take := mini(eff, _players[tgt]["deck"].size())
+			if take >= 2 and not _insight_perm_valid(take, perm):
+				return "illegal_insight_perm"
+			return "ok"
+		"burn":
+			var mt := int(ctx.get("mill_target", -1))
+			if mt != 0 and mt != 1:
+				return "illegal_target"
+			return "ok"
+		"woe":
+			var wt := int(ctx.get("woe_target", -1))
+			if wt != p and wt != opp:
+				return "illegal_target"
+			var hand_sz: int = _players[wt]["hand"].size()
+			var need := _woe_discard_need(p, value, wt)
+			if wt == p:
+				var widx: Array = ctx.get("woe_indices", []) as Array
+				if need > 0 and not _woe_indices_valid(hand_sz, need, widx):
+					return "illegal_woe_indices"
+			return "ok"
+		"wrath":
+			if effective_wrath_destroy_count(p, value) == 0:
+				return "illegal"
+			var wr := _wrath_resolve_mids(opp, value, wrath_mids, p)
+			if wr.is_empty() and effective_wrath_destroy_count(p, value) > 0:
+				return "illegal"
+			return "ok"
+		"seek":
+			return "ok"
+		"revive":
+			return _validate_revive_chain(p, value, ctx)
+		_:
+			return "ok"
+
+
+func _validate_revive_chain(p: int, value: int, ctx: Dictionary) -> String:
+	var steps: Array = ctx.get("revive_steps", []) as Array
+	if steps.is_empty() and value == 1:
+		steps = [ctx]
+	var yyt: Array = ctx.get("yytzr_extra_sac_mids", []) as Array
+	var want_steps := value
+	if not yyt.is_empty():
+		if not _noble_on_field(p, "yytzr_occultation"):
+			return "illegal"
+		want_steps = value + 1
+	if steps.size() != want_steps:
+		return "illegal"
+	var sim: Array = _players[p]["inc_discard"].duplicate()
+	for step in steps:
+		if typeof(step) != TYPE_DICTIONARY:
+			return "illegal"
+		var d: Dictionary = step
+		if bool(d.get("revive_skip", false)):
+			continue
+		var cidx := int(d.get("revive_crypt_idx", -1))
+		if cidx < 0 or cidx >= sim.size():
+			return "illegal"
+		var cc: Variant = sim[cidx]
+		sim.remove_at(cidx)
+		if _card_kind(cc) != "incantation":
+			return "illegal"
+		var cdict: Dictionary = cc
+		var cv := str(cdict.get("verb", "")).to_lower()
+		var cn := int(cdict.get("value", 0))
+		if cv == "revive":
+			return "illegal"
+		var nested: Dictionary = d.get("nested", {}) as Dictionary
+		var wr_mids: Array = nested.get("wrath_mids", []) as Array
+		if _validate_play_ctx(p, cv, cn, wr_mids, nested) != "ok":
+			return "illegal"
+	return "ok"
+
+
+func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, payment_text: String, revive_wrapper: Dictionary) -> String:
+	var steps: Array = ctx.get("revive_steps", []) as Array
+	if steps.is_empty() and value == 1:
+		steps = [ctx]
+	var pl: Dictionary = _players[p]
+	var idisc: Array = pl["inc_discard"]
+	var any_cast := false
+	for step in steps:
+		if typeof(step) != TYPE_DICTIONARY:
+			return "illegal"
+		if not bool((step as Dictionary).get("revive_skip", false)):
+			any_cast = true
+			break
+	if not any_cast:
+		pl["inc_discard"].append(revive_wrapper)
+		_log("P%d plays Revive %d (%s) — skipped." % [p, value, payment_text])
+		_check_power_win(p)
+		return "ok"
+	for step in steps:
+		if typeof(step) != TYPE_DICTIONARY:
+			return "illegal"
+		var d: Dictionary = step
+		if bool(d.get("revive_skip", false)):
+			continue
+		var cidx := int(d.get("revive_crypt_idx", -1))
+		if cidx < 0 or cidx >= idisc.size():
+			return "illegal"
+		var crypt_card: Dictionary = idisc[cidx].duplicate(true)
+		idisc.remove_at(cidx)
+		var nested: Dictionary = d.get("nested", {}) as Dictionary
+		var cv := str(crypt_card.get("verb", "")).to_lower()
+		var cn := int(crypt_card.get("value", 0))
+		var wr_mids: Array = nested.get("wrath_mids", []) as Array
+		var wr_r := _wrath_resolve_mids(1 - p, cn, wr_mids, p)
+		if cv == "woe":
+			var wt := int(nested.get("woe_target", -1))
+			var opp := 1 - p
+			var need := _woe_discard_need(p, cn, wt)
+			if wt == opp and need > 0:
+				_woe_pending_instigator = p
+				_woe_pending_victim = wt
+				_woe_pending_amount = need
+				_woe_pending_spell_card = crypt_card
+				_woe_pending_revive_wrapper = revive_wrapper
+				_woe_pending_noble_mid = -1
+				_log("P%d plays Revive %d (%s); Woe pending on P%d." % [p, value, payment_text, wt])
+				return "ok"
+		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
+		if err != "ok":
+			idisc.insert(cidx, crypt_card)
+			return err
+		idisc.append(crypt_card)
+		_log("P%d Revive casts %s %d from crypt (%s)." % [p, cv, cn, payment_text])
+	pl["inc_discard"].append(revive_wrapper)
+	_log("P%d plays Revive %d (%s)." % [p, value, payment_text])
+	_check_power_win(p)
+	return "ok"
+
+
+func submit_woe_discard(p: int, indices: Array) -> String:
+	if not _woe_waiting_on_response():
+		return "illegal"
+	if p != _woe_pending_victim:
+		return "illegal"
+	var inst := _woe_pending_instigator
+	var amt := _woe_pending_amount
+	var hand_sz: int = _players[p]["hand"].size()
+	var need := mini(amt, hand_sz)
+	if need > 0 and not _woe_indices_valid(hand_sz, need, indices):
+		return "illegal"
+	if need > 0:
+		_discard_hand_chosen_indices(p, indices)
+	var spell: Variant = _woe_pending_spell_card
+	var wrap_card: Variant = _woe_pending_revive_wrapper
+	var noble_mid := _woe_pending_noble_mid
+	_woe_clear_pending()
+	var pli: Dictionary = _players[inst]
+	if spell != null:
+		pli["inc_discard"].append(spell)
+	if wrap_card != null:
+		pli["inc_discard"].append(wrap_card)
+	if noble_mid >= 0:
+		_mark_noble_used_this_turn(inst, noble_mid)
+	_log("Woe response complete (victim P%d)." % p)
+	_check_power_win(inst)
+	return "ok"
+
+
+func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wrath_mids: Array, ctx: Dictionary) -> String:
+	if not can_activate_noble(p, noble_mid):
+		return "illegal"
+	var noble := _find_noble_on_field(p, noble_mid)
+	var nid := str(noble.get("noble_id", ""))
+	var v := verb.to_lower()
+	match nid:
+		"bndrr_incantation":
+			if v != "burn" or value != 1:
+				return "illegal"
+		"wndrr_incantation":
+			if v != "woe" or value != 1:
+				return "illegal"
+		"sndrr_incantation":
+			if v != "seek" or value != 1:
+				return "illegal"
+		_:
+			return "illegal"
+	if _validate_play_ctx(p, v, value, wrath_mids, ctx) != "ok":
+		return "illegal"
+	var wr_r: Array = []
+	if v == "wrath":
+		wr_r = _wrath_resolve_mids(1 - p, value, wrath_mids, p)
+	if v == "woe":
+		var wt := int(ctx.get("woe_target", -1))
+		var opp := 1 - p
+		var need := _woe_discard_need(p, value, wt)
+		if wt == opp and need > 0:
+			_woe_pending_instigator = p
+			_woe_pending_victim = wt
+			_woe_pending_amount = need
+			_woe_pending_spell_card = null
+			_woe_pending_revive_wrapper = null
+			_woe_pending_noble_mid = noble_mid
+			_log("P%d activates Wndrr; Woe pending on P%d." % [p, wt])
+			return "ok"
+	var err := execute_incantation_effect(p, v, value, wr_r, ctx)
+	if err != "ok":
+		return err
+	_mark_noble_used_this_turn(p, noble_mid)
+	match nid:
+		"bndrr_incantation":
+			_log("P%d activates Bndrr (Burn 1)." % p)
+		"wndrr_incantation":
+			_log("P%d activates Wndrr (Woe 1)." % p)
+		"sndrr_incantation":
+			_log("P%d activates Sndrr (Seek 1)." % p)
+		_:
+			pass
+	return "ok"
+
+
+func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> String:
+	if not can_activate_noble(p, noble_mid):
+		return "illegal"
+	var noble := _find_noble_on_field(p, noble_mid)
+	if str(noble.get("noble_id", "")) != "rndrr_incantation":
+		return "illegal"
+	if _validate_play_ctx(p, "revive", 1, [], ctx) != "ok":
+		return "illegal"
+	var steps: Array = ctx.get("revive_steps", []) as Array
+	if steps.is_empty():
+		steps = [ctx]
+	var yyt: Array = ctx.get("yytzr_extra_sac_mids", []) as Array
+	if steps.size() > 2:
+		return "illegal"
+	if steps.size() == 2:
+		if not _validate_yytzr_extra_sacrifice(p, {}, yyt):
+			return "illegal"
+		var ed: Dictionary = {}
+		for m in yyt:
+			ed[int(m)] = true
+		_apply_sacrifice(p, ed)
+	var d0: Dictionary = steps[0]
+	if bool(d0.get("revive_skip", false)):
+		_mark_noble_used_this_turn(p, noble_mid)
+		_log("P%d activates Rndrr (Revive 1 skipped)." % p)
+		return "ok"
+	var pl: Dictionary = _players[p]
+	var idisc: Array = pl["inc_discard"]
+	for si in steps.size():
+		var d: Dictionary = steps[si]
+		if bool(d.get("revive_skip", false)):
+			continue
+		var cidx := int(d.get("revive_crypt_idx", -1))
+		if cidx < 0 or cidx >= idisc.size():
+			return "illegal"
+		var crypt_card: Dictionary = idisc[cidx].duplicate(true)
+		idisc.remove_at(cidx)
+		var nested: Dictionary = d.get("nested", {}) as Dictionary
+		var cv := str(crypt_card.get("verb", "")).to_lower()
+		var cn := int(crypt_card.get("value", 0))
+		var wr_mids: Array = nested.get("wrath_mids", []) as Array
+		var wr_r := _wrath_resolve_mids(1 - p, cn, wr_mids, p)
+		if cv == "woe":
+			var wt := int(nested.get("woe_target", -1))
+			var need := _woe_discard_need(p, cn, wt)
+			if wt == 1 - p and need > 0:
+				_woe_pending_instigator = p
+				_woe_pending_victim = wt
+				_woe_pending_amount = need
+				_woe_pending_spell_card = crypt_card
+				_woe_pending_revive_wrapper = null
+				_woe_pending_noble_mid = noble_mid
+				return "ok"
+		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
+		if err != "ok":
+			idisc.insert(cidx, crypt_card)
+			return err
+		idisc.append(crypt_card)
+		_log("P%d Revive casts %s %d from crypt (Rndrr)." % [p, cv, cn])
+	_mark_noble_used_this_turn(p, noble_mid)
+	_log("P%d activates Rndrr (Revive from crypt)." % p)
+	return "ok"
+
+
+func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, grave_idx: int) -> String:
+	if not can_activate_noble(p, noble_mid):
+		return "illegal"
+	var noble := _find_noble_on_field(p, noble_mid)
+	if str(noble.get("noble_id", "")) != "aeoiu_rituals":
+		return "illegal"
+	if ritual_played_this_turn:
+		return "illegal"
+	var pl: Dictionary = _players[p]
+	var rg: Array = pl["ritual_grave"]
+	if grave_idx < 0 or grave_idx >= rg.size():
+		return "illegal"
+	var c: Dictionary = (rg[grave_idx] as Dictionary).duplicate(true)
+	rg.remove_at(grave_idx)
+	var mid := _next_mid(pl)
+	pl["field"].append({"mid": mid, "value": int(c["value"])})
+	ritual_played_this_turn = true
+	_mark_noble_used_this_turn(p, noble_mid)
+	_log("P%d plays %d-Ritual from crypt (Aeoiu)." % [p, int(c["value"])])
+	_check_power_win(p)
+	return "ok"
+
+
+func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], ctx: Dictionary = {}) -> String:
 	if not can_play_incantation(p, hand_idx):
 		return "illegal"
 	var c: Dictionary = _card_at_hand(p, hand_idx)
@@ -487,18 +957,49 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 				mids[int(mid)] = true
 			if not _sacrifice_valid(p, n, mids):
 				return "illegal_sacrifice"
-	var payment_text := _incantation_payment_text(p, n, need_sac, mids)
-	_apply_sacrifice(p, mids)
-	var pl: Dictionary = _players[p]
-	pl["hand"].remove_at(hand_idx)
 	var verb_raw: String = str(c.get("verb", ""))
 	var verb: String = verb_raw.to_lower()
-	if verb == "wrath" and _wrath_destroy_count(n) == 0:
+	var ctx_use: Dictionary = ctx.duplicate(true)
+	if _validate_play_ctx(p, verb, n, wrath_mids, ctx_use) != "ok":
 		return "illegal"
+	var yyt_extra: Array = ctx_use.get("yytzr_extra_sac_mids", []) as Array
+	if verb == "revive" and not yyt_extra.is_empty():
+		if not _noble_on_field(p, "yytzr_occultation"):
+			return "illegal"
+		var pd_pri: Dictionary = {}
+		if need_sac:
+			for m in sacrifice_mids:
+				pd_pri[int(m)] = true
+		if not _validate_yytzr_extra_sacrifice(p, pd_pri, yyt_extra):
+			return "illegal"
+	var payment_text := _incantation_payment_text(p, n, need_sac, mids)
+	_apply_sacrifice(p, mids)
+	if verb == "revive" and not yyt_extra.is_empty():
+		var ed: Dictionary = {}
+		for m in yyt_extra:
+			ed[int(m)] = true
+		_apply_sacrifice(p, ed)
+	var pl: Dictionary = _players[p]
+	pl["hand"].remove_at(hand_idx)
+	if verb == "revive":
+		return _run_revive_steps_after_payment(p, n, ctx_use, payment_text, c)
 	var wrath_resolved: Array = []
 	if verb == "wrath":
-		wrath_resolved = _wrath_resolve_mids(1 - p, n, wrath_mids)
-	_apply_incantation(p, verb, n, wrath_resolved, insight_target, insight_perm)
+		wrath_resolved = _wrath_resolve_mids(1 - p, n, wrath_mids, p)
+	if verb == "woe":
+		var wt := int(ctx_use.get("woe_target", -1))
+		var opp := 1 - p
+		var need := _woe_discard_need(p, n, wt)
+		if wt == opp and need > 0:
+			_woe_pending_instigator = p
+			_woe_pending_victim = wt
+			_woe_pending_amount = need
+			_woe_pending_spell_card = c
+			_woe_pending_revive_wrapper = null
+			_woe_pending_noble_mid = -1
+			_log("P%d plays %s %d (%s); Woe pending on P%d." % [p, verb_raw, n, payment_text, wt])
+			return "ok"
+	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
 	pl["inc_discard"].append(c)
 	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	_check_power_win(p)
@@ -537,6 +1038,8 @@ func play_dethrone(p: int, hand_idx: int, noble_mids: Array = [], sacrifice_mids
 func can_activate_noble(p: int, noble_mid: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
 		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return false
 	var noble := _find_noble_on_field(p, noble_mid)
 	if noble.is_empty():
 		return false
@@ -554,8 +1057,11 @@ func activate_noble(p: int, noble_mid: int) -> String:
 	if not can_activate_noble(p, noble_mid):
 		return "illegal"
 	var noble := _find_noble_on_field(p, noble_mid)
-	if str(noble.get("noble_id", "")) == "indrr_incantation":
+	var nid0 := str(noble.get("noble_id", ""))
+	if nid0 == "indrr_incantation":
 		return activate_noble_with_insight(p, noble_mid, -1, [])
+	if nid0 in ["bndrr_incantation", "wndrr_incantation", "sndrr_incantation", "rndrr_incantation", "aeoiu_rituals"]:
+		return "illegal"
 	var hook: Variant = _hook_for_noble(noble)
 	var result: Variant = hook.call("activate", self, p, noble)
 	if typeof(result) != TYPE_DICTIONARY:
@@ -575,9 +1081,12 @@ func activate_noble_with_insight(p: int, noble_mid: int, insight_target: int, in
 		return "illegal"
 	var noble := _find_noble_on_field(p, noble_mid)
 	if str(noble.get("noble_id", "")) == "indrr_incantation":
-		_apply_incantation(p, "insight", 2, [], insight_target, insight_perm)
+		var ctx := {"insight_target": insight_target, "insight_perm": insight_perm}
+		if _validate_play_ctx(p, "insight", 2, [], ctx) != "ok":
+			return "illegal"
+		execute_incantation_effect(p, "insight", 2, [], ctx)
 		_mark_noble_used_this_turn(p, noble_mid)
-		_log("P%d activates Indrr (Insight 2)." % p)
+		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 2)])
 		return "ok"
 	var hook: Variant = _hook_for_noble(noble)
 	var result: Variant = hook.call("activate", self, p, noble)
@@ -642,30 +1151,12 @@ func _incantation_payment_text(p: int, cost: int, used_sacrifice: bool, mids: Di
 	return "paid by sacrificing mids %s (values %s, total %d for cost %d)" % [str(mid_list), str(values), total, cost]
 
 
-func _apply_incantation(p: int, verb: String, value: int, wrath_mids: Array = [], insight_target: int = -1, insight_perm: Array = []) -> void:
-	var opp := 1 - p
-	match verb:
-		"seek":
-			_draw_n(p, value)
-		"insight":
-			var tgt := insight_target
-			if tgt != p and tgt != opp:
-				tgt = (1 - p) if rng.randf() < 0.5 else p
-			_apply_insight_reorder(tgt, value, insight_perm)
-		"burn":
-			_mill(opp, value * 2)
-		"woe":
-			_random_discard_hand(opp, value)
-		"revive":
-			_revive_random(p, value)
-		"wrath":
-			_destroy_rituals_by_mids(opp, wrath_mids)
-		_:
-			pass
-
-
-func resolve_spell_like_effect(p: int, verb: String, value: int) -> void:
-	_apply_incantation(p, verb.to_lower(), value, [], -1, [])
+func resolve_spell_like_effect(p: int, verb: String, value: int, ctx: Dictionary = {}) -> void:
+	var v := verb.to_lower()
+	var wr: Array = []
+	if v == "wrath":
+		wr = _wrath_resolve_mids(1 - p, value, [], p)
+	execute_incantation_effect(p, v, value, wr, ctx)
 
 
 func _draw_n(p: int, n: int) -> void:
@@ -697,14 +1188,6 @@ func _insight_perm_valid(take: int, perm: Array) -> bool:
 	return seen.size() == take
 
 
-func _shuffle_index_array(perm: Array) -> void:
-	for i in range(perm.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var t: Variant = perm[i]
-		perm[i] = perm[j]
-		perm[j] = t
-
-
 func _apply_insight_reorder(target: int, x: int, perm: Array) -> void:
 	var pl: Dictionary = _players[target]
 	var deck: Array = pl["deck"]
@@ -715,22 +1198,18 @@ func _apply_insight_reorder(target: int, x: int, perm: Array) -> void:
 	if take == 1:
 		_log("Insight 1 on P%d deck (single card)." % target)
 		return
+	if not _insight_perm_valid(take, perm):
+		return
 	var peek: Array = []
 	peek.resize(take)
 	for i in take:
 		peek[i] = deck[deck.size() - 1 - i]
 	for _i in take:
 		deck.pop_back()
-	var use_perm: Array = perm.duplicate()
-	if not _insight_perm_valid(take, use_perm):
-		use_perm.clear()
-		for i in take:
-			use_perm.append(i)
-		_shuffle_index_array(use_perm)
 	var new_seq: Array = []
 	new_seq.resize(take)
 	for i in take:
-		new_seq[i] = peek[int(use_perm[i])]
+		new_seq[i] = peek[int(perm[i])]
 	for k in range(take - 1, -1, -1):
 		deck.append(new_seq[k])
 	_log("Insight %d on P%d deck (reordered)." % [take, target])
@@ -745,41 +1224,15 @@ func _mill(target: int, x: int) -> void:
 	_log("Burn discards %d from P%d deck." % [n, target])
 
 
-func _random_discard_hand(target: int, x: int) -> void:
-	var pl: Dictionary = _players[target]
-	var hand: Array = pl["hand"]
-	for _i in mini(x, hand.size()):
-		var idx := rng.randi_range(0, hand.size() - 1)
-		_move_hand_card_to_discard(pl, hand, idx)
-	_log("Woe discards P%d cards." % target)
-
-
-func _revive_random(p: int, x: int) -> void:
-	var pl: Dictionary = _players[p]
-	var idisc: Array = pl["inc_discard"]
-	for _k in range(int(x)):
-		var opts: Array[int] = []
-		for j in idisc.size():
-			if _card_kind(idisc[j]) == "incantation":
-				opts.append(j)
-		if opts.is_empty():
-			break
-		var pick := opts[rng.randi_range(0, opts.size() - 1)]
-		var c: Variant = idisc[pick]
-		idisc.remove_at(pick)
-		pl["hand"].append(c)
-	_log("Revive returns incantations to P%d hand." % p)
-
-
 func _wrath_destroy_count(value: int) -> int:
 	if value == 4:
 		return 2
 	return 0
 
 
-func _wrath_resolve_mids(opp: int, n: int, client_mids: Array) -> Array:
+func _wrath_resolve_mids(opp: int, n: int, client_mids: Array, instigator: int) -> Array:
 	var field: Array = _players[opp]["field"]
-	var need := mini(_wrath_destroy_count(n), field.size())
+	var need := mini(effective_wrath_destroy_count(instigator, n), field.size())
 	if need == 0:
 		return []
 	var dict: Dictionary = {}
@@ -871,7 +1324,11 @@ func _dethrone_resolve_mids(target: int, client_mids: Array) -> Array:
 
 
 func can_discard_for_draw(p: int) -> bool:
-	return phase == Phase.MAIN and not _is_mulligan_active() and p == current and not discard_draw_used and not _players[p]["hand"].is_empty()
+	if not (phase == Phase.MAIN and not _is_mulligan_active() and p == current and not discard_draw_used and not _players[p]["hand"].is_empty()):
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return false
+	return true
 
 
 func discard_for_draw(p: int, hand_idx: int) -> String:
@@ -903,6 +1360,8 @@ func _move_hand_card_to_discard(pl: Dictionary, hand: Array, idx: int) -> void:
 
 func end_turn(p: int, discard_indices: Array) -> String:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
+		return "illegal"
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
 		return "illegal"
 	var pl: Dictionary = _players[p]
 	var hand: Array = pl["hand"]

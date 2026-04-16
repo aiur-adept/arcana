@@ -9,6 +9,7 @@ const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
 const MAX_RITUAL_COPIES := 9
 const MAX_INCANTATION_COPIES := 4
+const MAX_NOBLE_FIRSTNAME_COPIES := 4
 const DECK_DIR := "user://decks"
 const DECK_EXT := ".json"
 const DECK_EXPORT_PREFIX := "decks_export_"
@@ -16,6 +17,10 @@ const NOBLE_DEFS := [
 	{"id": "krss_power", "name": "Krss, Noble of Power"},
 	{"id": "trss_power", "name": "Trss, Noble of Power"},
 	{"id": "yrss_power", "name": "Yrss, Noble of Power"},
+	{"id": "xytzr_emanation", "name": "Xytzr, Noble of Emanation"},
+	{"id": "yytzr_occultation", "name": "Yytzr, Noble of Occultation"},
+	{"id": "zytzr_annihilation", "name": "Zytzr, Noble of Annihilation"},
+	{"id": "aeoiu_rituals", "name": "Aeoiu, Noble of Rituals"},
 	{"id": "sndrr_incantation", "name": "Sndrr, Noble of Incantation"},
 	{"id": "indrr_incantation", "name": "Indrr, Noble of Incantation"},
 	{"id": "bndrr_incantation", "name": "Bndrr, Noble of Incantation"},
@@ -274,13 +279,13 @@ func _entry_preview_text(entry: Dictionary) -> String:
 			"seek":
 				return "Seek %d\nDraw %d card(s)." % [v, v]
 			"insight":
-				return "Insight %d\nReorder the top %d card(s) of either deck." % [v, v]
+				return "Insight %d\nReorder the top %d card(s) of a chosen player's deck." % [v, v]
 			"burn":
-				return "Burn %d\nDiscard the top %d card(s) of opponent's deck." % [v, v * 2]
+				return "Burn %d\nDiscard the top %d card(s) of a chosen player's deck." % [v, v * 2]
 			"woe":
-				return "Woe %d\nOpponent randomly discards %d card(s)." % [v, v]
+				return "Woe %d\nA chosen player discards %d chosen card(s)." % [v, v]
 			"revive":
-				return "Revive %d\nReturn up to %d random incantation card(s) from your discard to your hand." % [v, v]
+				return "Revive %d\nYou may cast %d incantation(s) from your crypt (chosen)." % [v, v]
 			"wrath":
 				return "Wrath %d\nDestroy %d opponent ritual(s)." % [v, _wrath_destroy_count(v)]
 			"dethrone":
@@ -312,6 +317,14 @@ func _noble_preview_text(noble_id: String) -> String:
 			return "Activate once per turn: Woe 1."
 		"rndrr_incantation":
 			return "Activate once per turn: Revive 1."
+		"xytzr_emanation":
+			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at an additional card."
+		"yytzr_occultation":
+			return "Whenever you Burn, add 3 to cards milled. Whenever you Revive, you may sacrifice 2+ ritual power for an extra crypt cast."
+		"zytzr_annihilation":
+			return "Whenever you Wrath, destroy an extra ritual. Whenever you Woe, the victim discards an additional card."
+		"aeoiu_rituals":
+			return "Activate once per turn: play a Ritual from your crypt."
 	return "Noble."
 
 
@@ -650,7 +663,10 @@ func _can_increase_entry(entry: Dictionary) -> bool:
 			return false
 		return int(totals.get("rituals", 0)) < TARGET_RITUAL_COUNT
 	if kind == "noble":
-		if count >= 1:
+		var fname := _noble_first_name(entry)
+		if fname.is_empty():
+			return false
+		if _noble_first_name_total(fname) >= MAX_NOBLE_FIRSTNAME_COPIES:
 			return false
 		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
 	if kind == "incantation" or kind == "dethrone":
@@ -668,8 +684,9 @@ func _show_cannot_add_status(entry: Dictionary) -> void:
 		else:
 			status_label.text = "Cannot add: ritual cap is %d." % TARGET_RITUAL_COUNT
 	elif kind == "noble":
-		if int(entry.get("count", 0)) >= 1:
-			status_label.text = "Cannot add: only 1 copy of each noble is allowed."
+		var fname := _noble_first_name(entry)
+		if not fname.is_empty() and _noble_first_name_total(fname) >= MAX_NOBLE_FIRSTNAME_COPIES:
+			status_label.text = "Cannot add: max %d nobles named %s." % [MAX_NOBLE_FIRSTNAME_COPIES, fname]
 		else:
 			status_label.text = "Cannot add: non-ritual cap is %d." % TARGET_NON_RITUAL_COUNT
 	else:
@@ -686,6 +703,45 @@ func _incantation_copy_limit_ok() -> bool:
 		if kind != "incantation" and kind != "dethrone":
 			continue
 		if int(entry.get("count", 0)) > MAX_INCANTATION_COPIES:
+			return false
+	return true
+
+
+func _noble_first_name(entry: Dictionary) -> String:
+	var noble_name := str(entry.get("name", "")).strip_edges()
+	if noble_name.is_empty():
+		var nid := str(entry.get("noble_id", ""))
+		if nid.is_empty():
+			return ""
+		var sid := nid.get_slice("_", 0)
+		return sid.capitalize()
+	var comma := noble_name.find(",")
+	if comma > 0:
+		return noble_name.substr(0, comma).strip_edges()
+	return noble_name.get_slice(" ", 0).strip_edges()
+
+
+func _noble_first_name_total(first_name: String) -> int:
+	var total := 0
+	for entry in _entries.values():
+		if str(entry.get("kind", "")) != "noble":
+			continue
+		if _noble_first_name(entry) == first_name:
+			total += int(entry.get("count", 0))
+	return total
+
+
+func _noble_copy_limit_ok() -> bool:
+	var counts: Dictionary = {}
+	for entry in _entries.values():
+		if str(entry.get("kind", "")) != "noble":
+			continue
+		var fname := _noble_first_name(entry)
+		if fname.is_empty():
+			return false
+		counts[fname] = int(counts.get(fname, 0)) + int(entry.get("count", 0))
+	for k in counts.keys():
+		if int(counts[k]) > MAX_NOBLE_FIRSTNAME_COPIES:
 			return false
 	return true
 
@@ -728,7 +784,8 @@ func _update_validation() -> void:
 		total_cards
 	]
 	var copies_ok := _incantation_copy_limit_ok()
-	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and copies_ok
+	var noble_ok := _noble_copy_limit_ok()
+	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and copies_ok and noble_ok
 	var ro := _deck_readonly()
 	save_button.disabled = not is_valid or ro
 	if ro:
@@ -743,6 +800,9 @@ func _update_validation() -> void:
 		status_label.modulate = Color(0.65, 1, 0.65)
 	elif not copies_ok:
 		status_label.text = "Adjust counts: max %d copies of each incantation variant." % MAX_INCANTATION_COPIES
+		status_label.modulate = Color(1, 0.95, 0.6)
+	elif not noble_ok:
+		status_label.text = "Adjust counts: max %d nobles of the same first name." % MAX_NOBLE_FIRSTNAME_COPIES
 		status_label.modulate = Color(1, 0.95, 0.6)
 	else:
 		status_label.text = "Adjust counts to a legal 40-card deck."
