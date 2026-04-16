@@ -33,18 +33,29 @@ const RITUAL_CARD_ASPECT := 2.5 / 3.5
 const RITUAL_CARD_H := 72.0 * CARD_SCALE
 const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
+const UI_BUTTON_MIN_HEIGHT := 48.0
+const UI_BUTTON_PAD_X := 18.0
+const UI_BUTTON_PAD_Y := 10.0
 var _bound_port: int = PORT_MIN
 var _deck_path: String = DEFAULT_DECK_PATH
 
 @onready var status_label: Label = %StatusLabel
 @onready var log_label: RichTextLabel = %LogLabel
+@onready var left_action_panel: PanelContainer = %LeftActionPanel
+@onready var left_action_hamburger_button: Button = %LeftActionHamburgerButton
+@onready var left_action_expanded_panel: PanelContainer = %LeftActionExpandedPanel
+@onready var left_action_close_button: Button = %LeftActionCloseButton
+@onready var concede_button: Button = %ConcedeButton
+@onready var exit_match_button: Button = %ExitMatchButton
 @onready var hand_row: HBoxContainer = %HandRow
+@onready var crypt_button: Button = %CryptButton
+@onready var opp_crypt_button: Button = %OppCryptButton
 @onready var end_turn_button: Button = %EndTurnButton
 @onready var discard_draw_button: Button = %DiscardDrawButton
 @onready var field_you_cards: HBoxContainer = %FieldYouCards
 @onready var field_opp_cards: HBoxContainer = %FieldOppCards
-@onready var you_stats_label: Label = %YouStatsLabel
-@onready var opp_stats_label: Label = %OppStatsLabel
+@onready var you_stats_label: RichTextLabel = %YouStatsLabel
+@onready var opp_stats_label: RichTextLabel = %OppStatsLabel
 @onready var sacrifice_row: HBoxContainer = %SacrificeRow
 @onready var sacrifice_hint: Label = %SacrificeHint
 @onready var sacrifice_confirm_button: Button = %SacrificeConfirmButton
@@ -53,6 +64,8 @@ var _deck_path: String = DEFAULT_DECK_PATH
 @onready var pause_overlay: Control = %PauseOverlay
 @onready var pause_return_button: Button = %PauseReturnButton
 @onready var pause_quit_button: Button = %PauseQuitButton
+@onready var concede_confirm_dialog: ConfirmationDialog = %ConcedeConfirmDialog
+@onready var exit_confirm_dialog: ConfirmationDialog = %ExitConfirmDialog
 
 var _host: bool = false
 var _my_player: int = 0
@@ -95,7 +108,6 @@ var _insight_overlay: Control
 var _insight_cards_row: HBoxContainer
 var _insight_hint_label: Label
 var _insight_btn_confirm: Button
-var _insight_btn_cancel: Button
 var _insight_btn_yours: Button
 var _insight_btn_opps: Button
 var _insight_revive_crypt_idx: int = -1
@@ -148,6 +160,14 @@ var _mulligan_bar: PanelContainer
 var _mulligan_label: Label
 var _mulligan_keep_button: Button
 var _mulligan_take_button: Button
+var _crypt_hover_popup: PanelContainer
+var _crypt_hover_label: RichTextLabel
+var _crypt_modal_overlay: Control
+var _crypt_modal_list: VBoxContainer
+var _crypt_modal_close_button: Button
+var _crypt_modal_title: Label
+var _crypt_modal_hint: Label
+var _crypt_focus_opponent: bool = false
 
 
 func _is_network_pvp() -> bool:
@@ -220,14 +240,48 @@ func _ready() -> void:
 	_build_game_end_modal()
 	_build_end_discard_modal()
 	_build_mulligan_bar()
+	_build_crypt_ui()
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	discard_draw_button.pressed.connect(_on_discard_draw_pressed)
 	sacrifice_confirm_button.pressed.connect(_on_sacrifice_confirm_pressed)
 	sacrifice_cancel_button.pressed.connect(_on_sacrifice_cancel_pressed)
 	quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
+	left_action_hamburger_button.pressed.connect(_on_left_action_hamburger_pressed)
+	left_action_close_button.pressed.connect(_on_left_action_close_pressed)
+	concede_button.pressed.connect(_on_concede_pressed)
+	exit_match_button.pressed.connect(_on_exit_match_pressed)
 	pause_return_button.pressed.connect(_on_pause_return_pressed)
 	pause_quit_button.pressed.connect(_on_pause_quit_pressed)
+	concede_confirm_dialog.confirmed.connect(_on_concede_confirmed)
+	exit_confirm_dialog.confirmed.connect(_on_exit_match_confirmed)
 	pause_overlay.visible = false
+	_apply_ui_button_padding(end_turn_button)
+	_apply_ui_button_padding(discard_draw_button)
+	_apply_ui_button_padding(concede_button)
+	_apply_ui_button_padding(exit_match_button)
+	_apply_ui_button_padding(crypt_button)
+	_apply_ui_button_padding(opp_crypt_button)
+	_apply_ui_button_padding(sacrifice_confirm_button)
+	_apply_ui_button_padding(sacrifice_cancel_button)
+	_apply_ui_button_padding(quit_to_menu_button)
+	_apply_ui_button_padding(pause_return_button)
+	_apply_ui_button_padding(pause_quit_button)
+	left_action_hamburger_button.custom_minimum_size = Vector2(38, 34)
+	left_action_hamburger_button.add_theme_font_size_override("font_size", 20)
+	left_action_close_button.custom_minimum_size = Vector2(34, 30)
+	var left_panel_style := StyleBoxFlat.new()
+	left_panel_style.bg_color = Color(0, 0, 0, 1)
+	left_panel_style.border_color = Color(0.18, 0.18, 0.18, 1)
+	left_panel_style.set_border_width_all(1)
+	left_panel_style.set_corner_radius_all(8)
+	left_action_expanded_panel.add_theme_stylebox_override("panel", left_panel_style)
+	_set_left_action_expanded(false)
+	crypt_button.mouse_entered.connect(_on_crypt_button_mouse_entered)
+	crypt_button.mouse_exited.connect(_on_crypt_button_mouse_exited)
+	crypt_button.pressed.connect(_on_crypt_button_pressed)
+	opp_crypt_button.mouse_entered.connect(_on_opp_crypt_button_mouse_entered)
+	opp_crypt_button.mouse_exited.connect(_on_opp_crypt_button_mouse_exited)
+	opp_crypt_button.pressed.connect(_on_opp_crypt_button_pressed)
 	if _is_network_pvp():
 		_host = true
 		_my_player = 0
@@ -324,6 +378,8 @@ func _build_insight_overlay() -> void:
 	_insight_btn_yours.text = "Your deck"
 	_insight_btn_opps = Button.new()
 	_insight_btn_opps.text = "Opponent deck"
+	_apply_ui_button_padding(_insight_btn_yours)
+	_apply_ui_button_padding(_insight_btn_opps)
 	h.add_child(_insight_btn_yours)
 	h.add_child(_insight_btn_opps)
 	inner.add_child(h)
@@ -336,15 +392,12 @@ func _build_insight_overlay() -> void:
 	var row2 := HBoxContainer.new()
 	_insight_btn_confirm = Button.new()
 	_insight_btn_confirm.text = "Confirm order"
-	_insight_btn_cancel = Button.new()
-	_insight_btn_cancel.text = "Cancel"
+	_apply_ui_button_padding(_insight_btn_confirm)
 	row2.add_child(_insight_btn_confirm)
-	row2.add_child(_insight_btn_cancel)
 	inner.add_child(row2)
 	_insight_btn_yours.pressed.connect(_on_insight_target_yours)
 	_insight_btn_opps.pressed.connect(_on_insight_target_opps)
 	_insight_btn_confirm.pressed.connect(_on_insight_confirm_pressed)
-	_insight_btn_cancel.pressed.connect(_on_insight_cancel_pressed)
 
 
 func _build_burn_woe_revive_overlays() -> void:
@@ -370,6 +423,8 @@ func _build_burn_woe_revive_overlays() -> void:
 	var h := HBoxContainer.new()
 	_tgt_left_btn = Button.new()
 	_tgt_right_btn = Button.new()
+	_apply_ui_button_padding(_tgt_left_btn)
+	_apply_ui_button_padding(_tgt_right_btn)
 	h.add_child(_tgt_left_btn)
 	h.add_child(_tgt_right_btn)
 	inner.add_child(h)
@@ -381,6 +436,8 @@ func _build_burn_woe_revive_overlays() -> void:
 	_burn_woe_confirm.text = "Confirm"
 	_burn_woe_cancel = Button.new()
 	_burn_woe_cancel.text = "Cancel"
+	_apply_ui_button_padding(_burn_woe_confirm)
+	_apply_ui_button_padding(_burn_woe_cancel)
 	row2.add_child(_burn_woe_confirm)
 	row2.add_child(_burn_woe_cancel)
 	inner.add_child(row2)
@@ -415,6 +472,8 @@ func _build_burn_woe_revive_overlays() -> void:
 	row3.add_child(_revive_skip_btn)
 	_revive_cancel_btn = Button.new()
 	_revive_cancel_btn.text = "Cancel"
+	_apply_ui_button_padding(_revive_skip_btn)
+	_apply_ui_button_padding(_revive_cancel_btn)
 	row3.add_child(_revive_cancel_btn)
 	inner2.add_child(row3)
 	_revive_skip_btn.pressed.connect(_on_revive_skip_pressed)
@@ -443,6 +502,7 @@ func _build_burn_woe_revive_overlays() -> void:
 	var ae_row := HBoxContainer.new()
 	var ae_cancel := Button.new()
 	ae_cancel.text = "Cancel"
+	_apply_ui_button_padding(ae_cancel)
 	ae_row.add_child(ae_cancel)
 	inner_a.add_child(ae_row)
 	ae_cancel.pressed.connect(_on_aeoiu_cancel_pressed)
@@ -734,8 +794,7 @@ func _finalize_revive_wrath_submit(wrath_mids: Array) -> void:
 func _build_hover_preview_panel() -> void:
 	_hover_preview = CardPreviewPresenter.build_preview_panel(self, {
 		"mode": "corner",
-		"card_scale": CARD_SCALE,
-		"card_aspect": RITUAL_CARD_ASPECT
+		"z_index": 220
 	})
 
 
@@ -859,13 +918,14 @@ func _apply_snap(snap: Dictionary) -> void:
 	var opp_hand_n := int(snap.get("opp_hand", 0))
 	var your_deck_n := int(snap.get("your_deck", 0))
 	var opp_deck_n := int(snap.get("opp_deck", 0))
-	you_stats_label.text = "You\nPower: %d\nHand: %d\nDeck: %d" % [yp, your_hand_n, your_deck_n]
-	opp_stats_label.text = "Opponent\nPower: %d\nHand: %d\nDeck: %d" % [op, opp_hand_n, opp_deck_n]
+	you_stats_label.text = _format_player_stats("You", yp, your_hand_n, your_deck_n)
+	opp_stats_label.text = _format_player_stats("Opponent", op, opp_hand_n, opp_deck_n)
+	_update_crypt_button_and_popups(snap)
 	_rebuild_ritual_field(field_you_cards, snap.get("your_field", []), true)
 	_rebuild_ritual_field(field_opp_cards, snap.get("opp_field", []), false)
 	var logs: Array = snap.get("log", [])
 	var tail := ""
-	for i in mini(12, logs.size()):
+	for i in logs.size():
 		tail = str(logs[logs.size() - 1 - i]) + "\n" + tail
 	log_label.text = tail
 	var cur: int = int(snap.get("current", 0))
@@ -906,6 +966,10 @@ func _apply_snap(snap: Dictionary) -> void:
 		_show_end_discard_modal()
 	else:
 		_hide_end_discard_modal()
+
+
+func _format_player_stats(player_name: String, power: int, hand_n: int, deck_n: int) -> String:
+	return "%s\nPower: [font_size=24]%d[/font_size]\nHand: %d\nDeck: %d" % [player_name, power, hand_n, deck_n]
 
 
 func _end_game_ui(snap: Dictionary) -> void:
@@ -988,6 +1052,8 @@ func _build_game_end_modal() -> void:
 	_game_end_play_again.text = "Play Again"
 	_game_end_main_menu = Button.new()
 	_game_end_main_menu.text = "Main Menu"
+	_apply_ui_button_padding(_game_end_play_again)
+	_apply_ui_button_padding(_game_end_main_menu)
 	row.add_child(_game_end_play_again)
 	row.add_child(_game_end_main_menu)
 	_game_end_play_again.pressed.connect(_on_game_end_play_again_pressed)
@@ -1052,6 +1118,7 @@ func _build_end_discard_modal() -> void:
 	v.add_child(_end_discard_label)
 	_end_discard_confirm_button = Button.new()
 	_end_discard_confirm_button.text = "Confirm discard"
+	_apply_ui_button_padding(_end_discard_confirm_button)
 	_end_discard_confirm_button.pressed.connect(_on_end_discard_confirm_pressed)
 	v.add_child(_end_discard_confirm_button)
 
@@ -1096,9 +1163,253 @@ func _build_mulligan_bar() -> void:
 	hb.add_child(_mulligan_keep_button)
 	_mulligan_take_button = Button.new()
 	_mulligan_take_button.text = "Mulligan"
+	_apply_ui_button_padding(_mulligan_keep_button)
+	_apply_ui_button_padding(_mulligan_take_button)
 	hb.add_child(_mulligan_take_button)
 	_mulligan_keep_button.pressed.connect(_on_mulligan_keep_pressed)
 	_mulligan_take_button.pressed.connect(_on_mulligan_take_pressed)
+
+
+func _build_crypt_ui() -> void:
+	_crypt_hover_popup = PanelContainer.new()
+	_crypt_hover_popup.name = "CryptHoverPopup"
+	_crypt_hover_popup.visible = false
+	_crypt_hover_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crypt_hover_popup.z_index = 124
+	_crypt_hover_popup.custom_minimum_size = Vector2(320, 0)
+	add_child(_crypt_hover_popup)
+	var hover_style := StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.06, 0.06, 0.08, 1.0)
+	hover_style.border_color = Color(0.7, 0.74, 0.82)
+	hover_style.set_border_width_all(2)
+	hover_style.set_corner_radius_all(10)
+	_crypt_hover_popup.add_theme_stylebox_override("panel", hover_style)
+	var hover_margin := MarginContainer.new()
+	hover_margin.add_theme_constant_override("margin_left", 12)
+	hover_margin.add_theme_constant_override("margin_top", 10)
+	hover_margin.add_theme_constant_override("margin_right", 12)
+	hover_margin.add_theme_constant_override("margin_bottom", 10)
+	_crypt_hover_popup.add_child(hover_margin)
+	_crypt_hover_label = RichTextLabel.new()
+	_crypt_hover_label.bbcode_enabled = false
+	_crypt_hover_label.fit_content = true
+	_crypt_hover_label.scroll_active = false
+	_crypt_hover_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hover_margin.add_child(_crypt_hover_label)
+
+	_crypt_modal_overlay = Control.new()
+	_crypt_modal_overlay.name = "CryptModalOverlay"
+	_crypt_modal_overlay.visible = false
+	_crypt_modal_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_crypt_modal_overlay.z_index = 130
+	_crypt_modal_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_crypt_modal_overlay)
+	var crypt_back := ColorRect.new()
+	crypt_back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	crypt_back.color = Color(0, 0, 0, 1)
+	crypt_back.mouse_filter = Control.MOUSE_FILTER_STOP
+	_crypt_modal_overlay.add_child(crypt_back)
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_crypt_modal_overlay.add_child(cc)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(520, 360)
+	cc.add_child(panel)
+	var pstyle := StyleBoxFlat.new()
+	pstyle.bg_color = Color(0.08, 0.09, 0.12, 1.0)
+	pstyle.border_color = Color(0.72, 0.78, 0.9)
+	pstyle.set_border_width_all(2)
+	pstyle.set_corner_radius_all(12)
+	panel.add_theme_stylebox_override("panel", pstyle)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	margin.add_child(vb)
+	_crypt_modal_title = Label.new()
+	_crypt_modal_title.text = "Your crypt"
+	_crypt_modal_title.add_theme_font_size_override("font_size", 22)
+	vb.add_child(_crypt_modal_title)
+	_crypt_modal_hint = Label.new()
+	_crypt_modal_hint.text = "Hover stacks for preview."
+	vb.add_child(_crypt_modal_hint)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 240)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(scroll)
+	_crypt_modal_list = VBoxContainer.new()
+	_crypt_modal_list.add_theme_constant_override("separation", 8)
+	scroll.add_child(_crypt_modal_list)
+	_crypt_modal_close_button = Button.new()
+	_crypt_modal_close_button.text = "Close"
+	_apply_ui_button_padding(_crypt_modal_close_button)
+	_crypt_modal_close_button.pressed.connect(_hide_crypt_modal)
+	vb.add_child(_crypt_modal_close_button)
+
+
+func _your_crypt_cards_from_snap(snap: Dictionary) -> Array:
+	var out: Array = []
+	var incs: Array = snap.get("your_inc_discard_cards", []) as Array
+	var rituals: Array = snap.get("your_ritual_crypt_cards", []) as Array
+	for c in incs:
+		out.append(c)
+	for c in rituals:
+		out.append(c)
+	return out
+
+
+func _opp_crypt_cards_from_snap(snap: Dictionary) -> Array:
+	var out: Array = []
+	var incs: Array = snap.get("opp_inc_discard_cards", []) as Array
+	var rituals: Array = snap.get("opp_ritual_crypt_cards", []) as Array
+	for c in incs:
+		out.append(c)
+	for c in rituals:
+		out.append(c)
+	return out
+
+
+func _active_crypt_cards_from_snap(snap: Dictionary) -> Array:
+	return _opp_crypt_cards_from_snap(snap) if _crypt_focus_opponent else _your_crypt_cards_from_snap(snap)
+
+
+func _crypt_stack_entries(cards: Array) -> Array:
+	var by_key: Dictionary = {}
+	for c in cards:
+		var key := _hand_card_stack_key(c)
+		if not by_key.has(key):
+			by_key[key] = {"card": c, "count": 0}
+		var row: Dictionary = by_key[key]
+		row["count"] = int(row.get("count", 0)) + 1
+		by_key[key] = row
+	var keys: Array = by_key.keys()
+	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
+		var da: Dictionary = by_key[a]
+		var db: Dictionary = by_key[b]
+		return _card_label(da.get("card", {})) < _card_label(db.get("card", {}))
+	)
+	var out: Array = []
+	for k in keys:
+		out.append(by_key[k])
+	return out
+
+
+func _update_crypt_button_and_popups(snap: Dictionary) -> void:
+	crypt_button.text = "Crypt (%d)" % _your_crypt_cards_from_snap(snap).size()
+	opp_crypt_button.text = "Opponent crypt (%d)" % _opp_crypt_cards_from_snap(snap).size()
+	if _crypt_hover_popup.visible:
+		_show_crypt_hover_popup()
+	if _crypt_modal_overlay.visible:
+		_rebuild_crypt_modal()
+
+
+func _show_crypt_hover_popup() -> void:
+	if _crypt_modal_overlay.visible:
+		return
+	var cards := _active_crypt_cards_from_snap(_last_snap)
+	var stacks := _crypt_stack_entries(cards)
+	if stacks.is_empty():
+		_crypt_hover_label.text = "Crypt is empty." if not _crypt_focus_opponent else "Opponent crypt is empty."
+	else:
+		var lines: Array[String] = []
+		var shown := mini(6, stacks.size())
+		for i in shown:
+			var d: Dictionary = stacks[i]
+			lines.append("%s x%d" % [_card_label(d.get("card", {})), int(d.get("count", 0))])
+		if stacks.size() > shown:
+			lines.append("+%d more stacks" % (stacks.size() - shown))
+		_crypt_hover_label.text = "\n".join(lines)
+	_crypt_hover_popup.visible = true
+	var source_btn := opp_crypt_button if _crypt_focus_opponent else crypt_button
+	var pos := source_btn.global_position + Vector2(0, -_crypt_hover_popup.size.y - 8)
+	if _crypt_hover_popup.size.y <= 0:
+		pos = source_btn.global_position + Vector2(0, -140)
+	_crypt_hover_popup.global_position = pos
+
+
+func _hide_crypt_hover_popup() -> void:
+	if _crypt_hover_popup != null:
+		_crypt_hover_popup.visible = false
+
+
+func _rebuild_crypt_modal() -> void:
+	for c in _crypt_modal_list.get_children():
+		c.queue_free()
+	_crypt_modal_title.text = "Opponent crypt" if _crypt_focus_opponent else "Your crypt"
+	_crypt_modal_hint.text = "Known cards in opponent crypt."
+	if not _crypt_focus_opponent:
+		_crypt_modal_hint.text = "Hover stacks for preview."
+	var cards := _active_crypt_cards_from_snap(_last_snap)
+	var stacks := _crypt_stack_entries(cards)
+	if stacks.is_empty():
+		var empty := Label.new()
+		empty.text = "No cards in crypt."
+		_crypt_modal_list.add_child(empty)
+		return
+	for d in stacks:
+		var card: Dictionary = d.get("card", {})
+		var count := int(d.get("count", 0))
+		var row_btn := Button.new()
+		row_btn.text = "%s x%d" % [_card_label(card), count]
+		row_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_apply_ui_button_padding(row_btn)
+		row_btn.mouse_entered.connect(func() -> void:
+			_show_card_hover_preview(card.duplicate(true))
+		)
+		row_btn.mouse_exited.connect(func() -> void:
+			_hide_card_hover_preview()
+		)
+		_crypt_modal_list.add_child(row_btn)
+
+
+func _show_crypt_modal() -> void:
+	_hide_crypt_hover_popup()
+	_rebuild_crypt_modal()
+	_crypt_modal_overlay.visible = true
+	_crypt_modal_close_button.grab_focus()
+
+
+func _hide_crypt_modal() -> void:
+	_crypt_modal_overlay.visible = false
+	_hide_card_hover_preview()
+
+
+func _on_crypt_button_mouse_entered() -> void:
+	_crypt_focus_opponent = false
+	_show_crypt_hover_popup()
+
+
+func _on_crypt_button_mouse_exited() -> void:
+	_hide_crypt_hover_popup()
+
+
+func _on_crypt_button_pressed() -> void:
+	_crypt_focus_opponent = false
+	if _crypt_modal_overlay.visible:
+		_hide_crypt_modal()
+	else:
+		_show_crypt_modal()
+
+
+func _on_opp_crypt_button_mouse_entered() -> void:
+	_crypt_focus_opponent = true
+	_show_crypt_hover_popup()
+
+
+func _on_opp_crypt_button_mouse_exited() -> void:
+	_hide_crypt_hover_popup()
+
+
+func _on_opp_crypt_button_pressed() -> void:
+	_crypt_focus_opponent = true
+	if _crypt_modal_overlay.visible:
+		_hide_crypt_modal()
+	else:
+		_show_crypt_modal()
 
 
 func _hide_mulligan_bar() -> void:
@@ -1513,14 +1824,6 @@ func _on_insight_confirm_pressed() -> void:
 	_submit_inc_play_full(_insight_sac, [], {"insight_target": _insight_target, "insight_perm": perm})
 
 
-func _on_insight_cancel_pressed() -> void:
-	if not _insight_open:
-		return
-	_clear_insight_ui()
-	if not _last_snap.is_empty():
-		_apply_snap(_last_snap)
-
-
 func _on_sacrifice_confirm_pressed() -> void:
 	if not _sacrifice_selecting:
 		return
@@ -1633,11 +1936,14 @@ func _on_sacrifice_cancel_pressed() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") and _insight_open:
 		get_viewport().set_input_as_handled()
-		_on_insight_cancel_pressed()
 		return
 	if event.is_action_pressed("ui_cancel") and _sacrifice_selecting:
 		get_viewport().set_input_as_handled()
 		_on_sacrifice_cancel_pressed()
+		return
+	if event.is_action_pressed("ui_cancel") and _crypt_modal_overlay != null and _crypt_modal_overlay.visible:
+		get_viewport().set_input_as_handled()
+		_hide_crypt_modal()
 		return
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
@@ -1898,16 +2204,16 @@ func _start_aeoiu_ritual_pick(noble_mid: int) -> void:
 	_aeoiu_noble_mid = noble_mid
 	for c in _aeoiu_crypt_row.get_children():
 		c.queue_free()
-	var rg: Array = _last_snap.get("your_ritual_grave_cards", []) as Array
+	var rg: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
 	var idx := 0
 	for i in rg.size():
 		var card: Dictionary = rg[i]
 		var vv := int(card.get("value", 0))
 		var b := Button.new()
-		b.text = "Ritual %d (grave #%d)" % [vv, idx]
+		b.text = "Ritual %d (crypt #%d)" % [vv, idx]
 		var capture := idx
 		b.pressed.connect(func() -> void:
-			_on_aeoiu_grave_chosen(capture)
+			_on_aeoiu_crypt_chosen(capture)
 		)
 		_aeoiu_crypt_row.add_child(b)
 		idx += 1
@@ -1919,17 +2225,17 @@ func _start_aeoiu_ritual_pick(noble_mid: int) -> void:
 	discard_draw_button.disabled = true
 
 
-func _on_aeoiu_grave_chosen(grave_idx: int) -> void:
+func _on_aeoiu_crypt_chosen(crypt_idx: int) -> void:
 	var nm := _aeoiu_noble_mid
 	_aeoiu_overlay.visible = false
 	_aeoiu_noble_mid = -1
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
 	if _is_network_client():
-		submit_aeoiu_ritual.rpc_id(1, nm, grave_idx)
+		submit_aeoiu_ritual.rpc_id(1, nm, crypt_idx)
 	else:
 		if _match != null:
-			_match.apply_aeoiu_ritual_from_crypt(_my_player_for_action(), nm, grave_idx)
+			_match.apply_aeoiu_ritual_from_crypt(_my_player_for_action(), nm, crypt_idx)
 	_broadcast_sync(true)
 
 
@@ -2054,6 +2360,11 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		_hide_card_hover_preview()
 	)
 	shell.add_child(tap)
+	var pip_spec := _card_corner_pip_spec(card)
+	if int(pip_spec.get("count", 0)) > 0:
+		var pip_icon := _make_corner_pip_icon(int(pip_spec.get("count", 0)), bool(pip_spec.get("filled", false)))
+		pip_icon.position = Vector2(depth * shift + w - pip_icon.custom_minimum_size.x - 4, h - pip_icon.custom_minimum_size.y - 4)
+		shell.add_child(pip_icon)
 	if stack_count > 1:
 		var badge := Label.new()
 		badge.text = "x%d" % stack_count
@@ -2085,6 +2396,85 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		woe_badge.add_theme_color_override("font_color", Color(1.0, 0.75, 0.75))
 		shell.add_child(woe_badge)
 	return shell
+
+
+func _card_corner_pip_spec(card: Variant) -> Dictionary:
+	var t := _card_type(card)
+	if t == "ritual":
+		return {"count": max(0, int(card.get("value", 0))), "filled": true}
+	if t == "incantation":
+		return {"count": max(0, int(card.get("value", 0))), "filled": false}
+	if t == "noble":
+		return {"count": _noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}
+	return {"count": 0, "filled": false}
+
+
+func _noble_cost_for_id(nid: String) -> int:
+	match nid:
+		"krss_power":
+			return 2
+		"trss_power":
+			return 3
+		"yrss_power":
+			return 4
+		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation", "aeoiu_rituals":
+			return 4
+		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
+			return 3
+		_:
+			return 0
+
+
+func _make_corner_pip_icon(count: int, filled: bool) -> TextureRect:
+	var n := clampi(count, 0, 24)
+	var icon_size: int = 28
+	var center := Vector2i(icon_size >> 1, icon_size >> 1)
+	var image := Image.create(icon_size, icon_size, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var dot_r: int = 4
+	if n == 1:
+		_draw_dot_on_image(image, center, dot_r, filled)
+	else:
+		var remaining: int = n
+		var ring: int = 1
+		var step: float = 6.0
+		while remaining > 0:
+			var cap: int = ring * 6
+			var take: int = mini(remaining, cap)
+			var radius: int = int(round(ring * step))
+			for i in take:
+				var ang := TAU * (float(i) / float(take)) - PI / 2.0
+				var px := center.x + int(round(cos(ang) * radius))
+				var py := center.y + int(round(sin(ang) * radius))
+				_draw_dot_on_image(image, Vector2i(px, py), dot_r, filled)
+			remaining -= take
+			ring += 1
+	var tex := ImageTexture.create_from_image(image)
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP
+	rect.custom_minimum_size = Vector2(icon_size, icon_size)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
+
+
+func _draw_dot_on_image(image: Image, center: Vector2i, radius: int, filled: bool) -> void:
+	var r2: int = radius * radius
+	var inner: int = maxi(0, radius - 1)
+	var inner2: int = inner * inner
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var d2 := dx * dx + dy * dy
+			if d2 > r2:
+				continue
+			if not filled and d2 < inner2:
+				continue
+			var px := center.x + dx
+			var py := center.y + dy
+			if px < 0 or py < 0 or px >= image.get_width() or py >= image.get_height():
+				continue
+			image.set_pixel(px, py, Color(1, 1, 1, 0.98))
 
 
 func _hand_card_stack_key(card: Variant) -> String:
@@ -2627,7 +3017,7 @@ func _run_cpu_turn() -> void:
 					perm_i.append(ii)
 				ok_act = _match.activate_noble_with_insight(1, nmid, tgt_i, perm_i) == "ok"
 			elif nid2 == "aeoiu_rituals":
-				var rgc: Array = snap.get("your_ritual_grave_cards", []) as Array
+				var rgc: Array = snap.get("your_ritual_crypt_cards", []) as Array
 				if rgc.is_empty():
 					ok_act = false
 				else:
@@ -2822,6 +3212,14 @@ func _try_mulligan_bottom(player: int, hand_idx: int, trigger_cpu_check: bool = 
 	_broadcast_sync(trigger_cpu_check)
 
 
+func _try_concede(player: int, trigger_cpu_check: bool = true) -> void:
+	if _match == null:
+		return
+	if _match.concede(player) != "ok":
+		return
+	_broadcast_sync(trigger_cpu_check)
+
+
 @rpc("any_peer", "reliable")
 func submit_play_ritual(hand_idx: int) -> void:
 	if not multiplayer.is_server():
@@ -2917,13 +3315,13 @@ func submit_activate_noble_with_insight(noble_mid: int, insight_target: int, ins
 
 
 @rpc("any_peer", "reliable")
-func submit_aeoiu_ritual(noble_mid: int, grave_idx: int) -> void:
+func submit_aeoiu_ritual(noble_mid: int, crypt_idx: int) -> void:
 	if not multiplayer.is_server():
 		return
 	if _match == null:
 		return
 	var pl := _peer_to_player(_sender_peer())
-	if _match.apply_aeoiu_ritual_from_crypt(pl, noble_mid, grave_idx) == "ok":
+	if _match.apply_aeoiu_ritual_from_crypt(pl, noble_mid, crypt_idx) == "ok":
 		_broadcast_sync(true)
 
 
@@ -2965,6 +3363,16 @@ func submit_mulligan_bottom(hand_idx: int) -> void:
 		return
 	var pl := _peer_to_player(_sender_peer())
 	_try_mulligan_bottom(pl, hand_idx)
+
+
+@rpc("any_peer", "reliable")
+func submit_concede() -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	_try_concede(pl)
 
 
 @rpc("any_peer", "reliable")
@@ -3036,10 +3444,58 @@ func _on_quit_to_menu_pressed() -> void:
 	_show_pause_overlay()
 
 
+func _on_concede_pressed() -> void:
+	concede_confirm_dialog.popup_centered()
+
+
+func _on_exit_match_pressed() -> void:
+	exit_confirm_dialog.popup_centered()
+
+
+func _on_concede_confirmed() -> void:
+	if _is_network_client():
+		submit_concede.rpc_id(1)
+	else:
+		_try_concede(_my_player_for_action())
+
+
+func _on_exit_match_confirmed() -> void:
+	_on_quit_to_menu_confirmed()
+
+
+func _set_left_action_expanded(expanded: bool) -> void:
+	left_action_expanded_panel.visible = expanded
+	left_action_hamburger_button.visible = not expanded
+
+
+func _on_left_action_hamburger_pressed() -> void:
+	_set_left_action_expanded(true)
+
+
+func _on_left_action_close_pressed() -> void:
+	_set_left_action_expanded(false)
+
+
 func _on_quit_to_menu_confirmed() -> void:
 	if multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer = null
 	get_tree().change_scene_to_file("res://main_menu.tscn")
+
+
+func _apply_ui_button_padding(btn: Button) -> void:
+	if btn == null:
+		return
+	btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, UI_BUTTON_MIN_HEIGHT)
+	for style_name in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var style := btn.get_theme_stylebox(style_name)
+		if style == null:
+			continue
+		var padded := style.duplicate()
+		padded.content_margin_left = maxf(padded.content_margin_left, UI_BUTTON_PAD_X)
+		padded.content_margin_right = maxf(padded.content_margin_right, UI_BUTTON_PAD_X)
+		padded.content_margin_top = maxf(padded.content_margin_top, UI_BUTTON_PAD_Y)
+		padded.content_margin_bottom = maxf(padded.content_margin_bottom, UI_BUTTON_PAD_Y)
+		btn.add_theme_stylebox_override(style_name, padded)
 
 
 func _show_pause_overlay() -> void:

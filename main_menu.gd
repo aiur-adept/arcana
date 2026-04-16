@@ -7,6 +7,10 @@ const DECK_EXT := ".json"
 const DECK_EXPORT_PREFIX := "decks_export_"
 const SELECTED_DECK_PATH_FILE := "user://selected_deck_path.txt"
 
+@onready var play_button: Button = %PlayLink
+@onready var deck_editor_button: Button = %DeckEditorLink
+@onready var how_to_play_button: Button = %HowToPlayLink
+@onready var exit_button: Button = %ExitButton
 @onready var deck_picker_overlay: Control = %DeckPickerOverlay
 @onready var deck_picker_list: ItemList = %DeckPickerList
 @onready var deck_picker_status: Label = %DeckPickerStatus
@@ -17,6 +21,10 @@ var _deck_paths: Array[String] = []
 
 
 func _ready() -> void:
+	_double_button_padding(play_button)
+	_double_button_padding(deck_editor_button)
+	_double_button_padding(how_to_play_button)
+	_double_button_padding(exit_button)
 	%PlayLink.pressed.connect(_on_play_pressed)
 	%DeckEditorLink.pressed.connect(_on_deck_editor_pressed)
 	%HowToPlayLink.pressed.connect(_on_how_to_play_pressed)
@@ -27,6 +35,19 @@ func _ready() -> void:
 	deck_picker_cancel_button.pressed.connect(_hide_deck_picker)
 	deck_picker_overlay.visible = false
 	deck_picker_confirm_button.disabled = true
+
+
+func _double_button_padding(btn: Button) -> void:
+	for style_name in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var style := btn.get_theme_stylebox(style_name)
+		if style == null:
+			continue
+		var padded := style.duplicate()
+		padded.content_margin_left *= 2.0
+		padded.content_margin_right *= 2.0
+		padded.content_margin_top *= 2.0
+		padded.content_margin_bottom *= 2.0
+		btn.add_theme_stylebox_override(style_name, padded)
 
 func _on_play_pressed() -> void:
 	_show_deck_picker()

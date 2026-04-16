@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bxblrpc11h521"]
+[gd_scene load_steps=3 format=3 uid="uid://bxblrpc11h521"]
 
 [ext_resource type="Script" path="res://main_menu.gd" id="1_main_menu"]
+[ext_resource type="FontFile" path="res://fonts/Metamorphous-Regular.ttf" id="2_metamorphous"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -22,6 +23,13 @@ grow_vertical = 2
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_metamorphous")
+theme_override_font_sizes/font_size = 84
+horizontal_alignment = 1
+text = "Arcana"
 
 [node name="PlayLink" type="Button" parent="CenterContainer/VBoxContainer"]
 unique_name_in_owner = true

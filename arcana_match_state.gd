@@ -69,7 +69,7 @@ func effective_wrath_destroy_count(instigator: int, value: int) -> int:
 func can_play_aeoiu_ritual(p: int) -> bool:
 	if ritual_played_this_turn:
 		return false
-	return not (_players[p]["ritual_grave"] as Array).is_empty()
+	return not (_players[p]["ritual_crypt"] as Array).is_empty()
 
 
 func _validate_yytzr_extra_sacrifice(p: int, primary_mids: Dictionary, extra: Array) -> bool:
@@ -112,10 +112,10 @@ func _make_player(deck_template: Array) -> Dictionary:
 		"hand": [],
 		"field": [],
 		"noble_field": [],
-		"ritual_grave": [],
-		"noble_grave": [],
+		"ritual_crypt": [],
+		"noble_crypt": [],
 		"inc_discard": [],
-		"deck_grave": []
+		"deck_crypt": []
 	}
 
 
@@ -193,6 +193,17 @@ func _check_power_win(p: int) -> void:
 		winner = p
 		phase = Phase.GAME_OVER
 		_log("P%d reached %d ritual power." % [p, WIN_POWER])
+
+
+func concede(p: int) -> String:
+	if p < 0 or p > 1:
+		return "bad_player"
+	if phase == Phase.GAME_OVER:
+		return "game_over"
+	winner = 1 - p
+	phase = Phase.GAME_OVER
+	_log("P%d conceded. P%d wins." % [p, winner])
+	return "ok"
 
 
 func _start_mulligan() -> void:
@@ -376,7 +387,9 @@ func snapshot(for_player: int) -> Dictionary:
 		"your_inc_disc": _players[for_player]["inc_discard"].size(),
 		"opp_inc_disc": _players[opp]["inc_discard"].size(),
 		"your_inc_discard_cards": _players[for_player]["inc_discard"].duplicate(true),
-		"your_ritual_grave_cards": _players[for_player]["ritual_grave"].duplicate(true),
+		"opp_inc_discard_cards": _players[opp]["inc_discard"].duplicate(true),
+		"your_ritual_crypt_cards": _players[for_player]["ritual_crypt"].duplicate(true),
+		"opp_ritual_crypt_cards": _players[opp]["ritual_crypt"].duplicate(true),
 		"woe_pending_you_respond": _woe_pending_instigator >= 0 and for_player == _woe_pending_victim,
 		"woe_pending_waiting": _woe_pending_instigator >= 0 and for_player == _woe_pending_instigator,
 		"woe_pending_amount": _woe_pending_amount if _woe_pending_instigator >= 0 else 0,
@@ -455,7 +468,7 @@ func _next_mid(pl: Dictionary) -> int:
 	var mx := 0
 	for x in pl["field"]:
 		mx = maxi(mx, int(x["mid"]))
-	for x in pl["ritual_grave"]:
+	for x in pl["ritual_crypt"]:
 		mx = maxi(mx, int(x.get("mid", 0)))
 	return mx + 1
 
@@ -464,7 +477,7 @@ func _next_noble_mid(pl: Dictionary) -> int:
 	var mx := 0
 	for x in pl["noble_field"]:
 		mx = maxi(mx, int(x["mid"]))
-	for x in pl["noble_grave"]:
+	for x in pl["noble_crypt"]:
 		mx = maxi(mx, int(x.get("mid", 0)))
 	return mx + 1
 
@@ -916,7 +929,7 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 	return "ok"
 
 
-func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, grave_idx: int) -> String:
+func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, crypt_idx: int) -> String:
 	if not can_activate_noble(p, noble_mid):
 		return "illegal"
 	var noble := _find_noble_on_field(p, noble_mid)
@@ -925,11 +938,11 @@ func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, grave_idx: int) -> St
 	if ritual_played_this_turn:
 		return "illegal"
 	var pl: Dictionary = _players[p]
-	var rg: Array = pl["ritual_grave"]
-	if grave_idx < 0 or grave_idx >= rg.size():
+	var rg: Array = pl["ritual_crypt"]
+	if crypt_idx < 0 or crypt_idx >= rg.size():
 		return "illegal"
-	var c: Dictionary = (rg[grave_idx] as Dictionary).duplicate(true)
-	rg.remove_at(grave_idx)
+	var c: Dictionary = (rg[crypt_idx] as Dictionary).duplicate(true)
+	rg.remove_at(crypt_idx)
 	var mid := _next_mid(pl)
 	pl["field"].append({"mid": mid, "value": int(c["value"])})
 	ritual_played_this_turn = true
@@ -1125,7 +1138,7 @@ func _apply_sacrifice(p: int, mids: Dictionary) -> void:
 	var keep: Array = []
 	for x in field:
 		if mids.has(int(x["mid"])):
-			pl["ritual_grave"].append(x)
+			pl["ritual_crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["field"] = keep
@@ -1220,7 +1233,7 @@ func _mill(target: int, x: int) -> void:
 	var deck: Array = pl["deck"]
 	var n := mini(x, deck.size())
 	for _i in n:
-		pl["deck_grave"].append(deck.pop_back())
+		pl["deck_crypt"].append(deck.pop_back())
 	_log("Burn discards %d from P%d deck." % [n, target])
 
 
@@ -1281,7 +1294,7 @@ func _destroy_rituals_by_mids(target: int, mids: Array) -> void:
 	var keep: Array = []
 	for x in field:
 		if kill.has(int(x["mid"])):
-			pl["ritual_grave"].append(x)
+			pl["ritual_crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["field"] = keep
@@ -1299,7 +1312,7 @@ func _destroy_nobles_by_mids(target: int, mids: Array) -> void:
 	var keep: Array = []
 	for x in field_nobles:
 		if kill.has(int(x["mid"])):
-			pl["noble_grave"].append(x)
+			pl["noble_crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["noble_field"] = keep
@@ -1351,9 +1364,9 @@ func _move_hand_card_to_discard(pl: Dictionary, hand: Array, idx: int) -> void:
 	hand.remove_at(idx)
 	var kind := _card_kind(c)
 	if kind == "ritual":
-		pl["ritual_grave"].append(c)
+		pl["ritual_crypt"].append(c)
 	elif kind == "noble":
-		pl["noble_grave"].append(c)
+		pl["noble_crypt"].append(c)
 	else:
 		pl["inc_discard"].append(c)
 

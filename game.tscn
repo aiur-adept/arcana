@@ -34,6 +34,7 @@ theme_override_constants/margin_bottom = 16
 
 [node name="RootRow" type="HBoxContainer" parent="Margin"]
 layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 18
 
 [node name="LogCol" type="VBoxContainer" parent="Margin/RootRow"]
@@ -56,6 +57,57 @@ size_flags_vertical = 3
 bbcode_enabled = false
 scroll_active = true
 
+[node name="LeftActionPanel" type="PanelContainer" parent="Margin/RootRow/LogCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="LeftActionVBox" type="VBoxContainer" parent="Margin/RootRow/LogCol/LeftActionPanel"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="LeftActionHamburgerButton" type="Button" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "☰"
+
+[node name="LeftActionExpandedPanel" type="PanelContainer" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="LeftActionMargin" type="MarginContainer" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="ExpandedVBox" type="VBoxContainer" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel/LeftActionMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel/LeftActionMargin/ExpandedVBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="LeftActionCloseButton" type="Button" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel/LeftActionMargin/ExpandedVBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "X"
+
+[node name="ConcedeButton" type="Button" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel/LeftActionMargin/ExpandedVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Concede"
+
+[node name="ExitMatchButton" type="Button" parent="Margin/RootRow/LogCol/LeftActionPanel/LeftActionVBox/LeftActionExpandedPanel/LeftActionMargin/ExpandedVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Exit"
+
 [node name="BoardCol" type="VBoxContainer" parent="Margin/RootRow"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -71,19 +123,37 @@ theme_override_constants/separation = 12
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="YouStatsLabel" type="Label" parent="Margin/RootRow/BoardCol/StatsRow/YouStatsPanel"]
+[node name="YouStatsLabel" type="RichTextLabel" parent="Margin/RootRow/BoardCol/StatsRow/YouStatsPanel"]
 unique_name_in_owner = true
 layout_mode = 2
+bbcode_enabled = true
+fit_content = true
 text = "You\nPower: 0\nHand: 0\nDeck: 0"
 
 [node name="OppStatsPanel" type="PanelContainer" parent="Margin/RootRow/BoardCol/StatsRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="OppStatsLabel" type="Label" parent="Margin/RootRow/BoardCol/StatsRow/OppStatsPanel"]
+[node name="OppStatsLabel" type="RichTextLabel" parent="Margin/RootRow/BoardCol/StatsRow/OppStatsPanel"]
 unique_name_in_owner = true
 layout_mode = 2
+bbcode_enabled = true
+fit_content = true
 text = "Opponent\nPower: 0\nHand: 0\nDeck: 0"
+
+[node name="StatsButtonsRow" type="HBoxContainer" parent="Margin/RootRow/BoardCol"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CryptButton" type="Button" parent="Margin/RootRow/BoardCol/StatsButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Crypt (0)"
+
+[node name="OppCryptButton" type="Button" parent="Margin/RootRow/BoardCol/StatsButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Opponent crypt (0)"
 
 [node name="SacrificeRow" type="HBoxContainer" parent="Margin/RootRow/BoardCol"]
 unique_name_in_owner = true
@@ -179,6 +249,7 @@ text = "Quit to menu"
 [node name="PauseOverlay" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
+z_index = 140
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -244,3 +315,15 @@ text = "Return to game"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Quit to menu"
+
+[node name="ConcedeConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Concede match"
+ok_button_text = "Concede"
+dialog_text = "Concede this match?"
+
+[node name="ExitConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Exit match"
+ok_button_text = "Exit"
+dialog_text = "Exit to main menu?"
