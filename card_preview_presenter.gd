@@ -132,7 +132,8 @@ static func card_rules_text(card: Dictionary) -> String:
 	var verb := str(card.get("verb", "")).to_lower()
 	match verb:
 		"seek":
-			return "Seek %d: draw %d card(s)." % [n, n]
+			var noun := "card" if n == 1 else "cards"
+			return "Seek %d: draw %d %s." % [n, n, noun]
 		"insight":
 			return "Insight %d: reorder the top %d card(s) of either deck." % [n, n]
 		"burn":

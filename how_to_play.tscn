@@ -38,10 +38,16 @@ text = "How To Play"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Content" type="RichTextLabel" parent="Margin/VBox/Scroll"]
+[node name="ContentRoot" type="VBoxContainer" parent="Margin/VBox/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Content" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 bbcode_enabled = false
 fit_content = true
 scroll_active = false
@@ -52,17 +58,62 @@ text = "During Your Turn
    - Up to 1 Ritual
    - Up to 1 Noble
 3. Loot (optional) — Once per turn, you may discard a card to draw a card.
-4. Discard down — At the end of your turn, discard until you have 7 cards in hand.
+4. Discard down — At the end of your turn, discard until you have 7 cards in hand."
 
-Quick reminder on Rituals
-A Ritual is only active if all lower-numbered Rituals (down to 1) are also on your field.
-You need an active Ritual of matching value to play Incantations, or you can sacrifice Rituals whose values add up to at least the cost.
+[node name="ExamplesTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Card Types"
 
-Nobles
+[node name="ExampleTypeRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ContentRoot"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RitualText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "Quick reminder on Rituals
+A Ritual is only active if all lower-numbered Rituals (down to 1) are also on your field."
+
+[node name="ExampleComboTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Active vs Inactive"
+
+[node name="ExampleComboRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ContentRoot"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CostText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "You need an active Ritual of matching value to play Incantations, or you can sacrifice Rituals whose values add up to at least the cost.
+
 Nobles have a cost listed on the card.
-For example, you must have the 4-Ritual active to cast Trss, Noble of Power.
+For example, you must have the 4-Ritual active to cast Trss, Noble of Power."
 
-Win Conditions
+[node name="ExamplePayTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "What Rituals Can Pay For"
+
+[node name="ExamplePayRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ContentRoot"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="WinText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "Win Conditions
 - Reach 20 active Ritual power and you win immediately.
 - If a player must draw from an empty deck, the game ends:
   - Higher active Ritual power wins.
