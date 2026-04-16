@@ -1403,7 +1403,7 @@ func _mill(target: int, x: int) -> void:
 	var deck: Array = pl["deck"]
 	var n := mini(x, deck.size())
 	for _i in n:
-		pl["deck_crypt"].append(deck.pop_back())
+		pl["crypt"].append(deck.pop_back())
 	_log("Burn discards %d from P%d deck." % [n, target])
 
 

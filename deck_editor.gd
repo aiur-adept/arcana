@@ -23,7 +23,7 @@ const NOBLE_DEFS := [
 	{"id": "xytzr_emanation", "name": "Xytzr, Noble of Emanation"},
 	{"id": "yytzr_occultation", "name": "Yytzr, Noble of Occultation"},
 	{"id": "zytzr_annihilation", "name": "Zytzr, Noble of Annihilation"},
-	{"id": "aeoiu_rituals", "name": "Aeoiu, Noble of Rituals"},
+	{"id": "aeoiu_rituals", "name": "Aeoiu, Scion of Rituals"},
 	{"id": "sndrr_incantation", "name": "Sndrr, Noble of Incantation"},
 	{"id": "indrr_incantation", "name": "Indrr, Noble of Incantation"},
 	{"id": "bndrr_incantation", "name": "Bndrr, Noble of Incantation"},
@@ -192,6 +192,13 @@ func _entry_key_noble(noble_id: String) -> String:
 	return "n_%s" % noble_id
 
 
+func _canonical_noble_name(noble_id: String, fallback_name: String = "") -> String:
+	for noble in NOBLE_DEFS:
+		if str(noble.get("id", "")) == noble_id:
+			return str(noble.get("name", fallback_name))
+	return fallback_name
+
+
 func _entry_display_name(entry: Dictionary) -> String:
 	if str(entry.get("kind", "")) == "ritual":
 		return "%d-Ritual" % int(entry.get("value", 0))
@@ -294,7 +301,11 @@ func _ingest_deck_dictionary(parsed_dict: Dictionary) -> void:
 			var nid := str(card.get("noble_id", ""))
 			var nname := str(card.get("name", ""))
 			if not nid.is_empty():
-				_add_or_increment_entry(_entry_key_noble(nid), {"kind": "noble", "noble_id": nid, "name": nname})
+				_add_or_increment_entry(_entry_key_noble(nid), {
+					"kind": "noble",
+					"noble_id": nid,
+					"name": _canonical_noble_name(nid, nname)
+				})
 		elif kind == "dethrone":
 			if int(card.get("value", 4)) == 4:
 				_add_or_increment_entry("dethrone", {"kind": "dethrone", "value": 4})

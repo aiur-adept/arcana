@@ -694,12 +694,9 @@ func _begin_revive_hand_ui(hand_idx: int, n: int, sac_mids: Array, for_noble_mid
 	_revive_pick_phase = true
 	for c in _revive_crypt_row.get_children():
 		c.queue_free()
-	var crypt: Array = _last_snap.get("your_inc_discard_cards", []) as Array
+	var crypt: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation", "dethrone"])
 	var idx := 0
 	for card in crypt:
-		if _card_type(card) != "incantation":
-			idx += 1
-			continue
 		var b := Button.new()
 		var v := str(card.get("verb", ""))
 		var vv := int(card.get("value", 0))
@@ -748,7 +745,7 @@ func _on_revive_cancel_pressed() -> void:
 
 
 func _on_revive_crypt_chosen(crypt_idx: int) -> void:
-	var idisc: Array = _last_snap.get("your_inc_discard_cards", []) as Array
+	var idisc: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation", "dethrone"])
 	if crypt_idx < 0 or crypt_idx >= idisc.size():
 		return
 	var card: Dictionary = idisc[crypt_idx]
@@ -1318,6 +1315,14 @@ func _active_crypt_cards_from_snap(snap: Dictionary) -> Array:
 	if _crypt_focus_zone == "abyss":
 		return _opp_abyss_cards_from_snap(snap) if _crypt_focus_opponent else _your_abyss_cards_from_snap(snap)
 	return _opp_crypt_cards_from_snap(snap) if _crypt_focus_opponent else _your_crypt_cards_from_snap(snap)
+
+
+func _filtered_crypt_cards(cards: Array, kinds: Array) -> Array:
+	var out: Array = []
+	for card in cards:
+		if kinds.has(_card_type(card)):
+			out.append(card)
+	return out
 
 
 func _crypt_stack_entries(cards: Array) -> Array:
@@ -2219,6 +2224,8 @@ func _make_ritual_stack(cards: Array, ours: bool, pick_mode: int) -> Control:
 func _make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1, pick_mode: int = 0, picked: bool = false) -> Control:
 	var w := RITUAL_CARD_H * RITUAL_CARD_ASPECT
 	var h := RITUAL_CARD_H
+	var ritual_gold := Color(0.95, 0.78, 0.24)
+	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(w, h)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -2228,15 +2235,15 @@ func _make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -
 	if ours:
 		sb.bg_color = Color(0.04, 0.04, 0.06)
 		if pick_mode == 1:
-			sb.border_color = Color(0.35, 0.85, 0.45) if picked else Color(0.95, 0.95, 0.95)
+			sb.border_color = ritual_gold_strong if picked else ritual_gold
 		else:
-			sb.border_color = Color(0.95, 0.95, 0.95)
+			sb.border_color = ritual_gold
 	else:
 		sb.bg_color = Color(0.96, 0.96, 0.96)
 		if pick_mode == 2:
-			sb.border_color = Color(0.95, 0.45, 0.35) if picked else Color(0.5, 0.5, 0.55)
+			sb.border_color = ritual_gold_strong if picked else ritual_gold
 		else:
-			sb.border_color = Color(0.06, 0.06, 0.08)
+			sb.border_color = ritual_gold
 	panel.add_theme_stylebox_override("panel", sb)
 	if pick_mode == 1 and ritual_mid >= 0:
 		var mid_cap := ritual_mid
@@ -2269,10 +2276,7 @@ func _make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -
 	lbl.text = str(value)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if ours:
-		lbl.add_theme_color_override("font_color", Color(0.98, 0.98, 0.98))
-	else:
-		lbl.add_theme_color_override("font_color", Color(0.06, 0.06, 0.08))
+	lbl.add_theme_color_override("font_color", ritual_gold_strong if picked else ritual_gold)
 	lbl.add_theme_font_size_override("font_size", 26)
 	cc.add_child(lbl)
 	if not active:
@@ -2403,7 +2407,7 @@ func _start_aeoiu_ritual_pick(noble_mid: int) -> void:
 	_aeoiu_noble_mid = noble_mid
 	for c in _aeoiu_crypt_row.get_children():
 		c.queue_free()
-	var rg: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
+	var rg: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
 	var idx := 0
 	for i in rg.size():
 		var card: Dictionary = rg[i]
@@ -2528,22 +2532,25 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(3 if picked else 2)
 	sb.bg_color = Color(0.04, 0.04, 0.06)
-	sb.border_color = Color(0.7, 0.9, 1.0) if picked else Color(0.92, 0.92, 0.95)
+	var is_ritual := _card_type(card) == "ritual"
+	var ritual_gold := Color(0.95, 0.78, 0.24)
+	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
+	sb.border_color = (ritual_gold_strong if picked else ritual_gold) if is_ritual else (Color(0.7, 0.9, 1.0) if picked else Color(0.92, 0.92, 0.95))
 	tap.add_theme_stylebox_override("normal", sb)
 	var sb_hover := sb.duplicate()
-	sb_hover.border_color = Color(0.84, 0.96, 1.0) if picked else Color(1.0, 1.0, 1.0)
+	sb_hover.border_color = (ritual_gold_strong if picked else Color(1.0, 0.9, 0.48)) if is_ritual else (Color(0.84, 0.96, 1.0) if picked else Color(1.0, 1.0, 1.0))
 	tap.add_theme_stylebox_override("hover", sb_hover)
 	var sb_pressed := sb.duplicate()
 	sb_pressed.bg_color = Color(0.08, 0.08, 0.12)
 	tap.add_theme_stylebox_override("pressed", sb_pressed)
 	var sb_dis := sb.duplicate()
 	sb_dis.bg_color = Color(0.08, 0.08, 0.1)
-	sb_dis.border_color = Color(0.45, 0.45, 0.5)
+	sb_dis.border_color = Color(0.56, 0.5, 0.32) if is_ritual else Color(0.45, 0.45, 0.5)
 	tap.add_theme_stylebox_override("disabled", sb_dis)
-	tap.add_theme_color_override("font_color", Color(0.98, 0.98, 0.98))
-	tap.add_theme_color_override("font_hover_color", Color(0.98, 0.98, 0.98))
-	tap.add_theme_color_override("font_pressed_color", Color(0.98, 0.98, 0.98))
-	tap.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.76))
+	tap.add_theme_color_override("font_color", ritual_gold if is_ritual else Color(0.98, 0.98, 0.98))
+	tap.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.48) if is_ritual else Color(0.98, 0.98, 0.98))
+	tap.add_theme_color_override("font_pressed_color", ritual_gold_strong if is_ritual else Color(0.98, 0.98, 0.98))
+	tap.add_theme_color_override("font_disabled_color", Color(0.62, 0.56, 0.38) if is_ritual else Color(0.7, 0.7, 0.76))
 	tap.add_theme_font_size_override("font_size", 16)
 	var hover_card: Dictionary = card.duplicate(true) if typeof(card) == TYPE_DICTIONARY else {}
 	shell.mouse_entered.connect(func() -> void:
@@ -3273,7 +3280,7 @@ func _run_cpu_turn() -> void:
 					perm_i.append(ii)
 				ok_act = _match.activate_noble_with_insight(1, nmid, tgt_i, perm_i) == "ok"
 			elif nid2 == "aeoiu_rituals":
-				var rgc: Array = snap.get("your_ritual_crypt_cards", []) as Array
+				var rgc: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(snap), ["ritual"])
 				if rgc.is_empty():
 					ok_act = false
 				else:
