@@ -81,10 +81,6 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 
 #### Cost 4
 
-*Krss, Noble of Power*: A low-cost power noble that grants access to incantation lane 1.
-
-*Trss, Noble of Power*: A mid-cost power noble that grants access to incantation lane 2.
-
 *Yrss, Noble of Power*: A higher-cost power noble that grants access to incantation lane 3.
 
 *Xytzr, Noble of Emanation*: Whenever you *Seek*, draw an additional card. Whenever you *Insight*, look at and additional card.
@@ -96,6 +92,8 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 *Aeoiu, Noble of Rituals*: Once per turn, you may play a Ritual from your crypt.
 
 #### Cost 3 
+
+*Trss, Noble of Power*: A mid-cost power noble that grants access to incantation lane 2.
 
 *Bndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Burn 1* effect.
 
@@ -112,3 +110,7 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 *Smrsk, Scion of Occultation*: Whenever you Burn or Revive, you may then sacrifice a Ritual of power X to burn yourself X (discard 2X cards from deck).
 
 *Tmrsk, Scion of Annihilation*: Whenever you Wrath, you may then Woe 1.
+
+#### Cost 2
+
+*Krss, Noble of Power*: A low-cost power noble that grants access to incantation lane 1.
