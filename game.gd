@@ -50,6 +50,8 @@ var _deck_path: String = DEFAULT_DECK_PATH
 @onready var hand_row: HBoxContainer = %HandRow
 @onready var crypt_button: Button = %CryptButton
 @onready var opp_crypt_button: Button = %OppCryptButton
+@onready var abyss_button: Button = %AbyssButton
+@onready var opp_abyss_button: Button = %OppAbyssButton
 @onready var end_turn_button: Button = %EndTurnButton
 @onready var discard_draw_button: Button = %DiscardDrawButton
 @onready var field_you_cards: HBoxContainer = %FieldYouCards
@@ -168,6 +170,7 @@ var _crypt_modal_close_button: Button
 var _crypt_modal_title: Label
 var _crypt_modal_hint: Label
 var _crypt_focus_opponent: bool = false
+var _crypt_focus_zone: String = "crypt"
 
 
 func _is_network_pvp() -> bool:
@@ -261,6 +264,8 @@ func _ready() -> void:
 	_apply_ui_button_padding(exit_match_button)
 	_apply_ui_button_padding(crypt_button)
 	_apply_ui_button_padding(opp_crypt_button)
+	_apply_ui_button_padding(abyss_button)
+	_apply_ui_button_padding(opp_abyss_button)
 	_apply_ui_button_padding(sacrifice_confirm_button)
 	_apply_ui_button_padding(sacrifice_cancel_button)
 	_apply_ui_button_padding(quit_to_menu_button)
@@ -282,6 +287,12 @@ func _ready() -> void:
 	opp_crypt_button.mouse_entered.connect(_on_opp_crypt_button_mouse_entered)
 	opp_crypt_button.mouse_exited.connect(_on_opp_crypt_button_mouse_exited)
 	opp_crypt_button.pressed.connect(_on_opp_crypt_button_pressed)
+	abyss_button.mouse_entered.connect(_on_abyss_button_mouse_entered)
+	abyss_button.mouse_exited.connect(_on_abyss_button_mouse_exited)
+	abyss_button.pressed.connect(_on_abyss_button_pressed)
+	opp_abyss_button.mouse_entered.connect(_on_opp_abyss_button_mouse_entered)
+	opp_abyss_button.mouse_exited.connect(_on_opp_abyss_button_mouse_exited)
+	opp_abyss_button.pressed.connect(_on_opp_abyss_button_pressed)
 	if _is_network_pvp():
 		_host = true
 		_my_player = 0
@@ -669,6 +680,9 @@ func _begin_revive_hand_ui(hand_idx: int, n: int, sac_mids: Array, for_noble_mid
 		var v := str(card.get("verb", ""))
 		var vv := int(card.get("value", 0))
 		b.text = "%s %d (crypt #%d)" % [v, vv, idx]
+		if v.to_lower() == "wrath":
+			b.disabled = true
+			b.tooltip_text = "Wrath cannot be selected by Revive."
 		var capture := idx
 		b.pressed.connect(func() -> void:
 			_on_revive_crypt_chosen(capture)
@@ -715,6 +729,9 @@ func _on_revive_crypt_chosen(crypt_idx: int) -> void:
 		return
 	var card: Dictionary = idisc[crypt_idx]
 	var v := str(card.get("verb", "")).to_lower()
+	if v == "wrath":
+		status_label.text = "Wrath cannot be selected with Revive."
+		return
 	var val := int(card.get("value", 0))
 	_nested_revive_crypt_idx = crypt_idx
 	_nested_revive_value = val
@@ -741,13 +758,6 @@ func _on_revive_crypt_chosen(crypt_idx: int) -> void:
 		_inc_pick_phase = INC_PICK_WOE_TGT
 	elif v == "insight":
 		_begin_insight_ui(_pending_inc_hand_idx, _insight_depth_for(_last_snap, val), _effect_sac, -1, crypt_idx)
-	elif v == "wrath":
-		var wneed := mini(_wrath_effective_destroy_count(_last_snap, val), (_last_snap.get("opp_field", []) as Array).size())
-		if wneed == 0:
-			var steps2 := [{"revive_skip": false, "revive_crypt_idx": crypt_idx, "nested": {"wrath_mids": []}}]
-			_finalize_revive_cast({"revive_steps": steps2})
-		else:
-			_enter_wrath_only_mode(_pending_inc_hand_idx, val, wneed, "Revive Wrath", true)
 	else:
 		status_label.text = "Cannot revive that card type from UI."
 
@@ -1252,28 +1262,24 @@ func _build_crypt_ui() -> void:
 
 
 func _your_crypt_cards_from_snap(snap: Dictionary) -> Array:
-	var out: Array = []
-	var incs: Array = snap.get("your_inc_discard_cards", []) as Array
-	var rituals: Array = snap.get("your_ritual_crypt_cards", []) as Array
-	for c in incs:
-		out.append(c)
-	for c in rituals:
-		out.append(c)
-	return out
+	return (snap.get("your_crypt_cards", []) as Array).duplicate(true)
 
 
 func _opp_crypt_cards_from_snap(snap: Dictionary) -> Array:
-	var out: Array = []
-	var incs: Array = snap.get("opp_inc_discard_cards", []) as Array
-	var rituals: Array = snap.get("opp_ritual_crypt_cards", []) as Array
-	for c in incs:
-		out.append(c)
-	for c in rituals:
-		out.append(c)
-	return out
+	return (snap.get("opp_crypt_cards", []) as Array).duplicate(true)
+
+
+func _your_abyss_cards_from_snap(snap: Dictionary) -> Array:
+	return (snap.get("your_inc_abyss_cards", []) as Array).duplicate(true)
+
+
+func _opp_abyss_cards_from_snap(snap: Dictionary) -> Array:
+	return (snap.get("opp_inc_abyss_cards", []) as Array).duplicate(true)
 
 
 func _active_crypt_cards_from_snap(snap: Dictionary) -> Array:
+	if _crypt_focus_zone == "abyss":
+		return _opp_abyss_cards_from_snap(snap) if _crypt_focus_opponent else _your_abyss_cards_from_snap(snap)
 	return _opp_crypt_cards_from_snap(snap) if _crypt_focus_opponent else _your_crypt_cards_from_snap(snap)
 
 
@@ -1301,6 +1307,10 @@ func _crypt_stack_entries(cards: Array) -> Array:
 func _update_crypt_button_and_popups(snap: Dictionary) -> void:
 	crypt_button.text = "Crypt (%d)" % _your_crypt_cards_from_snap(snap).size()
 	opp_crypt_button.text = "Opponent crypt (%d)" % _opp_crypt_cards_from_snap(snap).size()
+	abyss_button.text = "Abyss (%d)" % _your_abyss_cards_from_snap(snap).size()
+	opp_abyss_button.text = "Opponent abyss (%d)" % _opp_abyss_cards_from_snap(snap).size()
+	abyss_button.visible = _your_abyss_cards_from_snap(snap).size() > 0
+	opp_abyss_button.visible = _opp_abyss_cards_from_snap(snap).size() > 0
 	if _crypt_hover_popup.visible:
 		_show_crypt_hover_popup()
 	if _crypt_modal_overlay.visible:
@@ -1312,8 +1322,9 @@ func _show_crypt_hover_popup() -> void:
 		return
 	var cards := _active_crypt_cards_from_snap(_last_snap)
 	var stacks := _crypt_stack_entries(cards)
+	var pile_name := "abyss" if _crypt_focus_zone == "abyss" else "crypt"
 	if stacks.is_empty():
-		_crypt_hover_label.text = "Crypt is empty." if not _crypt_focus_opponent else "Opponent crypt is empty."
+		_crypt_hover_label.text = ("%s is empty." % pile_name.capitalize()) if not _crypt_focus_opponent else ("Opponent %s is empty." % pile_name)
 	else:
 		var lines: Array[String] = []
 		var shown := mini(6, stacks.size())
@@ -1324,10 +1335,20 @@ func _show_crypt_hover_popup() -> void:
 			lines.append("+%d more stacks" % (stacks.size() - shown))
 		_crypt_hover_label.text = "\n".join(lines)
 	_crypt_hover_popup.visible = true
-	var source_btn := opp_crypt_button if _crypt_focus_opponent else crypt_button
-	var pos := source_btn.global_position + Vector2(0, -_crypt_hover_popup.size.y - 8)
-	if _crypt_hover_popup.size.y <= 0:
-		pos = source_btn.global_position + Vector2(0, -140)
+	var source_btn: Button
+	if _crypt_focus_zone == "abyss":
+		source_btn = opp_abyss_button if _crypt_focus_opponent else abyss_button
+	else:
+		source_btn = opp_crypt_button if _crypt_focus_opponent else crypt_button
+	var pos := source_btn.global_position + Vector2(0, source_btn.size.y + 8)
+	var vp := get_viewport_rect().size
+	var popup_size := _crypt_hover_popup.size
+	if popup_size.x <= 0:
+		popup_size.x = _crypt_hover_popup.custom_minimum_size.x
+	if popup_size.y <= 0:
+		popup_size.y = 140
+	pos.x = clampf(pos.x, 8.0, maxf(8.0, vp.x - popup_size.x - 8.0))
+	pos.y = clampf(pos.y, 8.0, maxf(8.0, vp.y - popup_size.y - 8.0))
 	_crypt_hover_popup.global_position = pos
 
 
@@ -1339,15 +1360,16 @@ func _hide_crypt_hover_popup() -> void:
 func _rebuild_crypt_modal() -> void:
 	for c in _crypt_modal_list.get_children():
 		c.queue_free()
-	_crypt_modal_title.text = "Opponent crypt" if _crypt_focus_opponent else "Your crypt"
-	_crypt_modal_hint.text = "Known cards in opponent crypt."
+	var pile_name := "abyss" if _crypt_focus_zone == "abyss" else "crypt"
+	_crypt_modal_title.text = ("Opponent %s" % pile_name) if _crypt_focus_opponent else ("Your %s" % pile_name)
+	_crypt_modal_hint.text = ("Known cards in opponent %s." % pile_name)
 	if not _crypt_focus_opponent:
 		_crypt_modal_hint.text = "Hover stacks for preview."
 	var cards := _active_crypt_cards_from_snap(_last_snap)
 	var stacks := _crypt_stack_entries(cards)
 	if stacks.is_empty():
 		var empty := Label.new()
-		empty.text = "No cards in crypt."
+		empty.text = "No cards in %s." % pile_name
 		_crypt_modal_list.add_child(empty)
 		return
 	for d in stacks:
@@ -1379,6 +1401,7 @@ func _hide_crypt_modal() -> void:
 
 
 func _on_crypt_button_mouse_entered() -> void:
+	_crypt_focus_zone = "crypt"
 	_crypt_focus_opponent = false
 	_show_crypt_hover_popup()
 
@@ -1388,6 +1411,7 @@ func _on_crypt_button_mouse_exited() -> void:
 
 
 func _on_crypt_button_pressed() -> void:
+	_crypt_focus_zone = "crypt"
 	_crypt_focus_opponent = false
 	if _crypt_modal_overlay.visible:
 		_hide_crypt_modal()
@@ -1396,6 +1420,7 @@ func _on_crypt_button_pressed() -> void:
 
 
 func _on_opp_crypt_button_mouse_entered() -> void:
+	_crypt_focus_zone = "crypt"
 	_crypt_focus_opponent = true
 	_show_crypt_hover_popup()
 
@@ -1405,6 +1430,45 @@ func _on_opp_crypt_button_mouse_exited() -> void:
 
 
 func _on_opp_crypt_button_pressed() -> void:
+	_crypt_focus_zone = "crypt"
+	_crypt_focus_opponent = true
+	if _crypt_modal_overlay.visible:
+		_hide_crypt_modal()
+	else:
+		_show_crypt_modal()
+
+
+func _on_abyss_button_mouse_entered() -> void:
+	_crypt_focus_zone = "abyss"
+	_crypt_focus_opponent = false
+	_show_crypt_hover_popup()
+
+
+func _on_abyss_button_mouse_exited() -> void:
+	_hide_crypt_hover_popup()
+
+
+func _on_abyss_button_pressed() -> void:
+	_crypt_focus_zone = "abyss"
+	_crypt_focus_opponent = false
+	if _crypt_modal_overlay.visible:
+		_hide_crypt_modal()
+	else:
+		_show_crypt_modal()
+
+
+func _on_opp_abyss_button_mouse_entered() -> void:
+	_crypt_focus_zone = "abyss"
+	_crypt_focus_opponent = true
+	_show_crypt_hover_popup()
+
+
+func _on_opp_abyss_button_mouse_exited() -> void:
+	_hide_crypt_hover_popup()
+
+
+func _on_opp_abyss_button_pressed() -> void:
+	_crypt_focus_zone = "abyss"
 	_crypt_focus_opponent = true
 	if _crypt_modal_overlay.visible:
 		_hide_crypt_modal()

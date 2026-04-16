@@ -30,6 +30,7 @@ var _woe_pending_instigator: int = -1
 var _woe_pending_victim: int = -1
 var _woe_pending_amount: int = 0
 var _woe_pending_spell_card: Variant = null
+var _woe_pending_spell_to_abyss: bool = false
 var _woe_pending_revive_wrapper: Variant = null
 var _woe_pending_noble_mid: int = -1
 
@@ -69,7 +70,7 @@ func effective_wrath_destroy_count(instigator: int, value: int) -> int:
 func can_play_aeoiu_ritual(p: int) -> bool:
 	if ritual_played_this_turn:
 		return false
-	return not (_players[p]["ritual_crypt"] as Array).is_empty()
+	return not _ritual_crypt_cards(_players[p]).is_empty()
 
 
 func _validate_yytzr_extra_sacrifice(p: int, primary_mids: Dictionary, extra: Array) -> bool:
@@ -112,9 +113,8 @@ func _make_player(deck_template: Array) -> Dictionary:
 		"hand": [],
 		"field": [],
 		"noble_field": [],
-		"ritual_crypt": [],
-		"noble_crypt": [],
-		"inc_discard": [],
+		"crypt": [],
+		"inc_abyss": [],
 		"deck_crypt": []
 	}
 
@@ -384,12 +384,16 @@ func snapshot(for_player: int) -> Dictionary:
 		"opp_nobles": _players[opp]["noble_field"].duplicate(true),
 		"your_power": ritual_power(for_player),
 		"opp_power": ritual_power(opp),
-		"your_inc_disc": _players[for_player]["inc_discard"].size(),
-		"opp_inc_disc": _players[opp]["inc_discard"].size(),
-		"your_inc_discard_cards": _players[for_player]["inc_discard"].duplicate(true),
-		"opp_inc_discard_cards": _players[opp]["inc_discard"].duplicate(true),
-		"your_ritual_crypt_cards": _players[for_player]["ritual_crypt"].duplicate(true),
-		"opp_ritual_crypt_cards": _players[opp]["ritual_crypt"].duplicate(true),
+		"your_inc_disc": _inc_crypt_cards(_players[for_player]).size(),
+		"opp_inc_disc": _inc_crypt_cards(_players[opp]).size(),
+		"your_inc_discard_cards": _inc_crypt_cards(_players[for_player]).duplicate(true),
+		"opp_inc_discard_cards": _inc_crypt_cards(_players[opp]).duplicate(true),
+		"your_crypt_cards": (_players[for_player]["crypt"] as Array).duplicate(true),
+		"opp_crypt_cards": (_players[opp]["crypt"] as Array).duplicate(true),
+		"your_inc_abyss_cards": _players[for_player]["inc_abyss"].duplicate(true),
+		"opp_inc_abyss_cards": _players[opp]["inc_abyss"].duplicate(true),
+		"your_ritual_crypt_cards": _ritual_crypt_cards(_players[for_player]).duplicate(true),
+		"opp_ritual_crypt_cards": _ritual_crypt_cards(_players[opp]).duplicate(true),
 		"woe_pending_you_respond": _woe_pending_instigator >= 0 and for_player == _woe_pending_victim,
 		"woe_pending_waiting": _woe_pending_instigator >= 0 and for_player == _woe_pending_instigator,
 		"woe_pending_amount": _woe_pending_amount if _woe_pending_instigator >= 0 else 0,
@@ -468,7 +472,7 @@ func _next_mid(pl: Dictionary) -> int:
 	var mx := 0
 	for x in pl["field"]:
 		mx = maxi(mx, int(x["mid"]))
-	for x in pl["ritual_crypt"]:
+	for x in _ritual_crypt_cards(pl):
 		mx = maxi(mx, int(x.get("mid", 0)))
 	return mx + 1
 
@@ -477,7 +481,7 @@ func _next_noble_mid(pl: Dictionary) -> int:
 	var mx := 0
 	for x in pl["noble_field"]:
 		mx = maxi(mx, int(x["mid"]))
-	for x in pl["noble_crypt"]:
+	for x in _noble_crypt_cards(pl):
 		mx = maxi(mx, int(x.get("mid", 0)))
 	return mx + 1
 
@@ -503,6 +507,7 @@ func _woe_clear_pending() -> void:
 	_woe_pending_victim = -1
 	_woe_pending_amount = 0
 	_woe_pending_spell_card = null
+	_woe_pending_spell_to_abyss = false
 	_woe_pending_revive_wrapper = null
 	_woe_pending_noble_mid = -1
 
@@ -699,7 +704,7 @@ func _validate_revive_chain(p: int, value: int, ctx: Dictionary) -> String:
 		want_steps = value + 1
 	if steps.size() != want_steps:
 		return "illegal"
-	var sim: Array = _players[p]["inc_discard"].duplicate()
+	var sim: Array = _inc_crypt_cards(_players[p]).duplicate()
 	for step in steps:
 		if typeof(step) != TYPE_DICTIONARY:
 			return "illegal"
@@ -716,7 +721,7 @@ func _validate_revive_chain(p: int, value: int, ctx: Dictionary) -> String:
 		var cdict: Dictionary = cc
 		var cv := str(cdict.get("verb", "")).to_lower()
 		var cn := int(cdict.get("value", 0))
-		if cv == "revive":
+		if cv == "revive" or cv == "wrath":
 			return "illegal"
 		var nested: Dictionary = d.get("nested", {}) as Dictionary
 		var wr_mids: Array = nested.get("wrath_mids", []) as Array
@@ -730,7 +735,6 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 	if steps.is_empty() and value == 1:
 		steps = [ctx]
 	var pl: Dictionary = _players[p]
-	var idisc: Array = pl["inc_discard"]
 	var any_cast := false
 	for step in steps:
 		if typeof(step) != TYPE_DICTIONARY:
@@ -739,7 +743,7 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 			any_cast = true
 			break
 	if not any_cast:
-		pl["inc_discard"].append(revive_wrapper)
+		pl["crypt"].append(revive_wrapper)
 		_log("P%d plays Revive %d (%s) — skipped." % [p, value, payment_text])
 		_check_power_win(p)
 		return "ok"
@@ -750,13 +754,18 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 		if bool(d.get("revive_skip", false)):
 			continue
 		var cidx := int(d.get("revive_crypt_idx", -1))
-		if cidx < 0 or cidx >= idisc.size():
+		var crypt_idx := _inc_crypt_index_to_crypt_index(pl, cidx)
+		if crypt_idx < 0:
 			return "illegal"
-		var crypt_card: Dictionary = idisc[cidx].duplicate(true)
-		idisc.remove_at(cidx)
+		var crypt: Array = pl["crypt"]
+		var crypt_card: Dictionary = crypt[crypt_idx].duplicate(true)
+		crypt.remove_at(crypt_idx)
 		var nested: Dictionary = d.get("nested", {}) as Dictionary
 		var cv := str(crypt_card.get("verb", "")).to_lower()
 		var cn := int(crypt_card.get("value", 0))
+		if cv == "wrath":
+			crypt.insert(crypt_idx, crypt_card)
+			return "illegal"
 		var wr_mids: Array = nested.get("wrath_mids", []) as Array
 		var wr_r := _wrath_resolve_mids(1 - p, cn, wr_mids, p)
 		if cv == "woe":
@@ -768,17 +777,18 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 				_woe_pending_victim = wt
 				_woe_pending_amount = need
 				_woe_pending_spell_card = crypt_card
+				_woe_pending_spell_to_abyss = true
 				_woe_pending_revive_wrapper = revive_wrapper
 				_woe_pending_noble_mid = -1
 				_log("P%d plays Revive %d (%s); Woe pending on P%d." % [p, value, payment_text, wt])
 				return "ok"
 		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
 		if err != "ok":
-			idisc.insert(cidx, crypt_card)
+			crypt.insert(crypt_idx, crypt_card)
 			return err
-		idisc.append(crypt_card)
+		pl["inc_abyss"].append(crypt_card)
 		_log("P%d Revive casts %s %d from crypt (%s)." % [p, cv, cn, payment_text])
-	pl["inc_discard"].append(revive_wrapper)
+	pl["crypt"].append(revive_wrapper)
 	_log("P%d plays Revive %d (%s)." % [p, value, payment_text])
 	_check_power_win(p)
 	return "ok"
@@ -798,14 +808,18 @@ func submit_woe_discard(p: int, indices: Array) -> String:
 	if need > 0:
 		_discard_hand_chosen_indices(p, indices)
 	var spell: Variant = _woe_pending_spell_card
+	var spell_to_abyss := _woe_pending_spell_to_abyss
 	var wrap_card: Variant = _woe_pending_revive_wrapper
 	var noble_mid := _woe_pending_noble_mid
 	_woe_clear_pending()
 	var pli: Dictionary = _players[inst]
 	if spell != null:
-		pli["inc_discard"].append(spell)
+		if spell_to_abyss:
+			pli["inc_abyss"].append(spell)
+		else:
+			pli["crypt"].append(spell)
 	if wrap_card != null:
-		pli["inc_discard"].append(wrap_card)
+		pli["crypt"].append(wrap_card)
 	if noble_mid >= 0:
 		_mark_noble_used_this_turn(inst, noble_mid)
 	_log("Woe response complete (victim P%d)." % p)
@@ -845,6 +859,7 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 			_woe_pending_victim = wt
 			_woe_pending_amount = need
 			_woe_pending_spell_card = null
+			_woe_pending_spell_to_abyss = false
 			_woe_pending_revive_wrapper = null
 			_woe_pending_noble_mid = noble_mid
 			_log("P%d activates Wndrr; Woe pending on P%d." % [p, wt])
@@ -892,19 +907,23 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 		_log("P%d activates Rndrr (Revive 1 skipped)." % p)
 		return "ok"
 	var pl: Dictionary = _players[p]
-	var idisc: Array = pl["inc_discard"]
 	for si in steps.size():
 		var d: Dictionary = steps[si]
 		if bool(d.get("revive_skip", false)):
 			continue
 		var cidx := int(d.get("revive_crypt_idx", -1))
-		if cidx < 0 or cidx >= idisc.size():
+		var crypt_idx := _inc_crypt_index_to_crypt_index(pl, cidx)
+		if crypt_idx < 0:
 			return "illegal"
-		var crypt_card: Dictionary = idisc[cidx].duplicate(true)
-		idisc.remove_at(cidx)
+		var crypt: Array = pl["crypt"]
+		var crypt_card: Dictionary = crypt[crypt_idx].duplicate(true)
+		crypt.remove_at(crypt_idx)
 		var nested: Dictionary = d.get("nested", {}) as Dictionary
 		var cv := str(crypt_card.get("verb", "")).to_lower()
 		var cn := int(crypt_card.get("value", 0))
+		if cv == "wrath":
+			crypt.insert(crypt_idx, crypt_card)
+			return "illegal"
 		var wr_mids: Array = nested.get("wrath_mids", []) as Array
 		var wr_r := _wrath_resolve_mids(1 - p, cn, wr_mids, p)
 		if cv == "woe":
@@ -915,14 +934,15 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 				_woe_pending_victim = wt
 				_woe_pending_amount = need
 				_woe_pending_spell_card = crypt_card
+				_woe_pending_spell_to_abyss = true
 				_woe_pending_revive_wrapper = null
 				_woe_pending_noble_mid = noble_mid
 				return "ok"
 		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
 		if err != "ok":
-			idisc.insert(cidx, crypt_card)
+			crypt.insert(crypt_idx, crypt_card)
 			return err
-		idisc.append(crypt_card)
+		pl["inc_abyss"].append(crypt_card)
 		_log("P%d Revive casts %s %d from crypt (Rndrr)." % [p, cv, cn])
 	_mark_noble_used_this_turn(p, noble_mid)
 	_log("P%d activates Rndrr (Revive from crypt)." % p)
@@ -938,11 +958,14 @@ func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, crypt_idx: int) -> St
 	if ritual_played_this_turn:
 		return "illegal"
 	var pl: Dictionary = _players[p]
-	var rg: Array = pl["ritual_crypt"]
+	var rg: Array = _ritual_crypt_cards(pl)
 	if crypt_idx < 0 or crypt_idx >= rg.size():
 		return "illegal"
-	var c: Dictionary = (rg[crypt_idx] as Dictionary).duplicate(true)
-	rg.remove_at(crypt_idx)
+	var global_crypt_idx := _ritual_crypt_index_to_crypt_index(pl, crypt_idx)
+	if global_crypt_idx < 0:
+		return "illegal"
+	var c: Dictionary = ((pl["crypt"] as Array)[global_crypt_idx] as Dictionary).duplicate(true)
+	(pl["crypt"] as Array).remove_at(global_crypt_idx)
 	var mid := _next_mid(pl)
 	pl["field"].append({"mid": mid, "value": int(c["value"])})
 	ritual_played_this_turn = true
@@ -1008,12 +1031,13 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 			_woe_pending_victim = wt
 			_woe_pending_amount = need
 			_woe_pending_spell_card = c
+			_woe_pending_spell_to_abyss = false
 			_woe_pending_revive_wrapper = null
 			_woe_pending_noble_mid = -1
 			_log("P%d plays %s %d (%s); Woe pending on P%d." % [p, verb_raw, n, payment_text, wt])
 			return "ok"
 	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
-	pl["inc_discard"].append(c)
+	pl["crypt"].append(c)
 	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	_check_power_win(p)
 	return "ok"
@@ -1043,7 +1067,7 @@ func play_dethrone(p: int, hand_idx: int, noble_mids: Array = [], sacrifice_mids
 	_apply_sacrifice(p, mids)
 	hand.remove_at(hand_idx)
 	_destroy_nobles_by_mids(1 - p, destroyed)
-	pl["inc_discard"].append(c)
+	pl["crypt"].append(c)
 	_log("P%d plays Dethrone %d." % [p, n])
 	return "ok"
 
@@ -1138,7 +1162,7 @@ func _apply_sacrifice(p: int, mids: Dictionary) -> void:
 	var keep: Array = []
 	for x in field:
 		if mids.has(int(x["mid"])):
-			pl["ritual_crypt"].append(x)
+			pl["crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["field"] = keep
@@ -1294,7 +1318,7 @@ func _destroy_rituals_by_mids(target: int, mids: Array) -> void:
 	var keep: Array = []
 	for x in field:
 		if kill.has(int(x["mid"])):
-			pl["ritual_crypt"].append(x)
+			pl["crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["field"] = keep
@@ -1312,7 +1336,7 @@ func _destroy_nobles_by_mids(target: int, mids: Array) -> void:
 	var keep: Array = []
 	for x in field_nobles:
 		if kill.has(int(x["mid"])):
-			pl["noble_crypt"].append(x)
+			pl["crypt"].append(x)
 		else:
 			keep.append(x)
 	pl["noble_field"] = keep
@@ -1363,12 +1387,61 @@ func _move_hand_card_to_discard(pl: Dictionary, hand: Array, idx: int) -> void:
 	var c: Variant = hand[idx]
 	hand.remove_at(idx)
 	var kind := _card_kind(c)
-	if kind == "ritual":
-		pl["ritual_crypt"].append(c)
-	elif kind == "noble":
-		pl["noble_crypt"].append(c)
+	if kind in ["ritual", "noble", "incantation", "dethrone"]:
+		pl["crypt"].append(c)
 	else:
-		pl["inc_discard"].append(c)
+		pl["crypt"].append(c)
+
+
+func _inc_crypt_cards(pl: Dictionary) -> Array:
+	var out: Array = []
+	for c in (pl["crypt"] as Array):
+		if _card_kind(c) == "incantation" or _card_kind(c) == "dethrone":
+			out.append(c)
+	return out
+
+
+func _ritual_crypt_cards(pl: Dictionary) -> Array:
+	var out: Array = []
+	for c in (pl["crypt"] as Array):
+		if _card_kind(c) == "ritual":
+			out.append(c)
+	return out
+
+
+func _noble_crypt_cards(pl: Dictionary) -> Array:
+	var out: Array = []
+	for c in (pl["crypt"] as Array):
+		if _card_kind(c) == "noble":
+			out.append(c)
+	return out
+
+
+func _inc_crypt_index_to_crypt_index(pl: Dictionary, inc_idx: int) -> int:
+	if inc_idx < 0:
+		return -1
+	var seen := 0
+	var crypt: Array = pl["crypt"]
+	for i in crypt.size():
+		var k := _card_kind(crypt[i])
+		if k == "incantation" or k == "dethrone":
+			if seen == inc_idx:
+				return i
+			seen += 1
+	return -1
+
+
+func _ritual_crypt_index_to_crypt_index(pl: Dictionary, ritual_idx: int) -> int:
+	if ritual_idx < 0:
+		return -1
+	var seen := 0
+	var crypt: Array = pl["crypt"]
+	for i in crypt.size():
+		if _card_kind(crypt[i]) == "ritual":
+			if seen == ritual_idx:
+				return i
+			seen += 1
+	return -1
 
 
 func end_turn(p: int, discard_indices: Array) -> String:

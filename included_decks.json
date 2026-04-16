@@ -1,5 +1,5 @@
 {
-	"deck_count": 5,
+	"deck_count": 6,
 	"decks": [
 		{
 			"cards": [
@@ -1164,6 +1164,245 @@
 				"total_cards": 40
 			},
 			"schema_version": 1
+		},
+		{
+			"deck_name": "Occultation",
+			"file_name": "occultation.json",
+			"payload": {
+				"cards": [
+					{
+						"type": "Incantation",
+						"value": 2.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 2.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 2.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 3.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 3.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 3.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "revive"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "revive"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "revive"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "revive"
+					},
+					{
+						"type": "Incantation",
+						"value": 4.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 4.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 4.0,
+						"verb": "burn"
+					},
+					{
+						"name": "Aeoiu, Noble of Rituals",
+						"noble_id": "aeoiu_rituals",
+						"type": "Noble"
+					},
+					{
+						"name": "Yytzr, Noble of Occultation",
+						"noble_id": "yytzr_occultation",
+						"type": "Noble"
+					},
+					{
+						"type": "Incantation",
+						"value": 4.0,
+						"verb": "wrath"
+					},
+					{
+						"type": "Dethrone",
+						"value": 4.0
+					},
+					{
+						"type": "Dethrone",
+						"value": 4.0
+					},
+					{
+						"type": "Ritual",
+						"value": 1.0
+					},
+					{
+						"type": "Ritual",
+						"value": 1.0
+					},
+					{
+						"type": "Ritual",
+						"value": 1.0
+					},
+					{
+						"type": "Ritual",
+						"value": 1.0
+					},
+					{
+						"type": "Ritual",
+						"value": 1.0
+					},
+					{
+						"type": "Ritual",
+						"value": 2.0
+					},
+					{
+						"type": "Ritual",
+						"value": 2.0
+					},
+					{
+						"type": "Ritual",
+						"value": 2.0
+					},
+					{
+						"type": "Ritual",
+						"value": 2.0
+					},
+					{
+						"type": "Ritual",
+						"value": 2.0
+					},
+					{
+						"type": "Ritual",
+						"value": 3.0
+					},
+					{
+						"type": "Ritual",
+						"value": 3.0
+					},
+					{
+						"type": "Ritual",
+						"value": 3.0
+					},
+					{
+						"type": "Ritual",
+						"value": 3.0
+					},
+					{
+						"type": "Ritual",
+						"value": 3.0
+					},
+					{
+						"type": "Ritual",
+						"value": 4.0
+					},
+					{
+						"type": "Ritual",
+						"value": 4.0
+					},
+					{
+						"type": "Ritual",
+						"value": 4.0
+					},
+					{
+						"type": "Ritual",
+						"value": 4.0
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "burn"
+					},
+					{
+						"type": "Incantation",
+						"value": 1.0,
+						"verb": "burn"
+					}
+				],
+				"counts": {
+					"dethrones": 2.0,
+					"incantations": {
+						"burn_1": 3.0,
+						"burn_2": 3.0,
+						"burn_3": 3.0,
+						"burn_4": 3.0,
+						"dethrone_4": 0.0,
+						"insight_1": 0.0,
+						"insight_2": 0.0,
+						"insight_3": 0.0,
+						"insight_4": 0.0,
+						"revive_1": 4.0,
+						"seek_1": 0.0,
+						"seek_2": 0.0,
+						"seek_3": 0.0,
+						"seek_4": 0.0,
+						"woe_1": 0.0,
+						"woe_2": 0.0,
+						"woe_3": 0.0,
+						"woe_4": 0.0,
+						"wrath_4": 1.0
+					},
+					"nobles": {
+						"aeoiu_rituals": 1.0,
+						"bndrr_incantation": 0.0,
+						"indrr_incantation": 0.0,
+						"krss_power": 0.0,
+						"rndrr_incantation": 0.0,
+						"sndrr_incantation": 0.0,
+						"trss_power": 0.0,
+						"wndrr_incantation": 0.0,
+						"xytzr_emanation": 0.0,
+						"yrss_power": 0.0,
+						"yytzr_occultation": 1.0,
+						"zytzr_annihilation": 0.0
+					},
+					"rituals": {
+						"1": 5.0,
+						"2": 5.0,
+						"3": 5.0,
+						"4": 4.0
+					}
+				},
+				"deck_name": "Occultation",
+				"rules_snapshot": {
+					"max_ritual_copies": 9.0,
+					"non_ritual_target": 21.0,
+					"ritual_target": 19.0,
+					"total_cards": 40.0
+				},
+				"schema_version": 1.0
+			}
 		}
 	],
 	"exported_at": "2026-04-16T02:53:24",

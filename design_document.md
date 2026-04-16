@@ -13,6 +13,7 @@ Starting hands: **5 cards** (with a single london mulligan allowed (draw 5 put o
 - player hand
 - player field [where rituals and nobles go]
 - player crypt [where discarded cards go]
+- the abyss [cards revived go here instead of the crypt]
 
 Card types: **ritual**, **incantation**, **noble**
 
@@ -72,7 +73,7 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 
 *Wrath 4*: Choose and destroy 2 opponent rituals
 
-*Revive 1*: you may play 1 incantation from your crypt
+*Revive 1*: you may play 1 incantation or noble from your crypt (Wrath cannot be revived). Cards played this way go to the abyss instead of the crypt (a revived noble dethroned will go to the abyss).
 
 *Dethrone 4*: Choose and destroy an opponent's noble
 
@@ -106,3 +107,10 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 
 *Wndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Woe 1* effect.
 
+#### Cost 2
+
+*Rmrsk, Scion of Emanation*: Whenever you Seek or Insight, you may then draw a card.
+
+*Smrsk, Scion of Occultation*: Whenever you Burn or Revive, you may then sacrifice a Ritual of power X to burn yourself X (discard 2X cards from deck).
+
+*Tmrsk, Scion of Annihilation*: Whenever you Wrath, you may then Woe 1.
