@@ -4,7 +4,7 @@ func build_definition() -> Dictionary:
 	return {
 		"id": "trss_power",
 		"name": "Trss, Noble of Power",
-		"cost": 2,
+		"cost": 3,
 		"lane_grant": 2
 	}
 
