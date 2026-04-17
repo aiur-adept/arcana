@@ -1265,6 +1265,8 @@ func can_activate_temple(p: int, temple_mid: int) -> bool:
 			return false
 		if (pl["deck"] as Array).size() < 2:
 			return false
+		if (pl["field"] as Array).is_empty():
+			return false
 	return true
 
 
@@ -1287,32 +1289,52 @@ func apply_temple_phaedra_insight(p: int, temple_mid: int, insight_target: int, 
 	return "ok"
 
 
-func apply_temple_delpha(p: int, temple_mid: int, x: int, crypt_idx: int) -> String:
+func apply_temple_delpha(p: int, temple_mid: int, ritual_mid: int, crypt_idx: int) -> String:
 	if not can_activate_temple(p, temple_mid):
 		return "illegal"
 	var t := _find_temple_on_field(p, temple_mid)
 	if str(t.get("temple_id", "")) != TEMPLE_DELPHA:
 		return "illegal"
-	if x < 1:
-		return "illegal"
 	var pl: Dictionary = _players[p]
+	var field: Array = pl["field"]
+	var x := 0
+	var keep: Array = []
+	var removed := false
+	for r in field:
+		var rm := int(r.get("mid", -1))
+		if not removed and rm == ritual_mid:
+			x = int(r.get("value", 0))
+			removed = true
+			continue
+		keep.append(r)
+	if not removed or x < 1:
+		return "illegal"
 	if (pl["deck"] as Array).size() < 2 * x:
 		return "illegal"
+	var abyss_ritual := {"mid": ritual_mid, "type": "ritual", "value": x}
+	pl["field"] = keep
+	pl["inc_abyss"].append(abyss_ritual)
 	var berr := execute_incantation_effect(p, "burn", x, [], {"mill_target": p})
 	if berr != "ok":
+		pl["field"] = field
+		(pl["inc_abyss"] as Array).remove_at((pl["inc_abyss"] as Array).size() - 1)
 		return berr
 	var rg: Array = _ritual_crypt_cards(pl)
 	if crypt_idx < 0 or crypt_idx >= rg.size():
+		pl["field"] = field
+		(pl["inc_abyss"] as Array).remove_at((pl["inc_abyss"] as Array).size() - 1)
 		return "illegal"
 	var global_crypt_idx := _ritual_crypt_index_to_crypt_index(pl, crypt_idx)
 	if global_crypt_idx < 0:
+		pl["field"] = field
+		(pl["inc_abyss"] as Array).remove_at((pl["inc_abyss"] as Array).size() - 1)
 		return "illegal"
 	var c: Dictionary = ((pl["crypt"] as Array)[global_crypt_idx] as Dictionary).duplicate(true)
 	(pl["crypt"] as Array).remove_at(global_crypt_idx)
 	var rmid := _next_mid(pl)
 	pl["field"].append({"mid": rmid, "value": int(c["value"])})
 	_mark_temple_used_this_turn(p, temple_mid)
-	_log("P%d activates Delpha (Burn %d, ritual from crypt)." % [p, x])
+	_log("P%d activates Delpha (send ritual %d to abyss, Burn %d, ritual from crypt)." % [p, ritual_mid, x])
 	_check_power_win(p)
 	return "ok"
 

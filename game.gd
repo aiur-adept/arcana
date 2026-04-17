@@ -152,9 +152,11 @@ var _aeoiu_crypt_row: VBoxContainer
 var _aeoiu_noble_mid: int = -1
 
 var _delpha_overlay: Control
+var _delpha_ritual_row: VBoxContainer
 var _delpha_crypt_row: VBoxContainer
-var _delpha_spin: SpinBox
 var _delpha_temple_mid: int = -1
+var _delpha_ritual_mid: int = -1
+var _delpha_x: int = 0
 
 var _sacrifice_for_temple: bool = false
 var _insight_temple_mid: int = -1
@@ -569,18 +571,11 @@ func _build_delpha_overlay() -> void:
 	inner_d.add_theme_constant_override("separation", 10)
 	ccd.add_child(inner_d)
 	var ld := Label.new()
-	ld.text = "Delpha — choose X (mill 2X from your deck), then pick a ritual from your crypt."
+	ld.text = "Delpha — choose one of your rituals to send to the abyss. Its power is X."
 	inner_d.add_child(ld)
-	var spin_row := HBoxContainer.new()
-	var ls := Label.new()
-	ls.text = "X ="
-	spin_row.add_child(ls)
-	_delpha_spin = SpinBox.new()
-	_delpha_spin.min_value = 1
-	_delpha_spin.max_value = 40
-	_delpha_spin.value = 1
-	spin_row.add_child(_delpha_spin)
-	inner_d.add_child(spin_row)
+	_delpha_ritual_row = VBoxContainer.new()
+	_delpha_ritual_row.add_theme_constant_override("separation", 6)
+	inner_d.add_child(_delpha_ritual_row)
 	_delpha_crypt_row = VBoxContainer.new()
 	_delpha_crypt_row.add_theme_constant_override("separation", 6)
 	inner_d.add_child(_delpha_crypt_row)
@@ -597,6 +592,8 @@ func _on_delpha_cancel_pressed() -> void:
 	if _delpha_overlay:
 		_delpha_overlay.visible = false
 	_delpha_temple_mid = -1
+	_delpha_ritual_mid = -1
+	_delpha_x = 0
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
 
@@ -2573,22 +2570,45 @@ func _on_temple_activate_pressed(temple_mid: int) -> void:
 
 func _start_delpha_pick(temple_mid: int) -> void:
 	var deck_n := int(_last_snap.get("your_deck", 0))
-	var max_x: int = deck_n / 2
-	if max_x < 1:
+	if deck_n < 2:
 		status_label.text = "Need at least 2 cards in deck for Delpha."
 		return
 	var rg: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
 	if rg.is_empty():
 		status_label.text = "No rituals in your crypt."
 		return
+	var field: Array = _last_snap.get("your_field", []) as Array
+	if field.is_empty():
+		status_label.text = "Need a ritual on your field for Delpha."
+		return
 	if _match != null and not _is_network_client() and not _match.can_activate_temple(_my_player_for_action(), temple_mid):
 		status_label.text = "Cannot use Delpha right now."
 		return
 	_delpha_temple_mid = temple_mid
-	_delpha_spin.min_value = 1
-	_delpha_spin.max_value = max_x
-	if _delpha_spin.value > max_x:
-		_delpha_spin.value = max_x
+	_delpha_ritual_mid = -1
+	_delpha_x = 0
+	for c in _delpha_ritual_row.get_children():
+		c.queue_free()
+	for r in field:
+		if typeof(r) != TYPE_DICTIONARY:
+			continue
+		var rm := int(r.get("mid", -1))
+		var rv := int(r.get("value", 0))
+		if rm < 0 or rv < 1:
+			continue
+		if deck_n < 2 * rv:
+			continue
+		var rb := Button.new()
+		rb.text = "Field ritual %d (mid %d)" % [rv, rm]
+		var rm_cap := rm
+		var rv_cap := rv
+		rb.pressed.connect(func() -> void:
+			_on_delpha_ritual_chosen(rm_cap, rv_cap)
+		)
+		_delpha_ritual_row.add_child(rb)
+	if _delpha_ritual_row.get_child_count() == 0:
+		status_label.text = "No field ritual has valid power X for your current deck size."
+		return
 	for c in _delpha_crypt_row.get_children():
 		c.queue_free()
 	var rg2: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
@@ -2602,6 +2622,7 @@ func _start_delpha_pick(temple_mid: int) -> void:
 		b.pressed.connect(func() -> void:
 			_on_delpha_crypt_chosen(capture)
 		)
+		b.disabled = true
 		_delpha_crypt_row.add_child(b)
 		idx += 1
 	if _delpha_crypt_row.get_child_count() == 0:
@@ -2612,18 +2633,32 @@ func _start_delpha_pick(temple_mid: int) -> void:
 	discard_draw_button.disabled = true
 
 
+func _on_delpha_ritual_chosen(ritual_mid: int, x: int) -> void:
+	_delpha_ritual_mid = ritual_mid
+	_delpha_x = x
+	for c in _delpha_crypt_row.get_children():
+		if c is Button:
+			(c as Button).disabled = false
+
+
 func _on_delpha_crypt_chosen(crypt_idx: int) -> void:
 	var tm := _delpha_temple_mid
-	var x := int(_delpha_spin.value)
+	var ritual_mid := _delpha_ritual_mid
+	var x := _delpha_x
+	if ritual_mid < 0 or x < 1:
+		status_label.text = "Pick a field ritual first."
+		return
 	_delpha_overlay.visible = false
 	_delpha_temple_mid = -1
+	_delpha_ritual_mid = -1
+	_delpha_x = 0
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
 	if _is_network_client():
-		submit_temple_delpha.rpc_id(1, tm, x, crypt_idx)
+		submit_temple_delpha.rpc_id(1, tm, ritual_mid, crypt_idx)
 		return
 	if _match != null:
-		var res: String = _match.apply_temple_delpha(_my_player_for_action(), tm, x, crypt_idx)
+		var res: String = _match.apply_temple_delpha(_my_player_for_action(), tm, ritual_mid, crypt_idx)
 		if res != "ok":
 			status_label.text = "Could not activate Delpha."
 		_broadcast_sync(true)
@@ -3472,13 +3507,13 @@ func submit_temple_phaedra_insight(temple_mid: int, insight_target: int, insight
 
 
 @rpc("any_peer", "reliable")
-func submit_temple_delpha(temple_mid: int, x: int, crypt_idx: int) -> void:
+func submit_temple_delpha(temple_mid: int, ritual_mid: int, crypt_idx: int) -> void:
 	if not multiplayer.is_server():
 		return
 	if _match == null:
 		return
 	var pl := _peer_to_player(_sender_peer())
-	if _match.apply_temple_delpha(pl, temple_mid, x, crypt_idx) == "ok":
+	if _match.apply_temple_delpha(pl, temple_mid, ritual_mid, crypt_idx) == "ok":
 		_broadcast_sync(true)
 
 

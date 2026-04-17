@@ -225,7 +225,7 @@ static func _temple_preview_text(temple_id: String) -> String:
 		"phaedra_illusion":
 			return "Once per turn: Insight 1, then draw a card."
 		"delpha_oracles":
-			return "Once per turn: Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
+			return "Once per turn: Send a Ritual of power X to the abyss to Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
 		"gotha_illness":
 			return "Skip your draw step. Once per turn: discard a card, then draw cards equal to its power/cost."
 		_:
