@@ -5,12 +5,18 @@ const CARD_SCALE := 1.618
 const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
 const HAND_CARD_FONT_SIZE := 26
+const FIELD_CARD_SCALE := 0.8
+const FIELD_CARD_W := HAND_CARD_W * FIELD_CARD_SCALE
+const FIELD_CARD_H := HAND_CARD_H * FIELD_CARD_SCALE
+const FIELD_CARD_FONT_SIZE := int(round(HAND_CARD_FONT_SIZE * FIELD_CARD_SCALE))
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 
 const INC_PICK_SAC := 1
 const INC_PICK_WRATH := 2
 const INC_PICK_DETHRONE := 3
 const INC_PICK_SMRSK := 9
+const INC_PICK_BIRD_ATTACK := 11
+const INC_PICK_BIRD_TARGET := 12
 
 var game: Control
 
@@ -30,16 +36,13 @@ func stylebox_field_hover_glow(base: StyleBoxFlat) -> StyleBoxFlat:
 func rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> void:
 	for c in row.get_children():
 		c.queue_free()
-	var nobles: Array = game._last_snap.get("your_nobles", []) if ours else game._last_snap.get("opp_nobles", [])
 	var no_rituals: bool = typeof(field) != TYPE_ARRAY or field.is_empty()
-	if no_rituals and nobles.is_empty():
+	if no_rituals:
 		var empty := Label.new()
 		empty.text = "—"
 		empty.modulate = Color(0.45, 0.45, 0.5)
 		row.add_child(empty)
 		return
-	if no_rituals:
-		field = []
 	var act: Array = ArcanaMatchState.active_mask_for_field(field)
 	var by_value: Dictionary = {}
 	for i in field.size():
@@ -64,14 +67,34 @@ func rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> voi
 		elif not ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_WRATH:
 			pick_mode = 2
 		row.add_child(make_ritual_stack(by_value[v], ours, pick_mode))
-	for noble in nobles:
-		row.add_child(make_noble_card(noble, ours))
+
+
+func rebuild_noble_field(row: HBoxContainer, nobles: Variant, ours: bool) -> void:
+	for c in row.get_children():
+		c.queue_free()
+	if typeof(nobles) != TYPE_ARRAY:
+		return
+	for noble in nobles as Array:
+		if typeof(noble) != TYPE_DICTIONARY:
+			continue
+		row.add_child(make_noble_card(noble as Dictionary, ours))
+
+
+func rebuild_bird_field(row: HBoxContainer, birds: Variant, ours: bool) -> void:
+	for c in row.get_children():
+		c.queue_free()
+	if typeof(birds) != TYPE_ARRAY:
+		return
+	for bird in birds as Array:
+		if typeof(bird) != TYPE_DICTIONARY:
+			continue
+		row.add_child(make_bird_card(bird as Dictionary, ours))
 
 
 func make_ritual_stack(cards: Array, ours: bool, pick_mode: int) -> Control:
 	var shift := 12.0 * CARD_SCALE
-	var w := HAND_CARD_W
-	var h := HAND_CARD_H
+	var w := FIELD_CARD_W
+	var h := FIELD_CARD_H
 	var count := cards.size()
 	var stack := Control.new()
 	stack.custom_minimum_size = Vector2(w + shift * maxi(0, count - 1), h)
@@ -93,9 +116,9 @@ func make_ritual_stack(cards: Array, ours: bool, pick_mode: int) -> Control:
 	return stack
 
 
-func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1, pick_mode: int = 0, picked: bool = false, dim_when_inactive: bool = true) -> Control:
-	var w := HAND_CARD_W
-	var h := HAND_CARD_H
+func make_ritual_card(value: int, _ours: bool, active: bool, ritual_mid: int = -1, pick_mode: int = 0, picked: bool = false, dim_when_inactive: bool = true) -> Control:
+	var w := FIELD_CARD_W
+	var h := FIELD_CARD_H
 	var ritual_gold := Color(0.95, 0.78, 0.24)
 	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
 	var sacrifice_outline := Color(0.28, 0.92, 0.52)
@@ -105,18 +128,13 @@ func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(3 if picked else 2)
-	if ours:
-		sb.bg_color = Color(0.04, 0.04, 0.06)
-		if pick_mode == 1:
-			sb.border_color = sacrifice_outline if picked else ritual_gold
-		else:
-			sb.border_color = ritual_gold
+	sb.bg_color = Color(0.04, 0.04, 0.06)
+	if pick_mode == 1:
+		sb.border_color = sacrifice_outline if picked else ritual_gold
+	elif pick_mode == 2:
+		sb.border_color = ritual_gold_strong if picked else ritual_gold
 	else:
-		sb.bg_color = Color(0.96, 0.96, 0.96)
-		if pick_mode == 2:
-			sb.border_color = ritual_gold_strong if picked else ritual_gold
-		else:
-			sb.border_color = ritual_gold
+		sb.border_color = ritual_gold
 	panel.add_theme_stylebox_override("panel", sb)
 	var sb_hover := stylebox_field_hover_glow(sb)
 	if pick_mode == 1 and ritual_mid >= 0:
@@ -154,7 +172,7 @@ func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
 	lbl.add_theme_color_override("font_color", ritual_gold_strong if picked else ritual_gold)
-	lbl.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	lbl.add_theme_font_size_override("font_size", FIELD_CARD_FONT_SIZE)
 	cc.add_child(lbl)
 	if not active and dim_when_inactive:
 		panel.modulate = Color(0.58, 0.58, 0.62)
@@ -163,13 +181,13 @@ func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1
 
 func make_noble_card(noble: Dictionary, ours: bool) -> Control:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
+	btn.custom_minimum_size = Vector2(FIELD_CARD_W, FIELD_CARD_H)
 	var noble_name: String = game._short_noble_name(str(noble.get("name", "Noble")))
 	var used_turn := int(noble.get("used_turn", -1))
 	var exhausted := used_turn == int(game._last_snap.get("turn_number", -999))
 	btn.text = noble_name
 	btn.add_theme_font_override("font", CARD_TEXT_FONT)
-	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	btn.add_theme_font_size_override("font_size", FIELD_CARD_FONT_SIZE)
 	var noble_bg := Color(0.13, 0.1, 0.18)
 	var noble_border := Color(0.84, 0.7, 1.0)
 	var noble_fg := Color(0.96, 0.93, 1.0)
@@ -228,6 +246,67 @@ func make_noble_card(noble: Dictionary, ours: bool) -> Control:
 	return btn
 
 
+func make_bird_card(bird: Dictionary, ours: bool) -> Control:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(FIELD_CARD_W, FIELD_CARD_H)
+	btn.text = str(bird.get("name", "Bird"))
+	btn.add_theme_font_override("font", CARD_TEXT_FONT)
+	btn.add_theme_font_size_override("font_size", FIELD_CARD_FONT_SIZE)
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.set_border_width_all(2)
+	sb.bg_color = Color(1.0, 1.0, 1.0)
+	sb.border_color = Color(0.05, 0.05, 0.05)
+	var mid := int(bird.get("mid", -1))
+	var is_attack_pick: bool = ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_BIRD_ATTACK
+	var is_target_pick: bool = (not ours) and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_BIRD_TARGET
+	var can_start_fight: bool = false
+	if ours and not game._sacrifice_selecting:
+		var snap: Dictionary = game._last_snap
+		var mine := int(snap.get("current", -1)) == int(snap.get("you", -2))
+		var opp_birds: Array = snap.get("opp_birds", []) as Array
+		can_start_fight = mine and game._temple_field_input_ok() and not bool(snap.get("your_bird_fight_used", false)) and not opp_birds.is_empty()
+	if is_attack_pick and game._bird_attack_selected.has(mid):
+		sb.set_border_width_all(3)
+		sb.border_color = Color(0.05, 0.05, 0.05)
+	if is_target_pick and game._bird_defender_mid == mid:
+		sb.set_border_width_all(3)
+		sb.border_color = Color(1.0, 0.58, 0.58)
+	btn.add_theme_stylebox_override("normal", sb)
+	var hover := stylebox_field_hover_glow(sb)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", hover)
+	btn.add_theme_stylebox_override("hover_pressed", hover)
+	btn.add_theme_stylebox_override("focus", sb)
+	var sb_dis := sb.duplicate()
+	btn.add_theme_stylebox_override("disabled", sb_dis)
+	btn.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05))
+	btn.add_theme_color_override("font_disabled_color", Color(0.05, 0.05, 0.05))
+	if is_attack_pick:
+		btn.pressed.connect(func() -> void:
+			game._on_bird_attacker_clicked(mid)
+		)
+	elif is_target_pick:
+		btn.pressed.connect(func() -> void:
+			game._on_bird_target_clicked(mid)
+		)
+	elif can_start_fight:
+		btn.pressed.connect(func() -> void:
+			game._start_bird_fight_from_mid(mid)
+		)
+	else:
+		btn.disabled = true
+	var v := bird.duplicate(true)
+	v["type"] = "bird"
+	btn.mouse_entered.connect(func() -> void:
+		game._show_card_hover_preview(v)
+	)
+	btn.mouse_exited.connect(func() -> void:
+		game._hide_card_hover_preview()
+	)
+	return btn
+
+
 func rebuild_temple_field(row: HBoxContainer, temples: Variant, ours: bool) -> void:
 	for c in row.get_children():
 		c.queue_free()
@@ -246,13 +325,13 @@ func rebuild_temple_field(row: HBoxContainer, temples: Variant, ours: bool) -> v
 
 func make_temple_card(temple: Dictionary, ours: bool) -> Control:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
+	btn.custom_minimum_size = Vector2(FIELD_CARD_W, FIELD_CARD_H)
 	var shown: String = game._short_noble_name(str(temple.get("name", "Temple")))
 	var used_turn := int(temple.get("used_turn", -1))
 	var exhausted := used_turn == int(game._last_snap.get("turn_number", -999))
 	btn.text = shown
 	btn.add_theme_font_override("font", CARD_TEXT_FONT)
-	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	btn.add_theme_font_size_override("font_size", FIELD_CARD_FONT_SIZE)
 	var temple_bg := Color(0.06, 0.11, 0.11)
 	var temple_border := Color(0.32, 0.78, 0.74)
 	var temple_fg := Color(0.85, 0.97, 0.94)

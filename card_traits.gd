@@ -7,6 +7,8 @@ static func effective_kind(card: Dictionary) -> String:
 	if not raw.is_empty():
 		if raw == "dethrone":
 			return "dethrone"
+		if raw == "bird":
+			return "bird"
 		if raw == "incantation":
 			if str(card.get("verb", "")).to_lower() == "dethrone":
 				return "dethrone"
@@ -22,6 +24,8 @@ static func effective_kind(card: Dictionary) -> String:
 		return "temple"
 	if card.has("noble_id"):
 		return "noble"
+	if card.has("bird_id"):
+		return "bird"
 	var verb := str(card.get("verb", "")).strip_edges()
 	if not verb.is_empty():
 		return "dethrone" if verb.to_lower() == "dethrone" else "incantation"

@@ -3,10 +3,13 @@ extends Control
 const IncludedDecks = preload("res://included_decks.gd")
 
 const RITUAL_VALUES: Array[int] = [1, 2, 3, 4]
-const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "dethrone"]
+const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "deluge", "dethrone"]
 const INCANTATION_VALUES: Array[int] = [1, 2, 3, 4]
 const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
+const MAX_BIRD_COUNT := 10
+const MIN_DECK_SIZE := 40
+const MAX_DECK_SIZE := 50
 const MAX_RITUAL_COPIES := 9
 const MAX_INCANTATION_COPIES := 4
 const MAX_NOBLE_FIRSTNAME_COPIES := 4
@@ -37,12 +40,24 @@ const TEMPLE_DEFS := [
 	{"id": "ytria_cycles", "name": "Ytria, Temple of Cycles", "cost": 9}
 ]
 const MAX_TEMPLE_COPIES := 3
+const BIRD_DEFS := [
+	{"id": "wren", "name": "Wren", "cost": 2, "power": 1},
+	{"id": "sparrow", "name": "Sparrow", "cost": 2, "power": 1},
+	{"id": "finch", "name": "Finch", "cost": 2, "power": 1},
+	{"id": "kestrel", "name": "Kestrel", "cost": 3, "power": 2},
+	{"id": "shrike", "name": "Shrike", "cost": 3, "power": 2},
+	{"id": "gull", "name": "Gull", "cost": 3, "power": 2},
+	{"id": "hawk", "name": "Hawk", "cost": 4, "power": 3},
+	{"id": "eagle", "name": "Eagle", "cost": 4, "power": 3},
+	{"id": "raven", "name": "Raven", "cost": 4, "power": 3}
+]
 
 @onready var deck_list: ItemList = %DeckList
 @onready var deck_name_edit: LineEdit = %DeckNameEdit
 @onready var reload_decks_button: Button = %ReloadDecksButton
 @onready var new_deck_button: Button = %NewDeckButton
 @onready var export_decks_button: Button = %ExportDecksButton
+@onready var copy_deck_json_button: Button = %CopyDeckJsonButton
 @onready var delete_deck_button: Button = %DeleteDeckButton
 @onready var delete_deck_confirm_dialog: ConfirmationDialog = %DeleteDeckConfirmDialog
 @onready var card_gallery: GridContainer = %CardGallery
@@ -71,6 +86,7 @@ func _ready() -> void:
 	reload_decks_button.pressed.connect(_refresh_deck_list)
 	new_deck_button.pressed.connect(_on_new_deck_pressed)
 	export_decks_button.pressed.connect(_on_export_decks_button_pressed)
+	copy_deck_json_button.pressed.connect(_on_copy_deck_json_button_pressed)
 	delete_deck_button.pressed.connect(_on_delete_deck_button_pressed)
 	delete_deck_confirm_dialog.confirmed.connect(_on_delete_deck_confirmed)
 	save_button.pressed.connect(_on_save_button_pressed)
@@ -97,6 +113,14 @@ func _build_gallery_entries() -> Array[Dictionary]:
 		out.append({"kind": "noble", "noble_id": str(noble.get("id", "")), "name": str(noble.get("name", ""))})
 	for tm in TEMPLE_DEFS:
 		out.append({"kind": "temple", "temple_id": str(tm.get("id", "")), "name": str(tm.get("name", "")), "cost": int(tm.get("cost", 7))})
+	for bird in BIRD_DEFS:
+		out.append({
+			"kind": "bird",
+			"bird_id": str(bird.get("id", "")),
+			"name": str(bird.get("name", "")),
+			"cost": int(bird.get("cost", 0)),
+			"power": int(bird.get("power", 0))
+		})
 	return out
 
 
@@ -185,6 +209,8 @@ func _incantation_values_for_verb(verb: String) -> Array[int]:
 		return [1]
 	if verb == "wrath":
 		return [4]
+	if verb == "deluge":
+		return [2, 3, 4]
 	if verb == "dethrone":
 		return [4]
 	return INCANTATION_VALUES
@@ -206,6 +232,10 @@ func _entry_key_temple(temple_id: String) -> String:
 	return "tm_%s" % temple_id
 
 
+func _entry_key_bird(bird_id: String) -> String:
+	return "b_%s" % bird_id
+
+
 func _canonical_noble_name(noble_id: String, fallback_name: String = "") -> String:
 	for noble in NOBLE_DEFS:
 		if str(noble.get("id", "")) == noble_id:
@@ -220,6 +250,8 @@ func _entry_display_name(entry: Dictionary) -> String:
 		return str(entry.get("name", "Noble"))
 	if str(entry.get("kind", "")) == "temple":
 		return str(entry.get("name", "Temple"))
+	if str(entry.get("kind", "")) == "bird":
+		return str(entry.get("name", "Bird"))
 	if str(entry.get("kind", "")) == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(entry.get("verb", "")).capitalize(), int(entry.get("value", 0))]
@@ -239,6 +271,8 @@ func _entry_key(entry: Dictionary) -> String:
 		return _entry_key_noble(str(entry.get("noble_id", "")))
 	if kind == "temple":
 		return _entry_key_temple(str(entry.get("temple_id", "")))
+	if kind == "bird":
+		return _entry_key_bird(str(entry.get("bird_id", "")))
 	if kind == "dethrone":
 		return "dethrone"
 	return _entry_key_incantation(str(entry.get("verb", "")), int(entry.get("value", 0)))
@@ -306,12 +340,25 @@ func _build_gallery_card(entry: Dictionary, readonly: bool) -> Control:
 		font_color = Color(0.85, 0.97, 0.94)
 		font_hover_color = Color(0.75, 1.0, 0.96)
 		font_disabled_color = Color(0.5, 0.62, 0.6)
+	elif kind == "bird":
+		base_bg = Color(0.97, 0.97, 0.97)
+		base_border = Color(0.08, 0.08, 0.08)
+		hover_border = Color(0.0, 0.0, 0.0)
+		disabled_bg = Color(0.9, 0.9, 0.9)
+		disabled_border = Color(0.35, 0.35, 0.35)
+		font_color = Color(0.05, 0.05, 0.05)
+		font_hover_color = Color(0.0, 0.0, 0.0)
+		font_disabled_color = Color(0.3, 0.3, 0.3)
 
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(10)
 	sb.set_border_width_all(2)
 	sb.bg_color = base_bg
 	sb.border_color = base_border
+	sb.content_margin_left = 10
+	sb.content_margin_top = 10
+	sb.content_margin_right = 10
+	sb.content_margin_bottom = 10
 	btn.add_theme_stylebox_override("normal", sb)
 	var sb_hover := sb.duplicate()
 	sb_hover.border_color = hover_border
@@ -374,6 +421,17 @@ func _ingest_deck_dictionary(parsed_dict: Dictionary) -> void:
 					"temple_id": tid,
 					"name": _canonical_temple_name(tid, tname),
 					"cost": int(card.get("cost", 7))
+				})
+		elif kind == "bird":
+			var bid := str(card.get("bird_id", ""))
+			var bname := str(card.get("name", "Bird"))
+			if not bid.is_empty():
+				_add_or_increment_entry(_entry_key_bird(bid), {
+					"kind": "bird",
+					"bird_id": bid,
+					"name": bname,
+					"cost": int(card.get("cost", 0)),
+					"power": int(card.get("power", 0))
 				})
 
 
@@ -474,6 +532,9 @@ func _build_entry_pill(key: String, entry: Dictionary, readonly: bool) -> Contro
 	elif kind == "temple":
 		base_bg = Color(0.07, 0.11, 0.11)
 		border = Color(0.32, 0.78, 0.74)
+	elif kind == "bird":
+		base_bg = Color(0.97, 0.97, 0.97)
+		border = Color(0.08, 0.08, 0.08)
 	sb.bg_color = base_bg
 	sb.border_color = border
 	sb.set_border_width_all(2)
@@ -489,6 +550,8 @@ func _build_entry_pill(key: String, entry: Dictionary, readonly: bool) -> Contro
 	var lbl := Label.new()
 	lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	lbl.text = "%s x%d" % [_entry_display_name(entry), int(entry.get("count", 0))]
+	if kind == "bird":
+		lbl.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05))
 	lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 	lbl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	lbl.mouse_entered.connect(func() -> void:
@@ -596,6 +659,8 @@ func _can_increase_entry(entry: Dictionary) -> bool:
 		if _noble_first_name_total(fname) >= MAX_NOBLE_FIRSTNAME_COPIES:
 			return false
 		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
+	if kind == "bird":
+		return int(totals.get("birds", 0)) < MAX_BIRD_COUNT
 	if kind == "incantation" or kind == "dethrone":
 		if count >= MAX_INCANTATION_COPIES:
 			return false
@@ -620,6 +685,8 @@ func _show_cannot_add_status(entry: Dictionary) -> void:
 			status_label.text = "Cannot add: max %d nobles named %s." % [MAX_NOBLE_FIRSTNAME_COPIES, fname]
 		else:
 			status_label.text = "Cannot add: non-ritual cap is %d." % TARGET_NON_RITUAL_COUNT
+	elif kind == "bird":
+		status_label.text = "Cannot add: bird cap is %d." % MAX_BIRD_COUNT
 	else:
 		if int(entry.get("count", 0)) >= MAX_INCANTATION_COPIES:
 			status_label.text = "Cannot add: max %d copies of a given incantation." % MAX_INCANTATION_COPIES
@@ -682,6 +749,7 @@ func _totals() -> Dictionary:
 	var incantation_total := 0
 	var noble_total := 0
 	var temple_total := 0
+	var bird_total := 0
 	var dethrone_total := 0
 	for entry in _entries.values():
 		var count := int(entry.get("count", 0))
@@ -696,6 +764,8 @@ func _totals() -> Dictionary:
 			noble_total += count
 		elif kind == "temple":
 			temple_total += count
+		elif kind == "bird":
+			bird_total += count
 		elif kind == "dethrone":
 			dethrone_total += count
 	return {
@@ -703,6 +773,7 @@ func _totals() -> Dictionary:
 		"incantations": incantation_total,
 		"nobles": noble_total,
 		"temples": temple_total,
+		"birds": bird_total,
 		"dethrones": dethrone_total,
 		"non_ritual": incantation_total + noble_total + temple_total + dethrone_total
 	}
@@ -710,17 +781,21 @@ func _totals() -> Dictionary:
 
 func _update_validation() -> void:
 	var totals := _totals()
-	var total_cards := int(totals["rituals"]) + int(totals["non_ritual"])
-	totals_label.text = "Rituals %d/%d   Non-Ritual %d/%d   Total %d/40" % [
+	var total_cards := int(totals["rituals"]) + int(totals["non_ritual"]) + int(totals["birds"])
+	totals_label.text = "Rituals %d/%d   Non-Ritual %d/%d   Birds %d/%d   Total %d (%d-%d)" % [
 		totals["rituals"],
 		TARGET_RITUAL_COUNT,
 		totals["non_ritual"],
 		TARGET_NON_RITUAL_COUNT,
-		total_cards
+		totals["birds"],
+		MAX_BIRD_COUNT,
+		total_cards,
+		MIN_DECK_SIZE,
+		MAX_DECK_SIZE
 	]
 	var copies_ok := _incantation_copy_limit_ok()
 	var noble_ok := _noble_copy_limit_ok()
-	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and copies_ok and noble_ok
+	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and int(totals["birds"]) <= MAX_BIRD_COUNT and total_cards >= MIN_DECK_SIZE and total_cards <= MAX_DECK_SIZE and copies_ok and noble_ok
 	var ro := _deck_readonly()
 	if ro:
 		is_valid = true
@@ -738,7 +813,7 @@ func _update_validation() -> void:
 		status_label.text = "Adjust counts: max %d nobles of the same first name." % MAX_NOBLE_FIRSTNAME_COPIES
 		status_label.modulate = Color(1, 0.95, 0.6)
 	else:
-		status_label.text = "Adjust counts to a legal 40-card deck."
+		status_label.text = "Adjust counts to a legal 40-50 card deck (birds max 10)."
 		status_label.modulate = Color(1, 0.95, 0.6)
 
 
@@ -748,6 +823,7 @@ func _build_deck_payload() -> Dictionary:
 	var incantation_counts: Dictionary = {}
 	var noble_counts: Dictionary = {}
 	var temple_counts: Dictionary = {}
+	var bird_counts: Dictionary = {}
 	var dethrone_count := 0
 	for value in RITUAL_VALUES:
 		ritual_counts[str(value)] = 0
@@ -758,6 +834,8 @@ func _build_deck_payload() -> Dictionary:
 		noble_counts[str(n.get("id", ""))] = 0
 	for tm in TEMPLE_DEFS:
 		temple_counts[str(tm.get("id", ""))] = 0
+	for bd in BIRD_DEFS:
+		bird_counts[str(bd.get("id", ""))] = 0
 
 	for entry in _entries.values():
 		var count := int(entry.get("count", 0))
@@ -789,6 +867,15 @@ func _build_deck_payload() -> Dictionary:
 				for _m in count:
 					cards.append({"type": "Dethrone", "value": 4})
 				continue
+			if str(entry.get("kind", "")) == "bird":
+				var bid := str(entry.get("bird_id", ""))
+				var bname := str(entry.get("name", "Bird"))
+				var bcost := int(entry.get("cost", 0))
+				var bpower := int(entry.get("power", 0))
+				bird_counts[bid] = count
+				for _bi in count:
+					cards.append({"type": "Bird", "bird_id": bid, "name": bname, "cost": bcost, "power": bpower})
+				continue
 			var verb := str(entry.get("verb", ""))
 			var iv := int(entry.get("value", 0))
 			incantation_counts["%s_%d" % [verb, iv]] = count
@@ -804,13 +891,16 @@ func _build_deck_payload() -> Dictionary:
 			"incantations": incantation_counts,
 			"nobles": noble_counts,
 			"temples": temple_counts,
+			"birds": bird_counts,
 			"dethrones": dethrone_count
 		},
 		"rules_snapshot": {
-			"total_cards": 40,
+			"total_cards_min": 40,
+			"total_cards_max": 50,
 			"ritual_target": TARGET_RITUAL_COUNT,
 			"non_ritual_target": TARGET_NON_RITUAL_COUNT,
-			"max_ritual_copies": MAX_RITUAL_COPIES
+			"max_ritual_copies": MAX_RITUAL_COPIES,
+			"max_birds": MAX_BIRD_COUNT
 		}
 	}
 
@@ -882,6 +972,23 @@ func _on_export_decks_button_pressed() -> void:
 	status_label.modulate = Color(0.65, 1, 0.65)
 
 
+func _on_copy_deck_json_button_pressed() -> void:
+	var payload := _build_deck_payload()
+	var deck_name := str(payload.get("deck_name", "")).strip_edges()
+	if deck_name.is_empty():
+		status_label.text = "Set a deck name before copying JSON."
+		status_label.modulate = Color(1, 0.95, 0.6)
+		return
+	var cards := payload.get("cards", []) as Array
+	if cards.is_empty():
+		status_label.text = "Deck has no cards to copy."
+		status_label.modulate = Color(1, 0.95, 0.6)
+		return
+	DisplayServer.clipboard_set(JSON.stringify(payload, "\t"))
+	status_label.text = "Copied deck JSON to clipboard for included_decks.json."
+	status_label.modulate = Color(0.65, 1, 0.65)
+
+
 func _on_save_button_pressed() -> void:
 	if _deck_readonly():
 		status_label.text = "Cannot save over an included deck."
@@ -892,8 +999,9 @@ func _on_save_button_pressed() -> void:
 		status_label.text = "Deck is invalid. You may only have %d copies of each incantation variant." % MAX_INCANTATION_COPIES
 		status_label.modulate = Color(1, 0.55, 0.55)
 		return
-	if totals["rituals"] != TARGET_RITUAL_COUNT or totals["non_ritual"] != TARGET_NON_RITUAL_COUNT:
-		status_label.text = "Deck is invalid. Rituals must be %d and non-ritual cards must be %d." % [TARGET_RITUAL_COUNT, TARGET_NON_RITUAL_COUNT]
+	var total_cards := int(totals["rituals"]) + int(totals["non_ritual"]) + int(totals["birds"])
+	if totals["rituals"] != TARGET_RITUAL_COUNT or totals["non_ritual"] != TARGET_NON_RITUAL_COUNT or int(totals["birds"]) > MAX_BIRD_COUNT or total_cards < MIN_DECK_SIZE or total_cards > MAX_DECK_SIZE:
+		status_label.text = "Deck is invalid. Rituals=%d, non-ritual=%d, birds<=%d, total 40-50." % [TARGET_RITUAL_COUNT, TARGET_NON_RITUAL_COUNT, MAX_BIRD_COUNT]
 		status_label.modulate = Color(1, 0.55, 0.55)
 		return
 	var path := _current_deck_path()

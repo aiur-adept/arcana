@@ -93,6 +93,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Export Decks"
 
+[node name="CopyDeckJsonButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Copy Deck JSON"
+
 [node name="DeleteDeckButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
 unique_name_in_owner = true
 layout_mode = 2

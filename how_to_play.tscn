@@ -57,8 +57,10 @@ text = "During Your Turn
    - Any number of Incantations (provided you have the matching active Ritual, or sacrifice Rituals to cover the cost)
    - Up to 1 Ritual
    - Up to 1 Noble
-3. Loot (optional) — Once per turn, you may discard a card to draw a card.
-4. Discard down — At the end of your turn, discard until you have 7 cards in hand."
+   - Up to 1 Temple
+3. Activate permanents — Each Noble and each Temple can activate once per turn.
+4. Loot (optional) — Once per turn, you may discard a card to draw a card.
+5. Discard down — At the end of your turn, discard until you have 7 cards in hand."
 
 [node name="ExamplesTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2
@@ -76,7 +78,10 @@ bbcode_enabled = false
 fit_content = true
 scroll_active = false
 text = "Quick reminder on Rituals
-A Ritual is only active if all lower-numbered Rituals (down to 1) are also on your field."
+Ritual values are 1, 2, 3, and 4.
+- A 1-Ritual is always active.
+- A Ritual of value N (N > 1) is active only if you also control at least one active Ritual of every value from 1 to N-1.
+- Ritual power is the sum of your active Ritual values only."
 
 [node name="ExampleComboTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2
@@ -95,8 +100,14 @@ fit_content = true
 scroll_active = false
 text = "You need an active Ritual of matching value to play Incantations, or you can sacrifice Rituals whose values add up to at least the cost.
 
-Nobles have a cost listed on the card.
-For example, you must have the 4-Ritual active to cast Trss, Noble of Power."
+Nobles require their cost lane to be active (no sacrifice payment for Noble play).
+
+Temples are paid by sacrificing Rituals from your field.
+- Most Temples cost 7.
+- Ytria, Temple of Cycles, costs 9.
+
+Example Temple payment:
+To play Delpha, Temple of Oracles (cost 7), you can sacrifice a 4-Ritual + 2-Ritual + 1-Ritual (total 7)."
 
 [node name="ExamplePayTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2
@@ -107,6 +118,24 @@ text = "What Rituals Can Pay For"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 10
+
+[node name="ExampleTempleTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Temple Payment Example"
+
+[node name="ExampleTempleRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ContentRoot"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ExampleTempleText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
+layout_mode = 2
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "Example shown above:
+Delpha, Temple of Oracles costs 7, so sacrificing 4-Ritual + 2-Ritual + 1-Ritual pays exactly."
 
 [node name="WinText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2

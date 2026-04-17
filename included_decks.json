@@ -2370,6 +2370,338 @@
 				"total_cards": 40.0
 			},
 			"schema_version": 1.0
+		},
+		{
+			"cards": [
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 1
+				},
+				{
+					"type": "Ritual",
+					"value": 2
+				},
+				{
+					"type": "Ritual",
+					"value": 2
+				},
+				{
+					"type": "Ritual",
+					"value": 2
+				},
+				{
+					"type": "Ritual",
+					"value": 2
+				},
+				{
+					"type": "Ritual",
+					"value": 2
+				},
+				{
+					"type": "Ritual",
+					"value": 3
+				},
+				{
+					"type": "Ritual",
+					"value": 3
+				},
+				{
+					"type": "Ritual",
+					"value": 3
+				},
+				{
+					"type": "Ritual",
+					"value": 3
+				},
+				{
+					"type": "Ritual",
+					"value": 4
+				},
+				{
+					"type": "Ritual",
+					"value": 4
+				},
+				{
+					"type": "Ritual",
+					"value": 4
+				},
+				{
+					"bird_id": "wren",
+					"cost": 2,
+					"name": "Wren",
+					"power": 1,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "sparrow",
+					"cost": 2,
+					"name": "Sparrow",
+					"power": 1,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "sparrow",
+					"cost": 2,
+					"name": "Sparrow",
+					"power": 1,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "finch",
+					"cost": 2,
+					"name": "Finch",
+					"power": 1,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "kestrel",
+					"cost": 3,
+					"name": "Kestrel",
+					"power": 2,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "shrike",
+					"cost": 3,
+					"name": "Shrike",
+					"power": 2,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "gull",
+					"cost": 3,
+					"name": "Gull",
+					"power": 2,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "hawk",
+					"cost": 4,
+					"name": "Hawk",
+					"power": 3,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "eagle",
+					"cost": 4,
+					"name": "Eagle",
+					"power": 3,
+					"type": "Bird"
+				},
+				{
+					"bird_id": "raven",
+					"cost": 4,
+					"name": "Raven",
+					"power": 3,
+					"type": "Bird"
+				},
+				{
+					"cost": 7,
+					"name": "Phaedra, Temple of Illusion",
+					"temple_id": "phaedra_illusion",
+					"type": "Temple"
+				},
+				{
+					"name": "Sndrr, Noble of Incantation",
+					"noble_id": "sndrr_incantation",
+					"type": "Noble"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 3,
+					"verb": "deluge"
+				},
+				{
+					"type": "Incantation",
+					"value": 3,
+					"verb": "deluge"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "deluge"
+				},
+				{
+					"type": "Incantation",
+					"value": 2,
+					"verb": "deluge"
+				},
+				{
+					"type": "Dethrone",
+					"value": 4
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "wrath"
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "deluge"
+				},
+				{
+					"type": "Incantation",
+					"value": 4,
+					"verb": "deluge"
+				}
+			],
+			"counts": {
+				"birds": {
+					"eagle": 1,
+					"finch": 1,
+					"gull": 1,
+					"hawk": 1,
+					"kestrel": 1,
+					"raven": 1,
+					"shrike": 1,
+					"sparrow": 2,
+					"wren": 1
+				},
+				"dethrones": 1,
+				"incantations": {
+					"burn_1": 0,
+					"burn_2": 0,
+					"burn_3": 0,
+					"burn_4": 0,
+					"deluge_2": 2,
+					"deluge_3": 2,
+					"deluge_4": 2,
+					"dethrone_4": 0,
+					"insight_1": 0,
+					"insight_2": 4,
+					"insight_3": 0,
+					"insight_4": 0,
+					"revive_1": 0,
+					"seek_1": 0,
+					"seek_2": 4,
+					"seek_3": 0,
+					"seek_4": 0,
+					"woe_1": 0,
+					"woe_2": 0,
+					"woe_3": 0,
+					"woe_4": 0,
+					"wrath_4": 4
+				},
+				"nobles": {
+					"aeoiu_rituals": 0,
+					"bndrr_incantation": 0,
+					"indrr_incantation": 0,
+					"krss_power": 0,
+					"rmrsk_emanation": 0,
+					"rndrr_incantation": 0,
+					"smrsk_occultation": 0,
+					"sndrr_incantation": 1,
+					"tmrsk_annihilation": 0,
+					"trss_power": 0,
+					"wndrr_incantation": 0,
+					"xytzr_emanation": 0,
+					"yrss_power": 0,
+					"yytzr_occultation": 0,
+					"zytzr_annihilation": 0
+				},
+				"rituals": {
+					"1": 7,
+					"2": 5,
+					"3": 4,
+					"4": 3
+				},
+				"temples": {
+					"delpha_oracles": 0,
+					"gotha_illness": 0,
+					"phaedra_illusion": 1,
+					"ytria_cycles": 0
+				}
+			},
+			"deck_name": "Bird Test",
+			"rules_snapshot": {
+				"max_birds": 10,
+				"max_ritual_copies": 9,
+				"non_ritual_target": 21,
+				"ritual_target": 19,
+				"total_cards_max": 50,
+				"total_cards_min": 40
+			},
+			"schema_version": 1
 		}
 	],
 	"exported_at": "2026-04-16T02:53:24",

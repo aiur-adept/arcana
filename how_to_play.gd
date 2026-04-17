@@ -5,7 +5,7 @@ const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 const CornerPipDraw = preload("res://corner_pip_draw.gd")
-const HAND_CARD_FONT_SIZE := 26
+const HAND_CARD_FONT_SIZE := 21
 
 var _hover_preview: Dictionary = {}
 
@@ -39,6 +39,7 @@ func _build_examples() -> void:
 	_build_type_examples()
 	_build_active_vs_inactive_examples()
 	_build_pay_examples()
+	_build_temple_pay_example()
 
 
 func _build_type_examples() -> void:
@@ -58,6 +59,14 @@ func _build_type_examples() -> void:
 		"type": "incantation",
 		"verb": "Seek",
 		"value": 2
+	}))
+	row.add_child(_spacer(14.0))
+	row.add_child(_caption("Temple"))
+	row.add_child(_make_temple_card({
+		"type": "temple",
+		"name": "Delpha, Temple of Oracles",
+		"temple_id": "delpha_oracles",
+		"cost": 7
 	}))
 
 
@@ -90,6 +99,21 @@ func _build_pay_examples() -> void:
 		"type": "noble",
 		"name": "Trss, Noble of Power",
 		"noble_id": "trss_power"
+	}))
+
+
+func _build_temple_pay_example() -> void:
+	var row: HBoxContainer = %ExampleTempleRow
+	row.add_child(_caption("Sacrifice"))
+	row.add_child(_make_ritual_card(4, true))
+	row.add_child(_make_ritual_card(2, true))
+	row.add_child(_make_ritual_card(1, true))
+	row.add_child(_caption("total 7 -> play"))
+	row.add_child(_make_temple_card({
+		"type": "temple",
+		"name": "Delpha, Temple of Oracles",
+		"temple_id": "delpha_oracles",
+		"cost": 7
 	}))
 
 
@@ -146,9 +170,14 @@ func _make_ritual_card(value: int, active: bool) -> Control:
 
 
 func _make_noble_card(noble: Dictionary) -> Control:
+	var w := HAND_CARD_W
+	var h := HAND_CARD_H
+	var shell := Control.new()
+	shell.custom_minimum_size = Vector2(w, h)
+	shell.mouse_filter = Control.MOUSE_FILTER_PASS
 	var btn := Button.new()
 	btn.disabled = true
-	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
+	btn.custom_minimum_size = Vector2(w, h)
 	btn.text = _short_noble_name(str(noble.get("name", "Noble")))
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(4)
@@ -161,15 +190,29 @@ func _make_noble_card(noble: Dictionary) -> Control:
 	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
 	btn.add_theme_color_override("font_color", Color(0.96, 0.93, 1.0))
 	btn.add_theme_color_override("font_disabled_color", Color(0.96, 0.93, 1.0))
+	btn.position = Vector2.ZERO
+	btn.size = Vector2(w, h)
 	var noble_view := noble.duplicate(true)
 	noble_view["type"] = "noble"
+	shell.mouse_entered.connect(func() -> void:
+		_show_card_hover_preview(noble_view)
+	)
+	shell.mouse_exited.connect(func() -> void:
+		_hide_card_hover_preview()
+	)
 	btn.mouse_entered.connect(func() -> void:
 		_show_card_hover_preview(noble_view)
 	)
 	btn.mouse_exited.connect(func() -> void:
 		_hide_card_hover_preview()
 	)
-	return btn
+	shell.add_child(btn)
+	var pip_spec := _card_corner_pip_spec(noble_view)
+	if int(pip_spec.get("count", 0)) > 0:
+		var pip_icon := _make_corner_pip_icon(int(pip_spec.get("count", 0)), bool(pip_spec.get("filled", false)))
+		pip_icon.position = Vector2(w - pip_icon.custom_minimum_size.x - 4, h - pip_icon.custom_minimum_size.y - 4)
+		shell.add_child(pip_icon)
+	return shell
 
 
 func _make_hand_card_widget(card: Dictionary) -> Control:
@@ -187,7 +230,11 @@ func _make_hand_card_widget(card: Dictionary) -> Control:
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(2)
 	sb.bg_color = Color(0.04, 0.04, 0.06)
-	sb.border_color = Color(0.92, 0.92, 0.95)
+	var t := _card_type(card)
+	if t == "temple":
+		sb.border_color = Color(0.2, 0.84, 0.84)
+	else:
+		sb.border_color = Color(0.92, 0.92, 0.95)
 	tap.add_theme_stylebox_override("normal", sb)
 	tap.add_theme_stylebox_override("disabled", sb)
 	tap.add_theme_color_override("font_color", Color(0.98, 0.98, 0.98))
@@ -224,6 +271,11 @@ func _card_corner_pip_spec(card: Dictionary) -> Dictionary:
 		return {"count": max(0, int(card.get("value", 0))), "filled": false}
 	if t == "noble":
 		return {"count": _noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}
+	if t == "temple":
+		var cost := int(card.get("cost", 0))
+		if cost <= 0:
+			cost = _temple_cost_for_id(str(card.get("temple_id", "")))
+		return {"count": max(0, cost), "filled": false}
 	return {"count": 0, "filled": false}
 
 
@@ -284,6 +336,8 @@ func _card_label(card: Dictionary) -> String:
 		return "%d-R" % int(card.get("value", 0))
 	if t == "noble":
 		return _short_noble_name(str(card.get("name", "Noble")))
+	if t == "temple":
+		return _short_temple_name(str(card.get("name", "Temple")))
 	if t == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(card.get("verb", "")), int(card.get("value", 0))]
@@ -294,6 +348,17 @@ func _short_noble_name(full_name: String) -> String:
 	if idx <= 0:
 		return full_name
 	return full_name.substr(0, idx).strip_edges()
+
+
+func _short_temple_name(full_name: String) -> String:
+	var idx := full_name.find(",")
+	if idx < 0:
+		return full_name
+	return full_name.substr(0, idx).strip_edges()
+
+
+func _make_temple_card(temple: Dictionary) -> Control:
+	return _make_hand_card_widget(temple)
 
 
 func _noble_cost_for_id(nid: String) -> int:
@@ -312,3 +377,9 @@ func _noble_cost_for_id(nid: String) -> int:
 			return 3
 		_:
 			return 0
+
+
+func _temple_cost_for_id(tid: String) -> int:
+	if tid == "ytria_cycles":
+		return 9
+	return 7

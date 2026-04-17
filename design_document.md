@@ -30,6 +30,7 @@ This document defines the complete game rules for Arcana as currently implemente
 - **Noble**: persistent unit with static and/or activated/triggered abilities.
 - **Temple**: persistent card played by sacrificing rituals; has once-per-turn activations.
 - **Dethrone**: a special spell card (value 4) that destroys an enemy noble.
+- **Bird**: a supplemental unit type used for lane activation and bird-fight combat.
 
 ## 4) Turn Structure
 
@@ -44,6 +45,7 @@ Each turn has three practical steps:
      - Play up to one ritual.
      - Play up to one noble.
      - Play up to one temple.
+     - Perform one bird fight (optional, once per turn).
      - Activate eligible nobles (generally once each per turn).
      - Activate eligible temples (once each per turn).
      - Once per turn: discard one card to draw one card.
@@ -58,8 +60,10 @@ Ritual values are 1, 2, 3, and 4.
 - A **1-ritual is always active**.
 - A ritual of value **N > 1** is active only if you also have at least one active ritual of every value from 1 to N-1.
 - A ritual lane is active if you control at least one active ritual of that value.
+- Birds can additionally activate one ritual lane: the lane whose value equals the total Bird power you control.
 
 **Ritual power** is the sum of values of your active rituals only.
+**Match power** equals your ritual power plus 1 for each Bird you control.
 
 Example:
 
@@ -71,6 +75,31 @@ Example:
 ```
 
 All are active, so ritual power is `1 + 2 + 2 + 3 + 4 + 4 = 16`.
+
+Bird lane example:
+
+- If you control 1 x Bird 1, 1 x Bird 2, and 1 x Bird 3, the summed Bird power is 6, so your 6-lane is active from birds.
+
+## 6A) Birds
+
+### 6A.1 Cost and Power
+
+- Birds have costs **2-4** and powers **1-3**.
+- A Bird with cost **N** has power **N-1** (2->1, 3->2, 4->3).
+- Each Bird you control adds **+1** to your match power.
+
+### 6A.2 Lane Activation from Birds
+
+- Sum the power of all Birds you currently control.
+- The ritual lane matching that total is active (from birds) while that total remains unchanged.
+
+### 6A.3 Bird Fight (once per turn)
+
+- Once per turn during your main phase, you may choose any set of your Birds and any set of opponent Birds to fight.
+- A chosen attacking set may target only one opposing Bird in that combat.
+- Simultaneously, each chosen side deals damage equal to its total chosen Bird power to the opposing chosen side.
+- Damage on each side is divided among that side's chosen Birds as that side's controller decides.
+- After damage is assigned, each Bird that has damage greater than or equal to its power is discarded.
 
 ## 6) Playing Cards and Paying Costs
 
@@ -109,8 +138,10 @@ It destroys one target opposing noble.
   - At most 1 ritual from hand.
   - At most 1 noble from hand.
   - At most 1 temple from hand.
-  - Any number of incantations (as long as each is legal and payable).
+  - At most 1 bird from hand.
+  - Any number of incantations (as long as each is legal and payable)
 - `Discard-for-draw` may be used once per turn.
+- `Bird fight` may be used once per turn.
 - Each noble/temple activation is once per turn per permanent.
 - You cannot take further proactive actions while waiting for a required response to a pending effect you created (for example, opponent discard choice from Woe, or your own optional scion trigger decision).
 
@@ -123,9 +154,9 @@ Game ends immediately when any of the following occurs:
 
 If empty-deck draw is attempted:
 
-- Compare both players' current active ritual power.
-- Higher ritual power wins.
-- Equal ritual power is a draw.
+- Compare both players' current match power.
+- Higher match power wins.
+- Equal match power is a draw.
 
 ## 9) Core Mechanics (Set 1)
 
@@ -139,6 +170,7 @@ If empty-deck draw is attempted:
   - Wrath cannot be cast via revive.
   - Cards cast this way go to abyss (not crypt).
 - **Dethrone 4**: Destroy one opposing noble.
+- **Deluge X**: Destroy all birds of power X-1.
 
 ## 10) Noble Abilities (Set 1)
 
@@ -194,7 +226,7 @@ Temple activations are once per turn per temple.
   - Legal only if you have enough cards in deck to mill `2X`.
 - **Gotha, Temple of Illness**:
   - Static: Skip your turn-start draw.
-  - Activated: Discard one card, then draw cards equal to that card's value/cost.
+  - Activated: Discard one non-temple card, then draw cards equal to that card's value/cost.
 
 ### 11.2 Cost 9 temple
 
@@ -209,12 +241,14 @@ Temple activations are once per turn per temple.
 - **Milling is not drawing**: Burn moving cards from deck to crypt does not trigger empty-deck loss by itself.
 - **Empty deck loss check** only occurs when a player attempts to draw.
 - **Revived cards to abyss**: an incantation cast via revive is placed in abyss after resolution; if a revived noble is later destroyed/dethroned, it goes to abyss.
+- **Temples and nobles cannot be revived**: revive only works on incantations.
 
 ## 13) Deck Construction Rules
 
-For legal 40-card decks:
+For legal deck construction:
 
-- Exactly **19 Ritual** cards and **21 non-Ritual** cards.
+- Base deck: exactly **19 Ritual** cards and **21 non-Ritual, non-Bird** cards (**40 cards total**).
+- You may add up to **10 Bird** cards, for a maximum deck size of **50** cards.
 - At most **9 rituals of any one value** (for example, no more than 9 copies of value-4 rituals).
 - At most **4 copies** of any named incantation card.
 - At most **1 copy** of any named temple card.

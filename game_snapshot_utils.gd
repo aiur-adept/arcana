@@ -65,6 +65,8 @@ static func card_label(card: Variant) -> String:
 	var t := card_type(card)
 	if t == "ritual":
 		return "%d-R" % int(card.get("value", 0))
+	if t == "bird":
+		return str(card.get("name", "Bird"))
 	if t == "noble":
 		return short_noble_name(str(card.get("name", "Noble")))
 	if t == "temple":
@@ -78,6 +80,8 @@ static func hand_card_stack_key(card: Variant) -> String:
 	var t := card_type(card)
 	if t == "ritual":
 		return "r:%d" % int(card.get("value", 0))
+	if t == "bird":
+		return "b:%s" % str(card.get("bird_id", ""))
 	if t == "noble":
 		return "n:%s" % str(card.get("noble_id", ""))
 	if t == "temple":
@@ -119,6 +123,8 @@ static func card_corner_pip_spec(card: Variant) -> Dictionary:
 	var t := card_type(card)
 	if t == "ritual":
 		return {"count": max(0, int(card.get("value", 0))), "filled": true}
+	if t == "bird":
+		return {"count": max(0, int(card.get("cost", 0))), "filled": false}
 	if t == "incantation":
 		return {"count": max(0, int(card.get("value", 0))), "filled": false}
 	if t == "noble":

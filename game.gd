@@ -25,8 +25,8 @@ const CPU_ACTION_SEC := 1.618
 const CARD_SCALE := 1.618
 const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
-const HAND_CARD_FONT_SIZE := 26
-const HAND_CARD_BADGE_FONT_SIZE := 19
+const HAND_CARD_FONT_SIZE := 21
+const HAND_CARD_BADGE_FONT_SIZE := 15
 const UI_BUTTON_MIN_HEIGHT := 48.0
 const UI_BUTTON_PAD_X := 18.0
 const UI_BUTTON_PAD_Y := 10.0
@@ -47,9 +47,14 @@ var _deck_path: String = DEFAULT_DECK_PATH
 @onready var abyss_button: Button = %AbyssButton
 @onready var opp_abyss_button: Button = %OppAbyssButton
 @onready var end_turn_button: Button = %EndTurnButton
+@onready var bird_fight_button: Button = %BirdFightButton
 @onready var discard_draw_button: Button = %DiscardDrawButton
 @onready var field_you_cards: HBoxContainer = %FieldYouCards
 @onready var field_opp_cards: HBoxContainer = %FieldOppCards
+@onready var field_you_nobles: HBoxContainer = %FieldYouNobles
+@onready var field_opp_nobles: HBoxContainer = %FieldOppNobles
+@onready var field_you_birds: HBoxContainer = %FieldYouBirds
+@onready var field_opp_birds: HBoxContainer = %FieldOppBirds
 @onready var field_you_temples: HBoxContainer = %FieldYouTemples
 @onready var field_opp_temples: HBoxContainer = %FieldOppTemples
 @onready var you_stats_label: RichTextLabel = %YouStatsLabel
@@ -85,6 +90,8 @@ const INC_PICK_REVIVE := 7
 const INC_PICK_YTTR := 8
 const INC_PICK_SMRSK := 9
 const INC_PICK_RMRSK := 10
+const INC_PICK_BIRD_ATTACK := 11
+const INC_PICK_BIRD_TARGET := 12
 var _sacrifice_selecting: bool = false
 var _inc_pick_phase: int = INC_PICK_NONE
 var _pending_inc_hand_idx: int = -1
@@ -186,6 +193,16 @@ var _crypt_modal_title: Label
 var _crypt_modal_hint: Label
 var _crypt_focus_opponent: bool = false
 var _crypt_focus_zone: String = "crypt"
+var _bird_attack_selected: Dictionary = {}
+var _bird_defender_mid: int = -1
+var _bird_assign_overlay: Control
+var _bird_assign_hint: Label
+var _bird_assign_row: HBoxContainer
+var _bird_assign_confirm: Button
+var _bird_assign_reset: Button
+var _bird_assign_cancel: Button
+var _bird_assign_remaining: int = 0
+var _bird_damage_assign: Dictionary = {}
 
 
 func _is_network_pvp() -> bool:
@@ -260,8 +277,10 @@ func _ready() -> void:
 	_build_end_discard_modal()
 	_build_mulligan_bar()
 	_build_crypt_ui()
+	_build_bird_assign_overlay()
 	_build_delpha_overlay()
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
+	bird_fight_button.visible = false
 	discard_draw_button.pressed.connect(_on_discard_draw_pressed)
 	sacrifice_confirm_button.pressed.connect(_on_sacrifice_confirm_pressed)
 	sacrifice_cancel_button.pressed.connect(_on_sacrifice_cancel_pressed)
@@ -276,6 +295,7 @@ func _ready() -> void:
 	exit_confirm_dialog.confirmed.connect(_on_exit_match_confirmed)
 	pause_overlay.visible = false
 	_apply_ui_button_padding(end_turn_button)
+	_apply_ui_button_padding(bird_fight_button)
 	_apply_ui_button_padding(discard_draw_button)
 	_apply_ui_button_padding(concede_button)
 	_apply_ui_button_padding(exit_match_button)
@@ -1112,6 +1132,7 @@ func _apply_snap(snap: Dictionary) -> void:
 	if bool(snap.get("mulligan_active", false)):
 		_show_mulligan_ui(snap)
 		end_turn_button.disabled = true
+		bird_fight_button.disabled = true
 		discard_draw_button.disabled = true
 		_rebuild_hand(snap.get("your_hand", []))
 		_hide_end_discard_modal()
@@ -1130,6 +1151,8 @@ func _apply_snap(snap: Dictionary) -> void:
 		ui_block = true
 	if _revive_overlay != null and _revive_overlay.visible:
 		ui_block = true
+	if _bird_assign_overlay != null and _bird_assign_overlay.visible:
+		ui_block = true
 	if bool(snap.get("woe_pending_you_respond", false)):
 		status_label.text = "Woe: choose %d card(s) from your hand to discard." % int(snap.get("woe_pending_amount", 0))
 	else:
@@ -1143,6 +1166,7 @@ func _apply_snap(snap: Dictionary) -> void:
 	else:
 		_last_scion_prompt_id = -1
 	end_turn_button.disabled = not mine or ui_block
+	bird_fight_button.disabled = not mine or ui_block or bool(snap.get("your_bird_fight_used", false))
 	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or ui_block
 	_rebuild_hand(snap.get("your_hand", []))
 	if bool(snap.get("woe_pending_you_respond", false)):
@@ -1190,6 +1214,7 @@ func _end_game_ui(snap: Dictionary) -> void:
 			msg = "Empty deck — draw."
 	status_label.text = msg
 	end_turn_button.disabled = true
+	bird_fight_button.disabled = true
 	discard_draw_button.disabled = true
 	_clear_sacrifice_mode()
 	_clear_insight_ui()
@@ -1368,6 +1393,66 @@ func _build_mulligan_bar() -> void:
 	hb.add_child(_mulligan_take_button)
 	_mulligan_keep_button.pressed.connect(_on_mulligan_keep_pressed)
 	_mulligan_take_button.pressed.connect(_on_mulligan_take_pressed)
+
+
+func _build_bird_assign_overlay() -> void:
+	_bird_assign_overlay = Control.new()
+	_bird_assign_overlay.name = "BirdAssignOverlay"
+	_bird_assign_overlay.visible = false
+	_bird_assign_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_bird_assign_overlay.z_index = 123
+	_bird_assign_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_bird_assign_overlay)
+	var shade := ColorRect.new()
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0, 0, 0, 0.64)
+	_bird_assign_overlay.add_child(shade)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_bird_assign_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(520, 240)
+	center.add_child(panel)
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(0.08, 0.1, 0.13, 0.98)
+	ps.border_color = Color(0.56, 0.86, 0.99)
+	ps.set_border_width_all(2)
+	ps.set_corner_radius_all(12)
+	panel.add_theme_stylebox_override("panel", ps)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	margin.add_child(vb)
+	_bird_assign_hint = Label.new()
+	_bird_assign_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(_bird_assign_hint)
+	_bird_assign_row = HBoxContainer.new()
+	_bird_assign_row.add_theme_constant_override("separation", 8)
+	vb.add_child(_bird_assign_row)
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
+	vb.add_child(btn_row)
+	_bird_assign_confirm = Button.new()
+	_bird_assign_confirm.text = "Confirm damage"
+	_bird_assign_confirm.disabled = true
+	_apply_ui_button_padding(_bird_assign_confirm)
+	_bird_assign_confirm.pressed.connect(_on_bird_assign_confirm_pressed)
+	btn_row.add_child(_bird_assign_confirm)
+	_bird_assign_reset = Button.new()
+	_bird_assign_reset.text = "Reset"
+	_apply_ui_button_padding(_bird_assign_reset)
+	_bird_assign_reset.pressed.connect(_on_bird_assign_reset_pressed)
+	btn_row.add_child(_bird_assign_reset)
+	_bird_assign_cancel = Button.new()
+	_bird_assign_cancel.text = "Cancel"
+	_apply_ui_button_padding(_bird_assign_cancel)
+	_bird_assign_cancel.pressed.connect(_on_bird_assign_cancel_pressed)
+	btn_row.add_child(_bird_assign_cancel)
 
 
 func _build_crypt_ui() -> void:
@@ -1786,6 +1871,10 @@ func _clear_sacrifice_mode() -> void:
 	_wrath_selected_mids.clear()
 	_locked_sacrifice_mids.clear()
 	_smrsk_selected_mid = -1
+	_bird_attack_selected.clear()
+	_bird_defender_mid = -1
+	if _bird_assign_overlay != null:
+		_bird_assign_overlay.visible = false
 	sacrifice_row.visible = false
 	sacrifice_confirm_button.text = "Confirm sacrifice"
 	sacrifice_cancel_button.text = "Cancel"
@@ -1809,6 +1898,10 @@ func _update_inc_modal_ui() -> void:
 		sacrifice_confirm_button.disabled = _smrsk_selected_mid < 0
 	elif _inc_pick_phase == INC_PICK_RMRSK:
 		sacrifice_confirm_button.disabled = false
+	elif _inc_pick_phase == INC_PICK_BIRD_ATTACK:
+		sacrifice_confirm_button.disabled = _bird_attack_selected.is_empty()
+	elif _inc_pick_phase == INC_PICK_BIRD_TARGET:
+		sacrifice_confirm_button.disabled = _bird_defender_mid < 0
 
 
 func _show_scion_prompt_ui(snap: Dictionary) -> void:
@@ -1877,6 +1970,25 @@ func _on_wrath_field_clicked(mid: int) -> void:
 		if _wrath_selected_mids.size() >= _pending_wrath_need:
 			return
 		_wrath_selected_mids[mid] = true
+	_update_inc_modal_ui()
+	_rebuild_field_strips_from_snap(_last_snap)
+
+
+func _on_bird_attacker_clicked(mid: int) -> void:
+	if not _sacrifice_selecting or _inc_pick_phase != INC_PICK_BIRD_ATTACK:
+		return
+	if _bird_attack_selected.has(mid):
+		_bird_attack_selected.erase(mid)
+	else:
+		_bird_attack_selected[mid] = true
+	_update_inc_modal_ui()
+	_rebuild_field_strips_from_snap(_last_snap)
+
+
+func _on_bird_target_clicked(mid: int) -> void:
+	if not _sacrifice_selecting or _inc_pick_phase != INC_PICK_BIRD_TARGET:
+		return
+	_bird_defender_mid = mid
 	_update_inc_modal_ui()
 	_rebuild_field_strips_from_snap(_last_snap)
 
@@ -2101,7 +2213,7 @@ func _insight_make_insight_slot(peek: Array, orig_idx: int, zone: String, slot_i
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
-	lbl.add_theme_font_size_override("font_size", 24)
+	lbl.add_theme_font_size_override("font_size", 19)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cctr.add_child(lbl)
 	if not empty_ph and orig_idx >= 0 and typeof(peek[orig_idx]) == TYPE_DICTIONARY:
@@ -2210,6 +2322,129 @@ func _on_insight_confirm_pressed() -> void:
 	_submit_inc_play_full(_insight_sac, [], {"insight_target": _insight_target, "insight_top": top_a, "insight_bottom": bot_a})
 
 
+func _on_bird_fight_pressed() -> void:
+	_start_bird_fight_from_mid(-1)
+
+
+func _start_bird_fight_from_mid(initial_mid: int) -> void:
+	if _match == null and not _is_network_client():
+		return
+	if _is_network_client() and _last_snap.is_empty():
+		return
+	var snap: Dictionary = _last_snap
+	if int(snap.get("current", -1)) != int(snap.get("you", -2)):
+		return
+	if bool(snap.get("your_bird_fight_used", false)):
+		status_label.text = "You already used bird fight this turn."
+		return
+	var yours: Array = snap.get("your_birds", []) as Array
+	var opp: Array = snap.get("opp_birds", []) as Array
+	if yours.is_empty() or opp.is_empty():
+		status_label.text = "Bird fight requires at least one bird on each side."
+		return
+	_sacrifice_selecting = true
+	_inc_pick_phase = INC_PICK_BIRD_ATTACK
+	_bird_attack_selected.clear()
+	if initial_mid >= 0:
+		_bird_attack_selected[initial_mid] = true
+	_bird_defender_mid = -1
+	sacrifice_row.visible = true
+	sacrifice_confirm_button.text = "Select target"
+	sacrifice_cancel_button.text = "Cancel"
+	sacrifice_hint.text = "Bird fight: choose one or more of your birds to attack."
+	_update_inc_modal_ui()
+	_rebuild_field_strips_from_snap(_last_snap)
+
+
+func _bird_name_by_mid(arr: Array, mid: int) -> String:
+	for b in arr:
+		var bd := b as Dictionary
+		if int(bd.get("mid", -1)) == mid:
+			return str(bd.get("name", "Bird"))
+	return "Bird"
+
+
+func _open_bird_assign_overlay() -> void:
+	var snap: Dictionary = _last_snap
+	var opp_birds: Array = snap.get("opp_birds", []) as Array
+	var target := _bird_name_by_mid(opp_birds, _bird_defender_mid)
+	var target_power := 0
+	for b in opp_birds:
+		var bd := b as Dictionary
+		if int(bd.get("mid", -1)) == _bird_defender_mid:
+			target_power = int(bd.get("power", 0))
+			break
+	for c in _bird_assign_row.get_children():
+		c.queue_free()
+	_bird_damage_assign.clear()
+	_bird_assign_remaining = target_power
+	for k in _bird_attack_selected.keys():
+		_bird_damage_assign[int(k)] = 0
+	for k in _bird_attack_selected.keys():
+		var mid := int(k)
+		var b := Button.new()
+		b.name = "BirdAssign_%d" % mid
+		var mid_cap := mid
+		b.pressed.connect(func() -> void:
+			if _bird_assign_remaining <= 0:
+				return
+			_bird_damage_assign[mid_cap] = int(_bird_damage_assign.get(mid_cap, 0)) + 1
+			_bird_assign_remaining -= 1
+			_refresh_bird_assign_ui(target)
+		)
+		_apply_ui_button_padding(b)
+		_bird_assign_row.add_child(b)
+	_refresh_bird_assign_ui(target)
+	_bird_assign_overlay.visible = true
+
+
+func _refresh_bird_assign_ui(target_name: String) -> void:
+	_bird_assign_hint.text = "Assign %d incoming damage from %s across your attacking birds." % [_bird_assign_remaining, target_name]
+	for c in _bird_assign_row.get_children():
+		if not (c is Button):
+			continue
+		var b := c as Button
+		var mid := int(str(b.name).get_slice("_", 1))
+		var nm := _bird_name_by_mid(_last_snap.get("your_birds", []) as Array, mid)
+		b.text = "%s: %d" % [nm, int(_bird_damage_assign.get(mid, 0))]
+	_bird_assign_confirm.disabled = _bird_assign_remaining != 0
+
+
+func _on_bird_assign_reset_pressed() -> void:
+	var target := _bird_name_by_mid(_last_snap.get("opp_birds", []) as Array, _bird_defender_mid)
+	_bird_assign_remaining = 0
+	for k in _bird_attack_selected.keys():
+		_bird_damage_assign[int(k)] = 0
+	var opp_birds: Array = _last_snap.get("opp_birds", []) as Array
+	for b in opp_birds:
+		var bd := b as Dictionary
+		if int(bd.get("mid", -1)) == _bird_defender_mid:
+			_bird_assign_remaining = int(bd.get("power", 0))
+			break
+	_refresh_bird_assign_ui(target)
+
+
+func _on_bird_assign_confirm_pressed() -> void:
+	if _bird_assign_remaining != 0:
+		return
+	var attackers: Array = []
+	for k in _bird_attack_selected.keys():
+		attackers.append(int(k))
+	var assign := _bird_damage_assign.duplicate(true)
+	_bird_assign_overlay.visible = false
+	if _is_network_client():
+		submit_bird_fight.rpc_id(1, attackers, _bird_defender_mid, assign)
+	else:
+		_try_resolve_bird_fight(_my_player_for_action(), attackers, _bird_defender_mid, assign)
+	_clear_sacrifice_mode()
+
+
+func _on_bird_assign_cancel_pressed() -> void:
+	_bird_assign_overlay.visible = false
+	_clear_sacrifice_mode()
+	_rebuild_field_strips_from_snap(_last_snap)
+
+
 func _on_sacrifice_confirm_pressed() -> void:
 	if not _sacrifice_selecting:
 		return
@@ -2251,6 +2486,20 @@ func _on_sacrifice_confirm_pressed() -> void:
 				_match.submit_scion_trigger_response(_my_player_for_action(), "accept", ctxr)
 		_clear_sacrifice_mode()
 		_broadcast_sync(true)
+		return
+	if _inc_pick_phase == INC_PICK_BIRD_ATTACK:
+		if _bird_attack_selected.is_empty():
+			return
+		_inc_pick_phase = INC_PICK_BIRD_TARGET
+		sacrifice_confirm_button.text = "Assign damage"
+		sacrifice_hint.text = "Bird fight: choose one opponent bird target."
+		_update_inc_modal_ui()
+		_rebuild_field_strips_from_snap(_last_snap)
+		return
+	if _inc_pick_phase == INC_PICK_BIRD_TARGET:
+		if _bird_defender_mid < 0:
+			return
+		_open_bird_assign_overlay()
 		return
 	if _inc_pick_phase == INC_PICK_SAC:
 		var sumv := _sacrifice_selected_sum(_last_snap)
@@ -2388,14 +2637,38 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 func _rebuild_field_strips_from_snap(snap: Dictionary) -> void:
-	_rebuild_ritual_field(field_you_cards, snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, snap.get("opp_field", []), false)
-	_ritual_field.rebuild_temple_field(field_you_temples, snap.get("your_temples", []), true)
-	_ritual_field.rebuild_temple_field(field_opp_temples, snap.get("opp_temples", []), false)
+	var your_rituals: Array = snap.get("your_field", []) as Array
+	var opp_rituals: Array = snap.get("opp_field", []) as Array
+	var your_nobles: Array = snap.get("your_nobles", []) as Array
+	var opp_nobles: Array = snap.get("opp_nobles", []) as Array
+	var your_birds: Array = snap.get("your_birds", []) as Array
+	var opp_birds: Array = snap.get("opp_birds", []) as Array
+	var your_temples: Array = snap.get("your_temples", []) as Array
+	var opp_temples: Array = snap.get("opp_temples", []) as Array
+	_rebuild_ritual_field(field_you_cards, your_rituals, true)
+	_rebuild_ritual_field(field_opp_cards, opp_rituals, false)
+	_ritual_field.rebuild_noble_field(field_you_nobles, your_nobles, true)
+	_ritual_field.rebuild_noble_field(field_opp_nobles, opp_nobles, false)
+	_ritual_field.rebuild_bird_field(field_you_birds, your_birds, true)
+	_ritual_field.rebuild_bird_field(field_opp_birds, opp_birds, false)
+	_ritual_field.rebuild_temple_field(field_you_temples, your_temples, true)
+	_ritual_field.rebuild_temple_field(field_opp_temples, opp_temples, false)
+	_set_zone_visible(field_you_nobles, not your_nobles.is_empty())
+	_set_zone_visible(field_opp_nobles, not opp_nobles.is_empty())
+	_set_zone_visible(field_you_birds, not your_birds.is_empty())
+	_set_zone_visible(field_opp_birds, not opp_birds.is_empty())
+	_set_zone_visible(field_you_temples, not your_temples.is_empty())
+	_set_zone_visible(field_opp_temples, not opp_temples.is_empty())
 
 
 func _rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> void:
 	_ritual_field.rebuild_ritual_field(row, field, ours)
+
+
+func _set_zone_visible(zone_row: HBoxContainer, zone_visible: bool) -> void:
+	var zone_col := zone_row.get_parent()
+	if zone_col is CanvasItem:
+		(zone_col as CanvasItem).visible = zone_visible
 
 
 
@@ -2568,7 +2841,7 @@ func _on_temple_activate_pressed(temple_mid: int) -> void:
 		if tid == "gotha_illness":
 			_gotha_picking = true
 			_gotha_temple_mid = temple_mid
-			status_label.text = "Gotha: tap a card in your hand to discard and draw that many."
+			status_label.text = "Gotha: discard a non-temple card of power/cost N in your hand to draw N cards."
 			_rebuild_hand(_last_snap.get("your_hand", []))
 			return
 		if tid == "ytria_cycles":
@@ -2695,6 +2968,7 @@ func _rebuild_hand(hand: Variant) -> void:
 	var ritual_used := mine and bool(_last_snap.get("your_ritual_played", false))
 	var noble_used := mine and bool(_last_snap.get("your_noble_played", false))
 	var temple_used := mine and bool(_last_snap.get("your_temple_played", false))
+	var bird_used := mine and bool(_last_snap.get("your_bird_played", false))
 	var idx := 0
 	for card in hand_arr:
 		var stack_key := _hand_card_stack_key(card)
@@ -2706,7 +2980,8 @@ func _rebuild_hand(hand: Variant) -> void:
 		var ritual_blocked := ritual_used and ctype == "ritual"
 		var noble_blocked := noble_used and ctype == "noble"
 		var temple_blocked := temple_used and ctype == "temple"
-		var play_type_blocked := (ritual_blocked or noble_blocked or temple_blocked) and not _mode_discard_draw and not _selecting_end_discard
+		var bird_blocked := bird_used and ctype == "bird"
+		var play_type_blocked := (ritual_blocked or noble_blocked or temple_blocked or bird_blocked) and not _mode_discard_draw and not _selecting_end_discard
 		var waiting_input_window := mine or woe_you
 		var gotha_pick := mine and _gotha_picking
 		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick
@@ -2744,6 +3019,7 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	shell.mouse_filter = Control.MOUSE_FILTER_PASS
 	var ctype := _card_type(card)
 	var is_ritual := ctype == "ritual"
+	var is_bird := ctype == "bird"
 	var is_noble := ctype == "noble"
 	var is_temple := ctype == "temple"
 	var ritual_gold := Color(0.95, 0.78, 0.24)
@@ -2752,8 +3028,11 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	var noble_purple_strong := Color(0.95, 0.82, 1.0)
 	var temple_teal := Color(0.35, 0.88, 0.82)
 	var temple_teal_strong := Color(0.5, 0.96, 0.92)
+	var bird_black := Color(0.05, 0.05, 0.05)
+	var bird_black_strong := Color(0.0, 0.0, 0.0)
 	var noble_bg := Color(0.13, 0.1, 0.18)
 	var temple_bg := Color(0.08, 0.14, 0.13)
+	var bird_bg := Color(0.97, 0.97, 0.97)
 	for i in depth:
 		var back := Panel.new()
 		back.position = Vector2(i * shift, 0)
@@ -2765,6 +3044,9 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		if is_noble:
 			bsb.bg_color = Color(0.11, 0.09, 0.15)
 			bsb.border_color = Color(0.5, 0.42, 0.62)
+		elif is_bird:
+			bsb.bg_color = Color(0.9, 0.9, 0.9)
+			bsb.border_color = Color(0.25, 0.25, 0.25)
 		elif is_temple:
 			bsb.bg_color = Color(0.07, 0.11, 0.11)
 			bsb.border_color = Color(0.28, 0.55, 0.52)
@@ -2783,11 +3065,13 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(3 if picked else 2)
-	sb.bg_color = noble_bg if is_noble else (temple_bg if is_temple else Color(0.04, 0.04, 0.06))
+	sb.bg_color = noble_bg if is_noble else (bird_bg if is_bird else (temple_bg if is_temple else Color(0.04, 0.04, 0.06)))
 	if is_ritual:
 		sb.border_color = ritual_gold_strong if picked else ritual_gold
 	elif is_noble:
 		sb.border_color = noble_purple_strong if picked else noble_purple
+	elif is_bird:
+		sb.border_color = bird_black_strong if picked else bird_black
 	elif is_temple:
 		sb.border_color = temple_teal_strong if picked else temple_teal
 	else:
@@ -2798,20 +3082,24 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		sb_hover.border_color = ritual_gold_strong if picked else Color(1.0, 0.9, 0.48)
 	elif is_noble:
 		sb_hover.border_color = noble_purple_strong if picked else Color(0.92, 0.82, 1.0)
+	elif is_bird:
+		sb_hover.border_color = bird_black_strong if picked else Color(0.15, 0.15, 0.15)
 	elif is_temple:
 		sb_hover.border_color = temple_teal_strong if picked else Color(0.65, 1.0, 0.95)
 	else:
 		sb_hover.border_color = Color(0.84, 0.96, 1.0) if picked else Color(1.0, 1.0, 1.0)
 	tap.add_theme_stylebox_override("hover", sb_hover)
 	var sb_pressed := sb.duplicate()
-	sb_pressed.bg_color = Color(0.17, 0.14, 0.22) if is_noble else (Color(0.1, 0.14, 0.14) if is_temple else Color(0.08, 0.08, 0.12))
+	sb_pressed.bg_color = Color(0.17, 0.14, 0.22) if is_noble else (Color(0.9, 0.9, 0.9) if is_bird else (Color(0.1, 0.14, 0.14) if is_temple else Color(0.08, 0.08, 0.12)))
 	tap.add_theme_stylebox_override("pressed", sb_pressed)
 	var sb_dis := sb.duplicate()
-	sb_dis.bg_color = Color(0.1, 0.08, 0.14) if is_noble else (Color(0.07, 0.1, 0.1) if is_temple else Color(0.08, 0.08, 0.1))
+	sb_dis.bg_color = Color(0.1, 0.08, 0.14) if is_noble else (Color(0.88, 0.88, 0.88) if is_bird else (Color(0.07, 0.1, 0.1) if is_temple else Color(0.08, 0.08, 0.1)))
 	if is_ritual:
 		sb_dis.border_color = Color(0.56, 0.5, 0.32)
 	elif is_noble:
 		sb_dis.border_color = Color(0.45, 0.38, 0.58)
+	elif is_bird:
+		sb_dis.border_color = Color(0.3, 0.3, 0.3)
 	elif is_temple:
 		sb_dis.border_color = Color(0.25, 0.42, 0.4)
 	else:
@@ -2821,6 +3109,8 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		tap.add_theme_color_override("font_color", ritual_gold)
 	elif is_noble:
 		tap.add_theme_color_override("font_color", Color(0.96, 0.93, 1.0))
+	elif is_bird:
+		tap.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05))
 	elif is_temple:
 		tap.add_theme_color_override("font_color", Color(0.88, 0.98, 0.95))
 	else:
@@ -2829,14 +3119,28 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		tap.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.48))
 	elif is_noble:
 		tap.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 1.0))
+	elif is_bird:
+		tap.add_theme_color_override("font_hover_color", Color(0.05, 0.05, 0.05))
 	elif is_temple:
 		tap.add_theme_color_override("font_hover_color", Color(0.75, 1.0, 0.96))
 	else:
 		tap.add_theme_color_override("font_hover_color", Color(0.98, 0.98, 0.98))
 	if is_ritual:
+		tap.add_theme_color_override("font_focus_color", ritual_gold)
+	elif is_noble:
+		tap.add_theme_color_override("font_focus_color", Color(0.96, 0.93, 1.0))
+	elif is_bird:
+		tap.add_theme_color_override("font_focus_color", Color(0.05, 0.05, 0.05))
+	elif is_temple:
+		tap.add_theme_color_override("font_focus_color", Color(0.88, 0.98, 0.95))
+	else:
+		tap.add_theme_color_override("font_focus_color", Color(0.98, 0.98, 0.98))
+	if is_ritual:
 		tap.add_theme_color_override("font_pressed_color", ritual_gold_strong)
 	elif is_noble:
 		tap.add_theme_color_override("font_pressed_color", noble_purple_strong)
+	elif is_bird:
+		tap.add_theme_color_override("font_pressed_color", bird_black_strong)
 	elif is_temple:
 		tap.add_theme_color_override("font_pressed_color", temple_teal_strong)
 	else:
@@ -2845,6 +3149,8 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		tap.add_theme_color_override("font_disabled_color", Color(0.62, 0.56, 0.38))
 	elif is_noble:
 		tap.add_theme_color_override("font_disabled_color", Color(0.58, 0.52, 0.68))
+	elif is_bird:
+		tap.add_theme_color_override("font_disabled_color", Color(0.25, 0.25, 0.25))
 	elif is_temple:
 		tap.add_theme_color_override("font_disabled_color", Color(0.45, 0.58, 0.55))
 	else:
@@ -3108,6 +3414,9 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			_rebuild_hand(hand)
 		return
 	if _gotha_picking:
+		if str(c.get("type", "")).to_lower() == "temple":
+			status_label.text = "Gotha cannot discard temple cards."
+			return
 		if _is_network_client():
 			submit_temple_gotha.rpc_id(1, _gotha_temple_mid, hand_idx)
 		else:
@@ -3163,6 +3472,14 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			submit_play_noble.rpc_id(1, hand_idx)
 		else:
 			_try_play_noble(_my_player_for_action(), hand_idx)
+	elif _card_type(c) == "bird":
+		if bool(snap.get("your_bird_played", false)):
+			status_label.text = "You already played a bird this turn."
+			return
+		if _is_network_client():
+			submit_play_bird.rpc_id(1, hand_idx)
+		else:
+			_try_play_bird(_my_player_for_action(), hand_idx)
 	elif _card_type(c) == "temple":
 		if bool(snap.get("your_temple_played", false)):
 			status_label.text = "You already played a temple this turn."
@@ -3276,11 +3593,31 @@ func _try_play_noble(player: int, hand_idx: int, trigger_cpu_check: bool = true)
 	return true
 
 
+func _try_play_bird(player: int, hand_idx: int, trigger_cpu_check: bool = true) -> bool:
+	if _match == null:
+		return false
+	if _match.play_bird(player, hand_idx) != "ok":
+		status_label.text = "Can't play that bird now."
+		return false
+	_broadcast_sync(trigger_cpu_check)
+	return true
+
+
 func _try_play_temple(player: int, hand_idx: int, sacrifice_mids: Array, trigger_cpu_check: bool = true) -> bool:
 	if _match == null:
 		return false
 	if _match.play_temple(player, hand_idx, sacrifice_mids) != "ok":
 		status_label.text = "Can't play that temple now."
+		return false
+	_broadcast_sync(trigger_cpu_check)
+	return true
+
+
+func _try_resolve_bird_fight(player: int, attacker_mids: Array, defender_mid: int, assign: Dictionary, trigger_cpu_check: bool = true) -> bool:
+	if _match == null:
+		return false
+	if _match.resolve_bird_fight(player, attacker_mids, defender_mid, assign) != "ok":
+		status_label.text = "Could not resolve bird fight."
 		return false
 	_broadcast_sync(trigger_cpu_check)
 	return true
@@ -3500,6 +3837,16 @@ func submit_play_noble(hand_idx: int) -> void:
 
 
 @rpc("any_peer", "reliable")
+func submit_play_bird(hand_idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	_try_play_bird(pl, hand_idx)
+
+
+@rpc("any_peer", "reliable")
 func submit_play_temple(hand_idx: int, sacrifice_mids: Array) -> void:
 	if not multiplayer.is_server():
 		return
@@ -3507,6 +3854,16 @@ func submit_play_temple(hand_idx: int, sacrifice_mids: Array) -> void:
 		return
 	var pl := _peer_to_player(_sender_peer())
 	_try_play_temple(pl, hand_idx, sacrifice_mids)
+
+
+@rpc("any_peer", "reliable")
+func submit_bird_fight(attacker_mids: Array, defender_mid: int, assign: Dictionary = {}) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	_try_resolve_bird_fight(pl, attacker_mids, defender_mid, assign)
 
 
 @rpc("any_peer", "reliable")

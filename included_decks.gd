@@ -128,6 +128,8 @@ static func _log_data_issues_once(bundle: Dictionary) -> void:
 					ok_value = value == 1
 				elif verb == "wrath":
 					ok_value = value == 4
+				elif verb == "deluge":
+					ok_value = value >= 2 and value <= 4
 				if verb == "dethrone":
 					ok_value = value == 4
 				if not ok_value:
@@ -143,6 +145,16 @@ static func _log_data_issues_once(bundle: Dictionary) -> void:
 				var temple_id := str(c.get("temple_id", "")).strip_edges()
 				if temple_id.is_empty():
 					print("INFO: included_decks data issue: deck '%s' temple card[%d] missing temple_id." % [slug, j])
+			elif ctype == "bird":
+				var bird_id := str(c.get("bird_id", "")).strip_edges()
+				if bird_id.is_empty():
+					print("INFO: included_decks data issue: deck '%s' bird card[%d] missing bird_id." % [slug, j])
+				var cost := int(c.get("cost", 0))
+				var power := int(c.get("power", 0))
+				if cost < 2 or cost > 4:
+					print("INFO: included_decks data issue: deck '%s' bird card[%d] has invalid cost %d." % [slug, j, cost])
+				if power != cost - 1:
+					print("INFO: included_decks data issue: deck '%s' bird card[%d] has invalid power %d for cost %d." % [slug, j, power, cost])
 			else:
 				print("INFO: included_decks data issue: deck '%s' card[%d] has unknown type '%s'." % [slug, j, ctype])
 

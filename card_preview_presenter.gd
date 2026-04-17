@@ -11,6 +11,8 @@ const PREVIEW_NOBLE_BORDER := Color(0.84, 0.7, 1.0)
 const PREVIEW_NOBLE_TEXT := Color(0.96, 0.93, 1.0)
 const PREVIEW_TEMPLE_BORDER := Color(0.35, 0.82, 0.78)
 const PREVIEW_TEMPLE_TEXT := Color(0.88, 0.98, 0.95)
+const PREVIEW_BIRD_BORDER := Color(0.05, 0.05, 0.05)
+const PREVIEW_BIRD_TEXT := Color(0.05, 0.05, 0.05)
 const PREVIEW_NEUTRAL_BORDER := Color(0.8, 0.83, 0.9)
 const PREVIEW_NEUTRAL_TEXT := Color(0.92, 0.92, 0.96)
 
@@ -69,9 +71,9 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pad.add_child(col)
 
-	var title_sz := int(round(15.0 * ui))
-	var type_sz := int(round(13.0 * ui))
-	var body_sz := int(round(16.0 * ui))
+	var title_sz := int(round(12.0 * ui))
+	var type_sz := int(round(10.4 * ui))
+	var body_sz := int(round(12.8 * ui))
 
 	var title := Label.new()
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -120,6 +122,7 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 	var kind := _card_type(card)
 	var border_c: Color
 	var text_c: Color
+	var bg_c := Color(0.03, 0.03, 0.05, 0.95)
 	match kind:
 		"ritual":
 			border_c = PREVIEW_RITUAL_BORDER
@@ -130,11 +133,16 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 		"temple":
 			border_c = PREVIEW_TEMPLE_BORDER
 			text_c = PREVIEW_TEMPLE_TEXT
+		"bird":
+			border_c = PREVIEW_BIRD_BORDER
+			text_c = PREVIEW_BIRD_TEXT
+			bg_c = Color(0.97, 0.97, 0.97, 0.98)
 		_:
 			border_c = PREVIEW_NEUTRAL_BORDER
 			text_c = PREVIEW_NEUTRAL_TEXT
 	if panel_sb != null:
 		panel_sb.border_color = border_c
+		panel_sb.bg_color = bg_c
 	title.add_theme_color_override("font_color", text_c)
 	type_line.add_theme_color_override("font_color", text_c)
 	body.add_theme_color_override("default_color", text_c)
@@ -162,6 +170,8 @@ static func card_title(card: Dictionary) -> String:
 			return "Temple"
 		var ts := str(nm).strip_edges()
 		return ts if not ts.is_empty() else "Temple"
+	if t == "bird":
+		return str(card.get("name", "Bird"))
 	if t == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(card.get("verb", "")).capitalize(), int(card.get("value", 0))]
@@ -174,6 +184,8 @@ static func card_type_line(card: Dictionary) -> String:
 	if t == "noble":
 		var cost := _noble_cost_for_id(str(card.get("noble_id", "")))
 		return "Noble%s" % (" (cost %d)" % cost if cost > 0 else "")
+	if t == "bird":
+		return "Bird (cost %d, power %d)" % [int(card.get("cost", 0)), int(card.get("power", 0))]
 	if t == "temple":
 		var raw_cost := int(card.get("cost", 0))
 		if raw_cost <= 0:
@@ -189,6 +201,8 @@ static func card_rules_text(card: Dictionary) -> String:
 		return "Play one ritual per turn. This allows you to play Incantations and Nobles of power %d if active. Activation requires a complete active chain (1..N)." % [v]
 	if t == "noble":
 		return _noble_preview_text(str(card.get("noble_id", "")))
+	if t == "bird":
+		return "Birds add +X to your match power where X is the bird's power."
 	if t == "temple":
 		return _temple_preview_text(str(card.get("temple_id", "")))
 	if t == "dethrone":
@@ -209,6 +223,8 @@ static func card_rules_text(card: Dictionary) -> String:
 			return "Revive %d: you may cast %d incantation(s) from your crypt (chosen; no ritual cost)." % [n, n]
 		"wrath":
 			return "Wrath %d: destroy %d opponent ritual(s)." % [n, _wrath_destroy_count(n)]
+		"deluge":
+			return "Deluge %d: destroy all birds with power %d or less." % [n, n - 1]
 		_:
 			return "Incantation %d." % n
 
@@ -230,7 +246,7 @@ static func _temple_preview_text(temple_id: String) -> String:
 		"delpha_oracles":
 			return "Activate (once per turn): Send a Ritual of power X to the abyss to Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
 		"gotha_illness":
-			return "Skip your draw step. Activate (once per turn): discard a card, then draw cards equal to its power/cost."
+			return "Skip your draw step. Activate (once per turn): discard a non-temple card, then draw cards equal to its power/cost."
 		"ytria_cycles":
 			return "Activate (once per turn): discard your hand, then draw that many cards."
 		_:

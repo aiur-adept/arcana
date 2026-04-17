@@ -22,6 +22,8 @@ var current: int
 var ritual_played_this_turn: bool = false
 var noble_played_this_turn: bool = false
 var temple_played_this_turn: bool = false
+var bird_played_this_turn: bool = false
+var bird_fight_used_this_turn: bool = false
 var discard_draw_used: bool
 var winner: int = -1
 var empty_deck_end: bool = false
@@ -126,6 +128,7 @@ func _make_player(deck_template: Array) -> Dictionary:
 		"deck": d,
 		"hand": [],
 		"field": [],
+		"bird_field": [],
 		"noble_field": [],
 		"temple_field": [],
 		"crypt": [],
@@ -176,6 +179,8 @@ func _turn_start_draw() -> void:
 	ritual_played_this_turn = false
 	noble_played_this_turn = false
 	temple_played_this_turn = false
+	bird_played_this_turn = false
+	bird_fight_used_this_turn = false
 	turn_number += 1
 	if _skip_draw_for_gotha(current):
 		discard_draw_used = false
@@ -212,8 +217,8 @@ func _resolve_empty_deck_loss(trigger_player: int) -> void:
 		phase = Phase.GAME_OVER
 		_log("Goldfish: could not draw from empty deck.")
 		return
-	var p0_power := ritual_power(0)
-	var p1_power := ritual_power(1)
+	var p0_power := match_power(0)
+	var p1_power := match_power(1)
 	if p0_power > p1_power:
 		winner = 0
 	elif p1_power > p0_power:
@@ -222,9 +227,9 @@ func _resolve_empty_deck_loss(trigger_player: int) -> void:
 		winner = -1
 	phase = Phase.GAME_OVER
 	if winner >= 0:
-		_log("P%d drew from an empty deck. P%d wins by higher active ritual power (%d vs %d)." % [trigger_player, winner, p0_power, p1_power])
+		_log("P%d drew from an empty deck. P%d wins by higher match power (%d vs %d)." % [trigger_player, winner, p0_power, p1_power])
 	else:
-		_log("P%d drew from an empty deck. Game is a draw on active ritual power (%d-%d)." % [trigger_player, p0_power, p1_power])
+		_log("P%d drew from an empty deck. Game is a draw on match power (%d-%d)." % [trigger_player, p0_power, p1_power])
 
 
 func _check_power_win(p: int) -> void:
@@ -339,6 +344,10 @@ func ritual_power(p: int) -> int:
 	return s
 
 
+func match_power(p: int) -> int:
+	return ritual_power(p) + (_players[p]["bird_field"] as Array).size()
+
+
 static func active_mask_for_field(field: Array) -> Array:
 	var n := field.size()
 	var active: Array = []
@@ -380,8 +389,24 @@ func _active_mask(field: Array) -> Array:
 	return active_mask_for_field(field)
 
 
+func _bird_lane_value(p: int) -> int:
+	var birds: Array = _players[p]["bird_field"]
+	var s := 0
+	for b in birds:
+		s += int((b as Dictionary).get("power", 0))
+	return s
+
+
+func _has_bird_lane(p: int, n: int) -> bool:
+	return n > 0 and _bird_lane_value(p) == n
+
+
+func has_active_ritual_lane(p: int, n: int) -> bool:
+	return has_lane_for_field(_players[p]["field"], n) or _has_bird_lane(p, n)
+
+
 func has_active_incantation_lane(p: int, n: int) -> bool:
-	if has_lane_for_field(_players[p]["field"], n):
+	if has_active_ritual_lane(p, n):
 		return true
 	var grants := _extra_incantation_lanes_from_nobles(p)
 	return grants.has(n)
@@ -420,6 +445,7 @@ func snapshot(for_player: int) -> Dictionary:
 		"your_ritual_played": for_player == current and ritual_played_this_turn,
 		"your_noble_played": for_player == current and noble_played_this_turn,
 		"your_temple_played": for_player == current and temple_played_this_turn,
+		"your_bird_played": for_player == current and bird_played_this_turn,
 		"discard_draw_used": discard_draw_used,
 		"winner": winner,
 		"empty_deck_end": empty_deck_end,
@@ -430,12 +456,17 @@ func snapshot(for_player: int) -> Dictionary:
 		"opp_deck": _players[opp]["deck"].size(),
 		"your_field": _players[for_player]["field"].duplicate(true),
 		"opp_field": _players[opp]["field"].duplicate(true),
+		"your_birds": _players[for_player]["bird_field"].duplicate(true),
+		"opp_birds": _players[opp]["bird_field"].duplicate(true),
 		"your_nobles": _players[for_player]["noble_field"].duplicate(true),
 		"opp_nobles": _players[opp]["noble_field"].duplicate(true),
 		"your_temples": _temple_field_safe(for_player).duplicate(true),
 		"opp_temples": _temple_field_safe(opp).duplicate(true),
-		"your_power": ritual_power(for_player),
-		"opp_power": ritual_power(opp),
+		"your_power": match_power(for_player),
+		"opp_power": match_power(opp),
+		"your_match_power": match_power(for_player),
+		"opp_match_power": match_power(opp),
+		"your_bird_fight_used": for_player == current and bird_fight_used_this_turn,
 		"your_inc_disc": _inc_crypt_cards(_players[for_player]).size(),
 		"opp_inc_disc": _inc_crypt_cards(_players[opp]).size(),
 		"your_inc_discard_cards": _inc_crypt_cards(_players[for_player]).duplicate(true),
@@ -500,8 +531,7 @@ func can_play_noble(p: int, hand_idx: int) -> bool:
 	var cost := _noble_play_cost(nid)
 	if cost <= 0:
 		return true
-	var field: Array = _players[p]["field"]
-	return has_lane_for_field(field, cost)
+	return has_active_ritual_lane(p, cost)
 
 
 func play_noble(p: int, hand_idx: int) -> String:
@@ -526,6 +556,44 @@ func play_noble(p: int, hand_idx: int) -> String:
 	pl["noble_field"].append(field_noble)
 	noble_played_this_turn = true
 	_log("P%d summons %s." % [p, field_noble["name"]])
+	return "ok"
+
+
+func can_play_bird(p: int, hand_idx: int) -> bool:
+	if phase != Phase.MAIN or _is_mulligan_active() or p != current or bird_played_this_turn:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return false
+	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
+		return false
+	var c: Variant = _card_at_hand(p, hand_idx)
+	if c == null or _card_kind(c) != "bird":
+		return false
+	var cost := int((c as Dictionary).get("cost", 0))
+	if cost <= 0:
+		return false
+	return has_active_ritual_lane(p, cost)
+
+
+func play_bird(p: int, hand_idx: int) -> String:
+	if not can_play_bird(p, hand_idx):
+		return "illegal"
+	var pl: Dictionary = _players[p]
+	var hand: Array = pl["hand"]
+	var c: Dictionary = hand[hand_idx]
+	hand.remove_at(hand_idx)
+	var mid := _next_bird_mid(pl)
+	var bird := {
+		"mid": mid,
+		"bird_id": str(c.get("bird_id", "")),
+		"name": str(c.get("name", "Bird")),
+		"cost": int(c.get("cost", 0)),
+		"power": int(c.get("power", 0)),
+		"damage": 0
+	}
+	pl["bird_field"].append(bird)
+	bird_played_this_turn = true
+	_log("P%d summons %s." % [p, bird["name"]])
 	return "ok"
 
 
@@ -614,6 +682,23 @@ func _next_noble_mid(pl: Dictionary) -> int:
 	for x in _noble_crypt_cards(pl):
 		mx = maxi(mx, int(x.get("mid", 0)))
 	return mx + 1
+
+
+func _next_bird_mid(pl: Dictionary) -> int:
+	var mx := 0
+	for x in pl["bird_field"]:
+		mx = maxi(mx, int((x as Dictionary).get("mid", 0)))
+	for x in (pl["crypt"] as Array):
+		if _card_kind(x) == "bird":
+			mx = maxi(mx, int((x as Dictionary).get("mid", 0)))
+	return mx + 1
+
+
+func _find_bird_on_field(p: int, bird_mid: int) -> Dictionary:
+	for b in _players[p]["bird_field"]:
+		if int((b as Dictionary).get("mid", -1)) == bird_mid:
+			return b
+	return {}
 
 
 func _noble_play_cost(nid: String) -> int:
@@ -796,7 +881,7 @@ func can_play_dethrone(p: int, hand_idx: int) -> bool:
 	var n := int(c.get("value", 4))
 	if n != 4:
 		return false
-	if not has_lane_for_field(_players[p]["field"], n) and not _can_sacrifice(p, n):
+	if not has_active_ritual_lane(p, n) and not _can_sacrifice(p, n):
 		return false
 	return not (_players[1 - p]["noble_field"] as Array).is_empty()
 
@@ -902,6 +987,13 @@ func execute_incantation_effect(p: int, verb: String, value: int, wrath_resolved
 				return "illegal"
 			_destroy_rituals_by_mids(opp, wrath_resolved)
 			return "ok"
+		"deluge":
+			if value < 2 or value > 4:
+				return "illegal"
+			var threshold := value - 1
+			var destroyed := _destroy_birds_with_power_at_most(threshold)
+			_log("Deluge %d destroys %d bird(s) with power %d or less." % [value, destroyed, threshold])
+			return "ok"
 		_:
 			return "ok"
 
@@ -943,6 +1035,10 @@ func _validate_play_ctx(p: int, verb: String, value: int, wrath_mids: Array, ctx
 				return "ok"
 			var wr := _wrath_resolve_mids(opp, value, wrath_mids, p)
 			if wr.is_empty() and effective_wrath_destroy_count(p, value) > 0:
+				return "illegal"
+			return "ok"
+		"deluge":
+			if value < 2 or value > 4:
 				return "illegal"
 			return "ok"
 		"seek":
@@ -1375,6 +1471,8 @@ func apply_temple_gotha(p: int, temple_mid: int, hand_idx: int) -> String:
 	if hand_idx < 0 or hand_idx >= hand.size():
 		return "illegal"
 	var c: Dictionary = (hand[hand_idx] as Dictionary).duplicate(true)
+	if _card_kind(c) == "temple":
+		return "illegal"
 	var n := _gotha_draw_value_for_card(c)
 	if n < 1:
 		return "illegal"
@@ -1486,7 +1584,7 @@ func play_dethrone(p: int, hand_idx: int, noble_mids: Array = [], sacrifice_mids
 	var hand: Array = pl["hand"]
 	var c: Dictionary = hand[hand_idx]
 	var n := int(c.get("value", 4))
-	var need_sac := not has_lane_for_field(_players[p]["field"], n)
+	var need_sac := not has_active_ritual_lane(p, n)
 	var destroyed := _dethrone_resolve_mids(1 - p, noble_mids)
 	if destroyed.is_empty():
 		return "illegal_target"
@@ -1802,6 +1900,112 @@ func _destroy_rituals_by_mids(target: int, mids: Array) -> void:
 			keep.append(x)
 	pl["field"] = keep
 	_log("Wrath destroys %d ritual(s) on P%d." % [mids.size(), target])
+
+
+func _apply_damage_to_selected_birds(p: int, selected_mids: Dictionary, assign: Dictionary) -> Array:
+	var dead: Array = []
+	var birds: Array = _players[p]["bird_field"]
+	for i in birds.size():
+		var b: Dictionary = birds[i]
+		var mid := int(b.get("mid", -1))
+		if not selected_mids.has(mid):
+			continue
+		b["damage"] = int(b.get("damage", 0)) + int(assign.get(mid, 0))
+		birds[i] = b
+		if int(b.get("damage", 0)) >= int(b.get("power", 0)):
+			dead.append(mid)
+	return dead
+
+
+func _destroy_birds_by_mids(target: int, mids: Array) -> void:
+	if mids.is_empty():
+		return
+	var kill: Dictionary = {}
+	for m in mids:
+		kill[int(m)] = true
+	var pl: Dictionary = _players[target]
+	var keep: Array = []
+	for b in pl["bird_field"]:
+		var bd := b as Dictionary
+		if kill.has(int(bd.get("mid", -1))):
+			var to_crypt := bd.duplicate(true)
+			to_crypt.erase("damage")
+			pl["crypt"].append(to_crypt)
+		else:
+			var kept := bd.duplicate(true)
+			kept["damage"] = 0
+			keep.append(kept)
+	pl["bird_field"] = keep
+	_log("Bird fight destroys %d bird(s) on P%d." % [mids.size(), target])
+
+
+func _destroy_birds_with_power_at_most(power: int) -> int:
+	if power <= 0:
+		return 0
+	var total := 0
+	for p in range(2):
+		var pl: Dictionary = _players[p]
+		var keep: Array = []
+		for b in pl["bird_field"]:
+			var bd := b as Dictionary
+			if int(bd.get("power", 0)) <= power:
+				var to_crypt := bd.duplicate(true)
+				to_crypt.erase("damage")
+				pl["crypt"].append(to_crypt)
+				total += 1
+			else:
+				var kept := bd.duplicate(true)
+				kept["damage"] = 0
+				keep.append(kept)
+		pl["bird_field"] = keep
+	return total
+
+
+func resolve_bird_fight(p: int, attacker_mids: Array, defender_mid: int, attacker_damage_assign: Dictionary = {}) -> String:
+	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
+		return "illegal"
+	if bird_fight_used_this_turn:
+		return "illegal"
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return "illegal"
+	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
+		return "illegal"
+	if attacker_mids.is_empty():
+		return "illegal"
+	var opp := 1 - p
+	var target := _find_bird_on_field(opp, defender_mid)
+	if target.is_empty():
+		return "illegal_target"
+	var selected_att: Dictionary = {}
+	var attack_power := 0
+	for m in attacker_mids:
+		var mid := int(m)
+		if selected_att.has(mid):
+			return "illegal"
+		var b := _find_bird_on_field(p, mid)
+		if b.is_empty():
+			return "illegal"
+		selected_att[mid] = true
+		attack_power += int(b.get("power", 0))
+	var defend_power := int(target.get("power", 0))
+	var assigned_to_attackers := 0
+	for k in attacker_damage_assign.keys():
+		var amid := int(k)
+		if not selected_att.has(amid):
+			return "illegal_assign"
+		var dmg := int(attacker_damage_assign[k])
+		if dmg < 0:
+			return "illegal_assign"
+		assigned_to_attackers += dmg
+	if assigned_to_attackers != defend_power:
+		return "illegal_assign"
+	var dead_att := _apply_damage_to_selected_birds(p, selected_att, attacker_damage_assign)
+	var dead_def := _apply_damage_to_selected_birds(opp, {defender_mid: true}, {defender_mid: attack_power})
+	_destroy_birds_by_mids(p, dead_att)
+	_destroy_birds_by_mids(opp, dead_def)
+	bird_fight_used_this_turn = true
+	_log("P%d resolves bird fight with %d attacker(s)." % [p, attacker_mids.size()])
+	return "ok"
 
 
 func _destroy_nobles_by_mids(target: int, mids: Array) -> void:

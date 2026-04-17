@@ -111,6 +111,16 @@ func run_turn(host: Node) -> void:
 			break
 		if played_noble:
 			continue
+		var played_bird := false
+		for i in hand.size():
+			if host._card_type(hand[i]) != "bird":
+				continue
+			if host._match.can_play_bird(1, i):
+				host._try_play_bird(1, i, false)
+				played_bird = true
+			break
+		if played_bird:
+			continue
 		var played_temple := false
 		for i in hand.size():
 			if host._card_type(hand[i]) != "temple":
@@ -175,7 +185,7 @@ func run_turn(host: Node) -> void:
 				var opp_nobles_a: Array = snap.get("opp_nobles", [])
 				var need_d := int(hand[j].get("value", 4))
 				var fld_d: Array = snap.get("your_field", [])
-				var ok_lane_d := ArcanaMatchState.has_lane_for_field(fld_d, need_d)
+				var ok_lane_d: bool = host._match.has_active_ritual_lane(1, need_d)
 				var tot_d := 0
 				for x in fld_d:
 					tot_d += int(x.get("value", 0))
@@ -186,7 +196,7 @@ func run_turn(host: Node) -> void:
 				continue
 			var n: int = int(hand[j].get("value", 0))
 			var fld: Array = snap.get("your_field", [])
-			var ok_lane := ArcanaMatchState.has_lane_for_field(fld, n)
+			var ok_lane: bool = host._match.has_active_ritual_lane(1, n)
 			var tot := 0
 			for x in fld:
 				tot += int(x.get("value", 0))
@@ -209,7 +219,7 @@ func run_turn(host: Node) -> void:
 					var opp_nobles_b: Array = snap.get("opp_nobles", [])
 					var need_d2 := int(hand[j].get("value", 4))
 					var fld_d2: Array = snap.get("your_field", [])
-					var ok_lane_d2 := ArcanaMatchState.has_lane_for_field(fld_d2, need_d2)
+					var ok_lane_d2: bool = host._match.has_active_ritual_lane(1, need_d2)
 					var tot_d2 := 0
 					for x in fld_d2:
 						tot_d2 += int(x.get("value", 0))
@@ -220,7 +230,7 @@ func run_turn(host: Node) -> void:
 					continue
 				var n2: int = int(hand[j].get("value", 0))
 				var fld2: Array = snap.get("your_field", [])
-				var ok2 := ArcanaMatchState.has_lane_for_field(fld2, n2)
+				var ok2: bool = host._match.has_active_ritual_lane(1, n2)
 				var tot2 := 0
 				for x in fld2:
 					tot2 += int(x.get("value", 0))
@@ -235,14 +245,14 @@ func run_turn(host: Node) -> void:
 					var tmid := int(opp_nobles[0].get("mid", -1))
 					var dn := int(hand[pick].get("value", 4))
 					var dsac: Array = []
-					if not ArcanaMatchState.has_lane_for_field(snap.get("your_field", []), dn):
+					if not host._match.has_active_ritual_lane(1, dn):
 						dsac = greedy_sacrifice_mids(snap, dn)
 					host._try_play_dethrone(1, pick, [tmid], dsac, false)
 					await host.get_tree().create_timer(CPU_ACTION_SEC).timeout
 					continue
 			var nv: int = int(hand[pick].get("value", 0))
 			var sac: Array = []
-			if not ArcanaMatchState.has_lane_for_field(snap.get("your_field", []), nv):
+			if not host._match.has_active_ritual_lane(1, nv):
 				sac = greedy_sacrifice_mids(snap, nv)
 			var wm: Array = []
 			var vrb := str(hand[pick].get("verb", "")).to_lower()
@@ -276,6 +286,21 @@ func run_turn(host: Node) -> void:
 		snap = host._match.snapshot(1)
 		if bool(snap.get("woe_pending_you_respond", false)) or bool(snap.get("scion_pending_you_respond", false)):
 			continue
+		if not bool(snap.get("your_bird_fight_used", false)):
+			var your_birds: Array = snap.get("your_birds", []) as Array
+			var opp_birds: Array = snap.get("opp_birds", []) as Array
+			if not your_birds.is_empty() and not opp_birds.is_empty():
+				var att_mid := int(your_birds[0].get("mid", -1))
+				var def_mid := int(opp_birds[0].get("mid", -1))
+				var def_power := int(opp_birds[0].get("power", 0))
+				var assign := {att_mid: def_power}
+				host._try_resolve_bird_fight(1, [att_mid], def_mid, assign, false)
+				await host.get_tree().create_timer(CPU_ACTION_SEC).timeout
+				snap = host._match.snapshot(1)
+				if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
+					return
+				if int(snap.get("current", -1)) != int(snap.get("you", -2)):
+					return
 		break
 	snap = host._match.snapshot(1)
 	if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):

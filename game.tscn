@@ -210,7 +210,7 @@ theme_override_constants/separation = 14
 [node name="OppRitualsCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.62
+size_flags_stretch_ratio = 0.4
 theme_override_constants/separation = 4
 
 [node name="OppRitualsLabel" type="Label" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppRitualsCol"]
@@ -225,10 +225,46 @@ size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 10
 
+[node name="OppNoblesCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+theme_override_constants/separation = 4
+
+[node name="OppNoblesLabel" type="Label" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppNoblesCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.64, 0.9, 1)
+text = "Nobles"
+
+[node name="FieldOppNobles" type="HBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppNoblesCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="OppBirdsCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+theme_override_constants/separation = 4
+
+[node name="OppBirdsLabel" type="Label" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppBirdsCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.93, 0.95, 1)
+text = "Birds"
+
+[node name="FieldOppBirds" type="HBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppBirdsCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
 [node name="OppTemplesCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.38
+size_flags_stretch_ratio = 0.2
 theme_override_constants/separation = 4
 
 [node name="OppTemplesLabel" type="Label" parent="Margin/RootRow/BoardCol/OpponentArea/OppFieldRow/OppTemplesCol"]
@@ -263,7 +299,7 @@ theme_override_constants/separation = 14
 [node name="YouRitualsCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.62
+size_flags_stretch_ratio = 0.4
 theme_override_constants/separation = 4
 
 [node name="YourRitualsLabel" type="Label" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouRitualsCol"]
@@ -278,10 +314,46 @@ size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_constants/separation = 10
 
+[node name="YouNoblesCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+theme_override_constants/separation = 4
+
+[node name="YourNoblesLabel" type="Label" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouNoblesCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.64, 0.9, 1)
+text = "Nobles"
+
+[node name="FieldYouNobles" type="HBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouNoblesCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="YouBirdsCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
+theme_override_constants/separation = 4
+
+[node name="YourBirdsLabel" type="Label" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouBirdsCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.93, 0.95, 1)
+text = "Birds"
+
+[node name="FieldYouBirds" type="HBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouBirdsCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
 [node name="YouTemplesCol" type="VBoxContainer" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.38
+size_flags_stretch_ratio = 0.2
 theme_override_constants/separation = 4
 
 [node name="YourTemplesLabel" type="Label" parent="Margin/RootRow/BoardCol/PlayerArea/YouFieldRow/YouTemplesCol"]
@@ -318,6 +390,11 @@ text = "Discard for draw (once)"
 unique_name_in_owner = true
 layout_mode = 2
 text = "End turn"
+
+[node name="BirdFightButton" type="Button" parent="Margin/RootRow/BoardCol/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bird fight"
 
 [node name="QuitToMenuButton" type="Button" parent="."]
 unique_name_in_owner = true
