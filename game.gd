@@ -4,26 +4,13 @@ const IncludedDecks = preload("res://included_decks.gd")
 const CardTraits = preload("res://card_traits.gd")
 const CornerPipDraw = preload("res://corner_pip_draw.gd")
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
+const _ArcanaCpuOpponent = preload("res://arcana_cpu_opponent.gd")
+const _GameSnapshotUtils = preload("res://game_snapshot_utils.gd")
+const _InsightDnDSlot = preload("res://insight_dnd_slot.gd")
+const _GameRitualFieldView = preload("res://game_ritual_field_view.gd")
 
-class InsightDnDSlot extends Panel:
-	var slot_index: int = 0
-	var insight_zone: String = "top"
-	var can_drag: bool = true
-	var game: Control
-	func _get_drag_data(_at_position: Vector2) -> Variant:
-		if not can_drag:
-			return null
-		var px := ColorRect.new()
-		px.custom_minimum_size = Vector2(50.0 * CARD_SCALE, HAND_CARD_H)
-		px.color = Color(0.25, 0.4, 0.65, 0.92)
-		set_drag_preview(px)
-		return {"insight_slot": slot_index, "insight_zone": insight_zone}
-	func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-		return game != null and typeof(data) == TYPE_DICTIONARY and data.has("insight_slot") and data.has("insight_zone")
-	func _drop_data(_at_position: Vector2, data: Variant) -> void:
-		if game != null and typeof(data) == TYPE_DICTIONARY:
-			game._insight_handle_drop(str(data.get("insight_zone", "")), int(data["insight_slot"]), insight_zone, slot_index)
-
+var _cpu_opponent: RefCounted = _ArcanaCpuOpponent.new()
+var _ritual_field: RefCounted
 
 ## Normal play: 1p vs CPU in one process (mock client/server — no second executable).
 ## Real PvP: set USE_NETWORK_MULTIPLAYER = true, or pass --arcana-network-host on the command line.
@@ -38,7 +25,8 @@ const CPU_ACTION_SEC := 1.618
 const CARD_SCALE := 1.618
 const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
-const HAND_CARD_FONT_SIZE := 32
+const HAND_CARD_FONT_SIZE := 26
+const HAND_CARD_BADGE_FONT_SIZE := 19
 const UI_BUTTON_MIN_HEIGHT := 48.0
 const UI_BUTTON_PAD_X := 18.0
 const UI_BUTTON_PAD_Y := 10.0
@@ -247,6 +235,7 @@ func _yytzr_clear_bonus_state() -> void:
 
 
 func _ready() -> void:
+	_ritual_field = _GameRitualFieldView.new(self)
 	set_multiplayer_authority(1)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.clip_text = true
@@ -954,18 +943,26 @@ func _after_sync_local_cpu() -> void:
 	if int(s0.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 		return
 	if bool(s1.get("woe_pending_you_respond", false)):
-		call_deferred("_run_cpu_turn")
+		call_deferred("_deferred_cpu_turn")
 		return
 	if bool(s1.get("scion_pending_you_respond", false)):
-		call_deferred("_run_cpu_turn")
+		call_deferred("_deferred_cpu_turn")
 		return
 	if bool(s0.get("mulligan_active", false)):
 		if int(s0.get("current", -1)) == 1:
-			call_deferred("_run_cpu_mulligan_step")
+			call_deferred("_deferred_cpu_mulligan")
 		return
 	if int(s0.get("current", -1)) != 1:
 		return
-	call_deferred("_run_cpu_turn")
+	call_deferred("_deferred_cpu_turn")
+
+
+func _deferred_cpu_turn() -> void:
+	await _cpu_opponent.run_turn(self)
+
+
+func _deferred_cpu_mulligan() -> void:
+	await _cpu_opponent.run_mulligan_step(self)
 
 
 @rpc("authority", "reliable")
@@ -1389,19 +1386,19 @@ func _build_crypt_ui() -> void:
 
 
 func _your_crypt_cards_from_snap(snap: Dictionary) -> Array:
-	return (snap.get("your_crypt_cards", []) as Array).duplicate(true)
+	return _GameSnapshotUtils.your_crypt_cards_from_snap(snap)
 
 
 func _opp_crypt_cards_from_snap(snap: Dictionary) -> Array:
-	return (snap.get("opp_crypt_cards", []) as Array).duplicate(true)
+	return _GameSnapshotUtils.opp_crypt_cards_from_snap(snap)
 
 
 func _your_abyss_cards_from_snap(snap: Dictionary) -> Array:
-	return (snap.get("your_inc_abyss_cards", []) as Array).duplicate(true)
+	return _GameSnapshotUtils.your_abyss_cards_from_snap(snap)
 
 
 func _opp_abyss_cards_from_snap(snap: Dictionary) -> Array:
-	return (snap.get("opp_inc_abyss_cards", []) as Array).duplicate(true)
+	return _GameSnapshotUtils.opp_abyss_cards_from_snap(snap)
 
 
 func _active_crypt_cards_from_snap(snap: Dictionary) -> Array:
@@ -1411,32 +1408,11 @@ func _active_crypt_cards_from_snap(snap: Dictionary) -> Array:
 
 
 func _filtered_crypt_cards(cards: Array, kinds: Array) -> Array:
-	var out: Array = []
-	for card in cards:
-		if kinds.has(_card_type(card)):
-			out.append(card)
-	return out
+	return _GameSnapshotUtils.filtered_crypt_cards(cards, kinds)
 
 
 func _crypt_stack_entries(cards: Array) -> Array:
-	var by_key: Dictionary = {}
-	for c in cards:
-		var key := _hand_card_stack_key(c)
-		if not by_key.has(key):
-			by_key[key] = {"card": c, "count": 0}
-		var row: Dictionary = by_key[key]
-		row["count"] = int(row.get("count", 0)) + 1
-		by_key[key] = row
-	var keys: Array = by_key.keys()
-	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
-		var da: Dictionary = by_key[a]
-		var db: Dictionary = by_key[b]
-		return _card_label(da.get("card", {})) < _card_label(db.get("card", {}))
-	)
-	var out: Array = []
-	for k in keys:
-		out.append(by_key[k])
-	return out
+	return _GameSnapshotUtils.crypt_stack_entries(cards)
 
 
 func _update_crypt_button_and_popups(snap: Dictionary) -> void:
@@ -1982,27 +1958,27 @@ func _insight_refresh_insight_panel() -> void:
 	var insight_card_w := 54.0 * CARD_SCALE
 	var insight_card_h := 78.0 * CARD_SCALE
 	if _insight_top_order.is_empty() and take > 0:
-		var ph: InsightDnDSlot = _insight_make_insight_slot(peek, -1, "top", 0, insight_card_w, insight_card_h, true)
+		var ph: Panel = _insight_make_insight_slot(peek, -1, "top", 0, insight_card_w, insight_card_h, true)
 		_insight_cards_row.add_child(ph)
 	else:
 		for si in range(_insight_top_order.size()):
 			var oi: int = int(_insight_top_order[si])
-			var p: InsightDnDSlot = _insight_make_insight_slot(peek, oi, "top", si, insight_card_w, insight_card_h, false)
+			var p: Panel = _insight_make_insight_slot(peek, oi, "top", si, insight_card_w, insight_card_h, false)
 			_insight_cards_row.add_child(p)
-		var tail_t: InsightDnDSlot = _insight_make_insight_slot(peek, -1, "top", _insight_top_order.size(), insight_card_w * 0.45, insight_card_h, true)
+		var tail_t: Panel = _insight_make_insight_slot(peek, -1, "top", _insight_top_order.size(), insight_card_w * 0.45, insight_card_h, true)
 		var lt := tail_t.find_child("CardLbl", true, false)
 		if lt:
 			lt.text = "+"
 		_insight_cards_row.add_child(tail_t)
 	if _insight_bottom_order.is_empty() and take > 0:
-		var phb: InsightDnDSlot = _insight_make_insight_slot(peek, -1, "bottom", 0, insight_card_w, insight_card_h, true)
+		var phb: Panel = _insight_make_insight_slot(peek, -1, "bottom", 0, insight_card_w, insight_card_h, true)
 		_insight_cards_row_bottom.add_child(phb)
 	else:
 		for si in range(_insight_bottom_order.size()):
 			var oib: int = int(_insight_bottom_order[si])
-			var pb: InsightDnDSlot = _insight_make_insight_slot(peek, oib, "bottom", si, insight_card_w, insight_card_h, false)
+			var pb: Panel = _insight_make_insight_slot(peek, oib, "bottom", si, insight_card_w, insight_card_h, false)
 			_insight_cards_row_bottom.add_child(pb)
-		var tail_b: InsightDnDSlot = _insight_make_insight_slot(peek, -1, "bottom", _insight_bottom_order.size(), insight_card_w * 0.45, insight_card_h, true)
+		var tail_b: Panel = _insight_make_insight_slot(peek, -1, "bottom", _insight_bottom_order.size(), insight_card_w * 0.45, insight_card_h, true)
 		var lb := tail_b.find_child("CardLbl", true, false)
 		if lb:
 			lb.text = "+"
@@ -2016,8 +1992,8 @@ func _insight_refresh_insight_panel() -> void:
 	_insight_btn_confirm.disabled = false
 
 
-func _insight_make_insight_slot(peek: Array, orig_idx: int, zone: String, slot_idx: int, cw: float, ch: float, empty_ph: bool) -> InsightDnDSlot:
-	var p: InsightDnDSlot = InsightDnDSlot.new()
+func _insight_make_insight_slot(peek: Array, orig_idx: int, zone: String, slot_idx: int, cw: float, ch: float, empty_ph: bool) -> Panel:
+	var p: Panel = _InsightDnDSlot.new()
 	p.game = self
 	p.insight_zone = zone
 	p.slot_index = slot_idx
@@ -2041,7 +2017,7 @@ func _insight_make_insight_slot(peek: Array, orig_idx: int, zone: String, slot_i
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
-	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_font_size_override("font_size", 12)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cctr.add_child(lbl)
 	if not empty_ph and orig_idx >= 0 and typeof(peek[orig_idx]) == TYPE_DICTIONARY:
@@ -2316,214 +2292,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_hide_crypt_modal()
 		return
 
-
-func _stylebox_field_hover_glow(base: StyleBoxFlat) -> StyleBoxFlat:
-	var h := base.duplicate() as StyleBoxFlat
-	var c := base.border_color
-	h.shadow_size = 12
-	h.shadow_offset = Vector2.ZERO
-	h.shadow_color = Color(c.r, c.g, c.b, 0.48)
-	return h
-
-
 func _rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> void:
-	for c in row.get_children():
-		c.queue_free()
-	var nobles: Array = _last_snap.get("your_nobles", []) if ours else _last_snap.get("opp_nobles", [])
-	var no_rituals: bool = typeof(field) != TYPE_ARRAY or field.is_empty()
-	if no_rituals and nobles.is_empty():
-		var empty := Label.new()
-		empty.text = "—"
-		empty.modulate = Color(0.45, 0.45, 0.5)
-		row.add_child(empty)
-		return
-	if no_rituals:
-		field = []
-	var act: Array = ArcanaMatchState.active_mask_for_field(field)
-	var by_value: Dictionary = {}
-	for i in field.size():
-		var v: int = int(field[i].get("value", 0))
-		if not by_value.has(v):
-			by_value[v] = []
-		var arr: Array = by_value[v]
-		arr.append({
-			"value": v,
-			"mid": int(field[i].get("mid", 0)),
-			"active": i < act.size() and bool(act[i])
-		})
-		by_value[v] = arr
-	var values: Array = by_value.keys()
-	values.sort()
-	for v in values:
-		var pick_mode := 0
-		if ours and _sacrifice_selecting and _inc_pick_phase == INC_PICK_SAC:
-			pick_mode = 1
-		elif ours and _sacrifice_selecting and _inc_pick_phase == INC_PICK_SMRSK:
-			pick_mode = 1
-		elif not ours and _sacrifice_selecting and _inc_pick_phase == INC_PICK_WRATH:
-			pick_mode = 2
-		row.add_child(_make_ritual_stack(by_value[v], ours, pick_mode))
-	for noble in nobles:
-		row.add_child(_make_noble_card(noble, ours))
+	_ritual_field.rebuild_ritual_field(row, field, ours)
 
-
-func _make_ritual_stack(cards: Array, ours: bool, pick_mode: int) -> Control:
-	var shift := 12.0 * CARD_SCALE
-	var w := HAND_CARD_W
-	var h := HAND_CARD_H
-	var count := cards.size()
-	var stack := Control.new()
-	stack.custom_minimum_size = Vector2(w + shift * maxi(0, count - 1), h)
-	for i in count:
-		var d: Dictionary = cards[i]
-		var mid: int = int(d.get("mid", -1))
-		var picked := (pick_mode == 1 and (_sacrifice_selected_mids.has(mid) or _smrsk_selected_mid == mid)) or (pick_mode == 2 and _wrath_selected_mids.has(mid))
-		var card := _make_ritual_card(
-			int(d.get("value", 0)),
-			ours,
-			bool(d.get("active", true)),
-			mid,
-			pick_mode,
-			picked
-		)
-		card.position = Vector2(shift * i, 0)
-		card.z_index = i
-		stack.add_child(card)
-	return stack
-
-
-func _make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1, pick_mode: int = 0, picked: bool = false, dim_when_inactive: bool = true) -> Control:
-	var w := HAND_CARD_W
-	var h := HAND_CARD_H
-	var ritual_gold := Color(0.95, 0.78, 0.24)
-	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
-	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(w, h)
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.set_corner_radius_all(3)
-	sb.set_border_width_all(3 if picked else 2)
-	if ours:
-		sb.bg_color = Color(0.04, 0.04, 0.06)
-		if pick_mode == 1:
-			sb.border_color = ritual_gold_strong if picked else ritual_gold
-		else:
-			sb.border_color = ritual_gold
-	else:
-		sb.bg_color = Color(0.96, 0.96, 0.96)
-		if pick_mode == 2:
-			sb.border_color = ritual_gold_strong if picked else ritual_gold
-		else:
-			sb.border_color = ritual_gold
-	panel.add_theme_stylebox_override("panel", sb)
-	var sb_hover := _stylebox_field_hover_glow(sb)
-	if pick_mode == 1 and ritual_mid >= 0:
-		var mid_cap := ritual_mid
-		panel.gui_input.connect(func(ev: InputEvent) -> void:
-			if ev is InputEventMouseButton:
-				var mb := ev as InputEventMouseButton
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					_on_sacrifice_field_clicked(mid_cap)
-		)
-	if pick_mode == 2 and ritual_mid >= 0:
-		var mid_w := ritual_mid
-		panel.gui_input.connect(func(ev: InputEvent) -> void:
-			if ev is InputEventMouseButton:
-				var mb := ev as InputEventMouseButton
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					_on_wrath_field_clicked(mid_w)
-		)
-	var rv := value
-	panel.mouse_entered.connect(func() -> void:
-		panel.add_theme_stylebox_override("panel", sb_hover)
-		_show_card_hover_preview({"type": "ritual", "value": rv})
-	)
-	panel.mouse_exited.connect(func() -> void:
-		panel.add_theme_stylebox_override("panel", sb)
-		_hide_card_hover_preview()
-	)
-	var cc := CenterContainer.new()
-	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(cc)
-	var lbl := Label.new()
-	lbl.text = str(value)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
-	lbl.add_theme_color_override("font_color", ritual_gold_strong if picked else ritual_gold)
-	lbl.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
-	cc.add_child(lbl)
-	if not active and dim_when_inactive:
-		panel.modulate = Color(0.58, 0.58, 0.62)
-	return panel
-
-
-func _make_noble_card(noble: Dictionary, ours: bool) -> Control:
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
-	var noble_name := _short_noble_name(str(noble.get("name", "Noble")))
-	var used_turn := int(noble.get("used_turn", -1))
-	var exhausted := used_turn == int(_last_snap.get("turn_number", -999))
-	btn.text = noble_name
-	btn.add_theme_font_override("font", CARD_TEXT_FONT)
-	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
-	var noble_bg := Color(0.13, 0.1, 0.18)
-	var noble_border := Color(0.84, 0.7, 1.0)
-	var noble_fg := Color(0.96, 0.93, 1.0)
-	var noble_bg_used := Color(0.07, 0.055, 0.11)
-	var noble_border_used := Color(0.48, 0.38, 0.62)
-	var noble_fg_used := Color(0.65, 0.58, 0.78)
-	var sb := StyleBoxFlat.new()
-	sb.set_corner_radius_all(4)
-	sb.set_border_width_all(2)
-	sb.bg_color = noble_bg_used if exhausted else noble_bg
-	sb.border_color = noble_border_used if exhausted else noble_border
-	btn.add_theme_stylebox_override("normal", sb)
-	btn.add_theme_color_override("font_color", noble_fg_used if exhausted else noble_fg)
-	var sb_dis := sb.duplicate()
-	btn.add_theme_stylebox_override("disabled", sb_dis)
-	btn.add_theme_color_override("font_disabled_color", noble_fg_used if exhausted else noble_fg)
-	var mid := int(noble.get("mid", -1))
-	var noble_hid := str(noble.get("noble_id", ""))
-	var can_pick_dethrone := not ours and _sacrifice_selecting and _inc_pick_phase == INC_PICK_DETHRONE
-	var can_activate := ours and not exhausted and not _sacrifice_selecting and not _insight_open and int(_last_snap.get("current", -1)) == int(_last_snap.get("you", -2))
-	if noble_hid == "aeoiu_rituals":
-		var cr: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
-		can_activate = can_activate and cr.size() > 0
-	btn.disabled = false
-	if can_pick_dethrone:
-		btn.pressed.connect(func() -> void:
-			_on_dethrone_field_clicked(mid)
-		)
-	elif can_activate:
-		btn.pressed.connect(func() -> void:
-			_on_noble_activate_pressed(mid)
-		)
-	else:
-		btn.disabled = true
-	var normal_sb: StyleBoxFlat = sb
-	if can_pick_dethrone and _dethrone_selected_mid == mid:
-		var sb_sel := sb.duplicate()
-		sb_sel.border_color = Color(1.0, 0.45, 0.45)
-		sb_sel.set_border_width_all(3)
-		normal_sb = sb_sel
-		btn.add_theme_stylebox_override("normal", sb_sel)
-		btn.add_theme_stylebox_override("disabled", sb_sel)
-	var sb_hover := _stylebox_field_hover_glow(normal_sb)
-	btn.add_theme_stylebox_override("hover", sb_hover)
-	btn.add_theme_stylebox_override("pressed", sb_hover)
-	btn.add_theme_stylebox_override("hover_pressed", sb_hover)
-	btn.add_theme_stylebox_override("focus", normal_sb)
-	var noble_view := noble.duplicate(true)
-	noble_view["type"] = "noble"
-	btn.mouse_entered.connect(func() -> void:
-		_show_card_hover_preview(noble_view)
-	)
-	btn.mouse_exited.connect(func() -> void:
-		_hide_card_hover_preview()
-	)
-	return btn
 
 
 func _on_noble_activate_pressed(noble_mid: int) -> void:
@@ -2828,7 +2599,7 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		badge.custom_minimum_size = Vector2(44, 32)
 		badge.add_theme_font_override("font", CARD_TEXT_FONT)
-		badge.add_theme_font_size_override("font_size", 24)
+		badge.add_theme_font_size_override("font_size", HAND_CARD_BADGE_FONT_SIZE)
 		badge.add_theme_color_override("font_color", Color(0.95, 0.95, 0.99))
 		shell.add_child(badge)
 	if _selecting_end_discard and picked_count > 0:
@@ -2839,7 +2610,7 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		pick_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		pick_badge.custom_minimum_size = Vector2(48, 32)
 		pick_badge.add_theme_font_override("font", CARD_TEXT_FONT)
-		pick_badge.add_theme_font_size_override("font_size", 24)
+		pick_badge.add_theme_font_size_override("font_size", HAND_CARD_BADGE_FONT_SIZE)
 		pick_badge.add_theme_color_override("font_color", Color(1.0, 0.86, 0.86))
 		shell.add_child(pick_badge)
 	elif bool(_last_snap.get("woe_pending_you_respond", false)) and picked:
@@ -2850,39 +2621,18 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		woe_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		woe_badge.custom_minimum_size = Vector2(32, 32)
 		woe_badge.add_theme_font_override("font", CARD_TEXT_FONT)
-		woe_badge.add_theme_font_size_override("font_size", 24)
+		woe_badge.add_theme_font_size_override("font_size", HAND_CARD_BADGE_FONT_SIZE)
 		woe_badge.add_theme_color_override("font_color", Color(1.0, 0.75, 0.75))
 		shell.add_child(woe_badge)
 	return shell
 
 
 func _card_corner_pip_spec(card: Variant) -> Dictionary:
-	var t := _card_type(card)
-	if t == "ritual":
-		return {"count": max(0, int(card.get("value", 0))), "filled": true}
-	if t == "incantation":
-		return {"count": max(0, int(card.get("value", 0))), "filled": false}
-	if t == "noble":
-		return {"count": _noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}
-	return {"count": 0, "filled": false}
+	return _GameSnapshotUtils.card_corner_pip_spec(card)
 
 
 func _noble_cost_for_id(nid: String) -> int:
-	match nid:
-		"krss_power":
-			return 2
-		"rmrsk_emanation", "smrsk_occultation", "tmrsk_annihilation":
-			return 2
-		"trss_power":
-			return 3
-		"yrss_power":
-			return 4
-		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation", "aeoiu_rituals":
-			return 4
-		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
-			return 3
-		_:
-			return 0
+	return _GameSnapshotUtils.noble_cost_for_id(nid)
 
 
 func _make_corner_pip_icon(count: int, filled: bool) -> TextureRect:
@@ -2920,38 +2670,19 @@ func _make_corner_pip_icon(count: int, filled: bool) -> TextureRect:
 
 
 func _hand_card_stack_key(card: Variant) -> String:
-	var t := _card_type(card)
-	if t == "ritual":
-		return "r:%d" % int(card.get("value", 0))
-	if t == "noble":
-		return "n:%s" % str(card.get("noble_id", ""))
-	if t == "dethrone":
-		return "dethrone"
-	return "i:%s:%d" % [str(card.get("verb", "")).to_lower(), int(card.get("value", 0))]
+	return _GameSnapshotUtils.hand_card_stack_key(card)
 
 
 func _card_type(card: Variant) -> String:
-	if typeof(card) != TYPE_DICTIONARY:
-		return ""
-	return CardTraits.effective_kind(card as Dictionary)
+	return _GameSnapshotUtils.card_type(card)
 
 
 func _card_label(card: Variant) -> String:
-	var t := _card_type(card)
-	if t == "ritual":
-		return "%d-R" % int(card.get("value", 0))
-	if t == "noble":
-		return _short_noble_name(str(card.get("name", "Noble")))
-	if t == "dethrone":
-		return "Dethrone 4"
-	return "%s %d" % [str(card.get("verb", "")), int(card.get("value", 0))]
+	return _GameSnapshotUtils.card_label(card)
 
 
 func _short_noble_name(full_name: String) -> String:
-	var idx := full_name.find(",")
-	if idx <= 0:
-		return full_name
-	return full_name.substr(0, idx).strip_edges()
+	return _GameSnapshotUtils.short_noble_name(full_name)
 
 
 func _on_hand_pressed(hand_idx: int) -> void:
@@ -3207,35 +2938,6 @@ func _my_player_for_action() -> int:
 	return 0
 
 
-func _greedy_sacrifice_mids(snap: Dictionary, need: int) -> Array:
-	var field: Array = snap.get("your_field", [])
-	var items: Array = []
-	for x in field:
-		items.append({"mid": int(x.get("mid", 0)), "v": int(x.get("value", 0))})
-	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a["v"] < b["v"]
-	)
-	var sum := 0
-	var out: Array = []
-	for it in items:
-		out.append(it["mid"])
-		sum += int(it["v"])
-		if sum >= need:
-			return out
-	return []
-
-
-func _greedy_wrath_mids(opp_field: Array, need: int) -> Array:
-	var items: Array = []
-	for x in opp_field:
-		items.append({"mid": int(x.get("mid", 0)), "v": int(x.get("value", 0))})
-	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a["v"] < b["v"]
-	)
-	var out: Array = []
-	for i in mini(need, items.size()):
-		out.append(items[i]["mid"])
-	return out
 
 
 func _wrath_destroy_count(value: int) -> int:
@@ -3431,271 +3133,6 @@ func _confirm_woe_discard() -> void:
 	_broadcast_sync(true)
 
 
-func _run_cpu_turn() -> void:
-	if _match == null:
-		return
-	var snap: Dictionary
-	while true:
-		await get_tree().create_timer(CPU_ACTION_SEC).timeout
-		snap = _match.snapshot(1)
-		if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
-			return
-		if bool(snap.get("woe_pending_you_respond", false)):
-			var hwo: Array = snap.get("your_hand", [])
-			var needw := int(snap.get("woe_pending_amount", 0))
-			var idxsw: Array = []
-			for wi in mini(needw, hwo.size()):
-				idxsw.append(wi)
-			_try_submit_woe_discard(1, idxsw, true)
-			continue
-		if bool(snap.get("scion_pending_you_respond", false)):
-			var st := str(snap.get("scion_pending_type", ""))
-			var sid := int(snap.get("scion_pending_id", -1))
-			if st == "rmrsk_draw":
-				if not _try_submit_scion_trigger(1, "accept", {"scion_id": sid}, false):
-					_try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
-				continue
-			if st == "smrsk_burn":
-				var ff: Array = snap.get("your_field", [])
-				if ff.is_empty():
-					_try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
-				else:
-					if not _try_submit_scion_trigger(1, "accept", {"scion_id": sid, "ritual_mid": int(ff[0].get("mid", -1))}, false):
-						_try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
-				continue
-			if st == "tmrsk_woe":
-				if not _try_submit_scion_trigger(1, "accept", {"scion_id": sid, "woe_target": 0}, false):
-					_try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
-				continue
-			_try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
-			continue
-		if int(snap.get("current", -1)) != int(snap.get("you", -2)):
-			return
-		var hand: Array = snap.get("your_hand", [])
-		var played_ritual := false
-		for i in hand.size():
-			if _card_type(hand[i]) != "ritual":
-				continue
-			if _match.can_play_ritual(1, i):
-				_try_play_ritual(1, i, false)
-				played_ritual = true
-			break
-		if played_ritual:
-			continue
-		var played_noble := false
-		for i in hand.size():
-			if _card_type(hand[i]) != "noble":
-				continue
-			if _match.can_play_noble(1, i):
-				_try_play_noble(1, i, false)
-				played_noble = true
-			break
-		if played_noble:
-			continue
-		var noble_field: Array = snap.get("your_nobles", [])
-		for nn in noble_field:
-			var nmid := int(nn.get("mid", -1))
-			if not _match.can_activate_noble(1, nmid):
-				continue
-			var nid2 := str(nn.get("noble_id", ""))
-			var ok_act := false
-			if nid2 == "bndrr_incantation":
-				ok_act = _match.apply_noble_spell_like(1, nmid, "burn", 1, [], {"mill_target": 0}) == "ok"
-			elif nid2 == "wndrr_incantation":
-				ok_act = _match.apply_noble_spell_like(1, nmid, "woe", 1, [], {"woe_target": 0}) == "ok"
-			elif nid2 == "sndrr_incantation":
-				ok_act = _match.apply_noble_spell_like(1, nmid, "seek", 1, [], {}) == "ok"
-			elif nid2 == "rndrr_incantation":
-				ok_act = _match.apply_noble_revive_from_crypt(1, nmid, {"revive_steps": [{"revive_skip": true}]}) == "ok"
-			elif nid2 == "indrr_incantation":
-				var tgt_i := 0
-				var idn: int = _match.insight_effective_n(1, 2)
-				var peek2: Array = _match.insight_peek_top_cards(tgt_i, idn)
-				var perm_i: Array = []
-				for ii in peek2.size():
-					perm_i.append(ii)
-				ok_act = _match.activate_noble_with_insight(1, nmid, tgt_i, perm_i, []) == "ok"
-			elif nid2 == "aeoiu_rituals":
-				var rgc: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(snap), ["ritual"])
-				if rgc.is_empty():
-					ok_act = false
-				else:
-					ok_act = _match.apply_aeoiu_ritual_from_crypt(1, nmid, 0) == "ok"
-			else:
-				ok_act = _match.activate_noble(1, nmid) == "ok"
-			if ok_act:
-				_broadcast_sync(false)
-				await get_tree().create_timer(CPU_ACTION_SEC).timeout
-			break
-		var playable: Array[int] = []
-		for j in hand.size():
-			var ctype := _card_type(hand[j])
-			if ctype == "dethrone":
-				var opp_nobles_a: Array = snap.get("opp_nobles", [])
-				var need_d := int(hand[j].get("value", 4))
-				var fld_d: Array = snap.get("your_field", [])
-				var ok_lane_d := ArcanaMatchState.has_lane_for_field(fld_d, need_d)
-				var tot_d := 0
-				for x in fld_d:
-					tot_d += int(x.get("value", 0))
-				if not opp_nobles_a.is_empty() and (ok_lane_d or tot_d >= need_d):
-					playable.append(j)
-				continue
-			if ctype != "incantation":
-				continue
-			var n: int = int(hand[j].get("value", 0))
-			var fld: Array = snap.get("your_field", [])
-			var ok_lane := ArcanaMatchState.has_lane_for_field(fld, n)
-			var tot := 0
-			for x in fld:
-				tot += int(x.get("value", 0))
-			if ok_lane or tot >= n:
-				playable.append(j)
-		if playable.is_empty():
-			break
-		var k := randi_range(0, playable.size())
-		for _t in k:
-			snap = _match.snapshot(1)
-			if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
-				return
-			if int(snap.get("current", -1)) != int(snap.get("you", -2)):
-				return
-			hand = snap.get("your_hand", [])
-			playable.clear()
-			for j in hand.size():
-				var ctype2 := _card_type(hand[j])
-				if ctype2 == "dethrone":
-					var opp_nobles_b: Array = snap.get("opp_nobles", [])
-					var need_d2 := int(hand[j].get("value", 4))
-					var fld_d2: Array = snap.get("your_field", [])
-					var ok_lane_d2 := ArcanaMatchState.has_lane_for_field(fld_d2, need_d2)
-					var tot_d2 := 0
-					for x in fld_d2:
-						tot_d2 += int(x.get("value", 0))
-					if not opp_nobles_b.is_empty() and (ok_lane_d2 or tot_d2 >= need_d2):
-						playable.append(j)
-					continue
-				if ctype2 != "incantation":
-					continue
-				var n2: int = int(hand[j].get("value", 0))
-				var fld2: Array = snap.get("your_field", [])
-				var ok2 := ArcanaMatchState.has_lane_for_field(fld2, n2)
-				var tot2 := 0
-				for x in fld2:
-					tot2 += int(x.get("value", 0))
-				if ok2 or tot2 >= n2:
-					playable.append(j)
-			if playable.is_empty():
-				break
-			var pick := playable[randi_range(0, playable.size() - 1)]
-			if _card_type(hand[pick]) == "dethrone":
-				var opp_nobles: Array = snap.get("opp_nobles", [])
-				if not opp_nobles.is_empty():
-					var tmid := int(opp_nobles[0].get("mid", -1))
-					var dn := int(hand[pick].get("value", 4))
-					var dsac: Array = []
-					if not ArcanaMatchState.has_lane_for_field(snap.get("your_field", []), dn):
-						dsac = _greedy_sacrifice_mids(snap, dn)
-					_try_play_dethrone(1, pick, [tmid], dsac, false)
-					await get_tree().create_timer(CPU_ACTION_SEC).timeout
-					continue
-			var nv: int = int(hand[pick].get("value", 0))
-			var sac: Array = []
-			if not ArcanaMatchState.has_lane_for_field(snap.get("your_field", []), nv):
-				sac = _greedy_sacrifice_mids(snap, nv)
-			var wm: Array = []
-			var vrb := str(hand[pick].get("verb", "")).to_lower()
-			if vrb == "wrath":
-				var opp_f: Array = snap.get("opp_field", [])
-				var wn := mini(_match.effective_wrath_destroy_count(1, nv), opp_f.size())
-				if wn > 0:
-					wm = _greedy_wrath_mids(opp_f, wn)
-			var ictx := {}
-			match vrb:
-				"seek":
-					ictx = {}
-				"burn":
-					ictx = {"mill_target": 0}
-				"woe":
-					ictx = {"woe_target": 0}
-				"insight":
-					var tgt0 := 0
-					var idnv: int = _match.insight_effective_n(1, nv)
-					var pk: Array = _match.insight_peek_top_cards(tgt0, idnv)
-					var prm: Array = []
-					for ii in pk.size():
-						prm.append(ii)
-					ictx = {"insight_target": tgt0, "insight_top": prm, "insight_bottom": []}
-				"revive":
-					ictx = {"revive_steps": [{"revive_skip": true}]}
-				_:
-					ictx = {}
-			_try_play_inc(1, pick, sac, wm, ictx, false)
-			await get_tree().create_timer(CPU_ACTION_SEC).timeout
-		snap = _match.snapshot(1)
-		if bool(snap.get("woe_pending_you_respond", false)) or bool(snap.get("scion_pending_you_respond", false)):
-			continue
-		break
-	snap = _match.snapshot(1)
-	if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
-		return
-	if int(snap.get("current", -1)) != int(snap.get("you", -2)):
-		return
-	if not bool(snap.get("discard_draw_used", true)) and randf() < 0.35:
-		var harr: Array = snap.get("your_hand", [])
-		var hs := harr.size()
-		if hs > 0:
-			_try_discard_draw(1, randi_range(0, hs - 1), false)
-			await get_tree().create_timer(CPU_ACTION_SEC).timeout
-	snap = _match.snapshot(1)
-	if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
-		return
-	if int(snap.get("current", -1)) != int(snap.get("you", -2)):
-		return
-	var disc := _ai_end_discards_from_snap(snap)
-	_try_end_turn(1, disc, true)
-
-
-func _run_cpu_mulligan_step() -> void:
-	if _match == null:
-		return
-	var snap := _match.snapshot(1)
-	if not bool(snap.get("mulligan_active", false)):
-		return
-	if int(snap.get("current", -1)) != 1:
-		return
-	var bottom_needed := int(snap.get("your_mulligan_bottom_needed", 0))
-	if bottom_needed > 0:
-		var hand: Array = snap.get("your_hand", [])
-		if hand.is_empty():
-			return
-		_try_mulligan_bottom(1, randi_range(0, hand.size() - 1), true)
-		return
-	var can_take := bool(snap.get("your_can_mulligan", false))
-	var take := false
-	if can_take:
-		var hand_now: Array = snap.get("your_hand", [])
-		var rituals := 0
-		for c in hand_now:
-			if _card_type(c) == "ritual":
-				rituals += 1
-		take = rituals <= 1
-	_try_choose_mulligan(1, take, true)
-
-
-func _ai_end_discards_from_snap(snap: Dictionary) -> Array:
-	var hand: Array = snap.get("your_hand", [])
-	var need := maxi(0, hand.size() - 7)
-	if need == 0:
-		return []
-	var idxs: Array[int] = []
-	for i in hand.size():
-		idxs.append(i)
-	idxs.shuffle()
-	var chosen: Array = []
-	for j in need:
-		chosen.append(idxs[j])
-	return chosen
 
 
 func _try_choose_mulligan(player: int, take_mulligan: bool, trigger_cpu_check: bool = true) -> void:

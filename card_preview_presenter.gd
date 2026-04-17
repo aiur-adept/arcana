@@ -5,6 +5,13 @@ const CardTraits = preload("res://card_traits.gd")
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 const PREVIEW_SCALE := 1.618
 
+const PREVIEW_RITUAL_BORDER := Color(0.95, 0.78, 0.24)
+const PREVIEW_RITUAL_TEXT := Color(1.0, 0.86, 0.35)
+const PREVIEW_NOBLE_BORDER := Color(0.84, 0.7, 1.0)
+const PREVIEW_NOBLE_TEXT := Color(0.96, 0.93, 1.0)
+const PREVIEW_NEUTRAL_BORDER := Color(0.8, 0.83, 0.9)
+const PREVIEW_NEUTRAL_TEXT := Color(0.92, 0.92, 0.96)
+
 
 static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dictionary:
 	var mode := str(config.get("mode", "corner"))
@@ -90,6 +97,7 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	return {
 		"mode": mode,
 		"root": root,
+		"panel_sb": sb,
 		"title": title,
 		"type_line": type_line,
 		"body": body
@@ -106,6 +114,25 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 	title.text = card_title(card)
 	type_line.text = card_type_line(card)
 	body.text = card_rules_text(card)
+	var panel_sb: StyleBoxFlat = preview.get("panel_sb") as StyleBoxFlat
+	var kind := _card_type(card)
+	var border_c: Color
+	var text_c: Color
+	match kind:
+		"ritual":
+			border_c = PREVIEW_RITUAL_BORDER
+			text_c = PREVIEW_RITUAL_TEXT
+		"noble":
+			border_c = PREVIEW_NOBLE_BORDER
+			text_c = PREVIEW_NOBLE_TEXT
+		_:
+			border_c = PREVIEW_NEUTRAL_BORDER
+			text_c = PREVIEW_NEUTRAL_TEXT
+	if panel_sb != null:
+		panel_sb.border_color = border_c
+	title.add_theme_color_override("font_color", text_c)
+	type_line.add_theme_color_override("font_color", text_c)
+	body.add_theme_color_override("default_color", text_c)
 	if str(preview.get("mode", "corner")) != "corner":
 		root.global_position = mouse_position + Vector2(18, 18)
 	root.visible = true

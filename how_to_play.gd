@@ -5,7 +5,7 @@ const HAND_CARD_W := 72.0 * CARD_SCALE
 const HAND_CARD_H := 102.0 * CARD_SCALE
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 const CornerPipDraw = preload("res://corner_pip_draw.gd")
-const HAND_CARD_FONT_SIZE := 32
+const HAND_CARD_FONT_SIZE := 26
 
 var _hover_preview: Dictionary = {}
 
@@ -97,7 +97,7 @@ func _caption(text_value: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text_value
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_font_size_override("font_size", 12)
 	lbl.add_theme_color_override("font_color", Color(0.88, 0.9, 0.94))
 	return lbl
 

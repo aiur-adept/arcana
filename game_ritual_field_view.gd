@@ -1,0 +1,227 @@
+extends RefCounted
+class_name GameRitualFieldView
+
+const CARD_SCALE := 1.618
+const HAND_CARD_W := 72.0 * CARD_SCALE
+const HAND_CARD_H := 102.0 * CARD_SCALE
+const HAND_CARD_FONT_SIZE := 26
+const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
+
+const INC_PICK_SAC := 1
+const INC_PICK_WRATH := 2
+const INC_PICK_DETHRONE := 3
+const INC_PICK_SMRSK := 9
+
+var game: Control
+
+func _init(p_game: Control) -> void:
+	game = p_game
+
+
+func stylebox_field_hover_glow(base: StyleBoxFlat) -> StyleBoxFlat:
+	var h := base.duplicate() as StyleBoxFlat
+	var c := base.border_color
+	h.shadow_size = 12
+	h.shadow_offset = Vector2.ZERO
+	h.shadow_color = Color(c.r, c.g, c.b, 0.48)
+	return h
+
+
+func rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> void:
+	for c in row.get_children():
+		c.queue_free()
+	var nobles: Array = game._last_snap.get("your_nobles", []) if ours else game._last_snap.get("opp_nobles", [])
+	var no_rituals: bool = typeof(field) != TYPE_ARRAY or field.is_empty()
+	if no_rituals and nobles.is_empty():
+		var empty := Label.new()
+		empty.text = "—"
+		empty.modulate = Color(0.45, 0.45, 0.5)
+		row.add_child(empty)
+		return
+	if no_rituals:
+		field = []
+	var act: Array = ArcanaMatchState.active_mask_for_field(field)
+	var by_value: Dictionary = {}
+	for i in field.size():
+		var v: int = int(field[i].get("value", 0))
+		if not by_value.has(v):
+			by_value[v] = []
+		var arr: Array = by_value[v]
+		arr.append({
+			"value": v,
+			"mid": int(field[i].get("mid", 0)),
+			"active": i < act.size() and bool(act[i])
+		})
+		by_value[v] = arr
+	var values: Array = by_value.keys()
+	values.sort()
+	for v in values:
+		var pick_mode := 0
+		if ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_SAC:
+			pick_mode = 1
+		elif ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_SMRSK:
+			pick_mode = 1
+		elif not ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_WRATH:
+			pick_mode = 2
+		row.add_child(make_ritual_stack(by_value[v], ours, pick_mode))
+	for noble in nobles:
+		row.add_child(make_noble_card(noble, ours))
+
+
+func make_ritual_stack(cards: Array, ours: bool, pick_mode: int) -> Control:
+	var shift := 12.0 * CARD_SCALE
+	var w := HAND_CARD_W
+	var h := HAND_CARD_H
+	var count := cards.size()
+	var stack := Control.new()
+	stack.custom_minimum_size = Vector2(w + shift * maxi(0, count - 1), h)
+	for i in count:
+		var d: Dictionary = cards[i]
+		var mid: int = int(d.get("mid", -1))
+		var picked: bool = (pick_mode == 1 and (game._sacrifice_selected_mids.has(mid) or game._smrsk_selected_mid == mid)) or (pick_mode == 2 and game._wrath_selected_mids.has(mid))
+		var card := make_ritual_card(
+			int(d.get("value", 0)),
+			ours,
+			bool(d.get("active", true)),
+			mid,
+			pick_mode,
+			picked
+		)
+		card.position = Vector2(shift * i, 0)
+		card.z_index = i
+		stack.add_child(card)
+	return stack
+
+
+func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1, pick_mode: int = 0, picked: bool = false, dim_when_inactive: bool = true) -> Control:
+	var w := HAND_CARD_W
+	var h := HAND_CARD_H
+	var ritual_gold := Color(0.95, 0.78, 0.24)
+	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(w, h)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(3)
+	sb.set_border_width_all(3 if picked else 2)
+	if ours:
+		sb.bg_color = Color(0.04, 0.04, 0.06)
+		if pick_mode == 1:
+			sb.border_color = ritual_gold_strong if picked else ritual_gold
+		else:
+			sb.border_color = ritual_gold
+	else:
+		sb.bg_color = Color(0.96, 0.96, 0.96)
+		if pick_mode == 2:
+			sb.border_color = ritual_gold_strong if picked else ritual_gold
+		else:
+			sb.border_color = ritual_gold
+	panel.add_theme_stylebox_override("panel", sb)
+	var sb_hover := stylebox_field_hover_glow(sb)
+	if pick_mode == 1 and ritual_mid >= 0:
+		var mid_cap := ritual_mid
+		panel.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton:
+				var mb := ev as InputEventMouseButton
+				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+					game._on_sacrifice_field_clicked(mid_cap)
+		)
+	if pick_mode == 2 and ritual_mid >= 0:
+		var mid_w := ritual_mid
+		panel.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton:
+				var mb := ev as InputEventMouseButton
+				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+					game._on_wrath_field_clicked(mid_w)
+		)
+	var rv := value
+	panel.mouse_entered.connect(func() -> void:
+		panel.add_theme_stylebox_override("panel", sb_hover)
+		game._show_card_hover_preview({"type": "ritual", "value": rv})
+	)
+	panel.mouse_exited.connect(func() -> void:
+		panel.add_theme_stylebox_override("panel", sb)
+		game._hide_card_hover_preview()
+	)
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(cc)
+	var lbl := Label.new()
+	lbl.text = str(value)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
+	lbl.add_theme_color_override("font_color", ritual_gold_strong if picked else ritual_gold)
+	lbl.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	cc.add_child(lbl)
+	if not active and dim_when_inactive:
+		panel.modulate = Color(0.58, 0.58, 0.62)
+	return panel
+
+
+func make_noble_card(noble: Dictionary, ours: bool) -> Control:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
+	var noble_name: String = game._short_noble_name(str(noble.get("name", "Noble")))
+	var used_turn := int(noble.get("used_turn", -1))
+	var exhausted := used_turn == int(game._last_snap.get("turn_number", -999))
+	btn.text = noble_name
+	btn.add_theme_font_override("font", CARD_TEXT_FONT)
+	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	var noble_bg := Color(0.13, 0.1, 0.18)
+	var noble_border := Color(0.84, 0.7, 1.0)
+	var noble_fg := Color(0.96, 0.93, 1.0)
+	var noble_bg_used := Color(0.07, 0.055, 0.11)
+	var noble_border_used := Color(0.48, 0.38, 0.62)
+	var noble_fg_used := Color(0.65, 0.58, 0.78)
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.set_border_width_all(2)
+	sb.bg_color = noble_bg_used if exhausted else noble_bg
+	sb.border_color = noble_border_used if exhausted else noble_border
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_color_override("font_color", noble_fg_used if exhausted else noble_fg)
+	var sb_dis := sb.duplicate()
+	btn.add_theme_stylebox_override("disabled", sb_dis)
+	btn.add_theme_color_override("font_disabled_color", noble_fg_used if exhausted else noble_fg)
+	var mid := int(noble.get("mid", -1))
+	var noble_hid := str(noble.get("noble_id", ""))
+	var can_pick_dethrone: bool = not ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_DETHRONE
+	var can_activate: bool = ours and not exhausted and not game._sacrifice_selecting and not game._insight_open and int(game._last_snap.get("current", -1)) == int(game._last_snap.get("you", -2))
+	if noble_hid == "aeoiu_rituals":
+		var cr: Array = game._last_snap.get("your_ritual_crypt_cards", []) as Array
+		can_activate = can_activate and cr.size() > 0
+	btn.disabled = false
+	if can_pick_dethrone:
+		btn.pressed.connect(func() -> void:
+			game._on_dethrone_field_clicked(mid)
+		)
+	elif can_activate:
+		btn.pressed.connect(func() -> void:
+			game._on_noble_activate_pressed(mid)
+		)
+	else:
+		btn.disabled = true
+	var normal_sb: StyleBoxFlat = sb
+	if can_pick_dethrone and game._dethrone_selected_mid == mid:
+		var sb_sel := sb.duplicate()
+		sb_sel.border_color = Color(1.0, 0.45, 0.45)
+		sb_sel.set_border_width_all(3)
+		normal_sb = sb_sel
+		btn.add_theme_stylebox_override("normal", sb_sel)
+		btn.add_theme_stylebox_override("disabled", sb_sel)
+	var sb_hover := stylebox_field_hover_glow(normal_sb)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_hover)
+	btn.add_theme_stylebox_override("hover_pressed", sb_hover)
+	btn.add_theme_stylebox_override("focus", normal_sb)
+	var noble_view := noble.duplicate(true)
+	noble_view["type"] = "noble"
+	btn.mouse_entered.connect(func() -> void:
+		game._show_card_hover_preview(noble_view)
+	)
+	btn.mouse_exited.connect(func() -> void:
+		game._hide_card_hover_preview()
+	)
+	return btn
