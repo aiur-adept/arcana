@@ -98,6 +98,7 @@ func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1
 	var h := HAND_CARD_H
 	var ritual_gold := Color(0.95, 0.78, 0.24)
 	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
+	var sacrifice_outline := Color(0.28, 0.92, 0.52)
 	var panel := Panel.new()
 	panel.custom_minimum_size = Vector2(w, h)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -107,7 +108,7 @@ func make_ritual_card(value: int, ours: bool, active: bool, ritual_mid: int = -1
 	if ours:
 		sb.bg_color = Color(0.04, 0.04, 0.06)
 		if pick_mode == 1:
-			sb.border_color = ritual_gold_strong if picked else ritual_gold
+			sb.border_color = sacrifice_outline if picked else ritual_gold
 		else:
 			sb.border_color = ritual_gold
 	else:
@@ -220,6 +221,76 @@ func make_noble_card(noble: Dictionary, ours: bool) -> Control:
 	noble_view["type"] = "noble"
 	btn.mouse_entered.connect(func() -> void:
 		game._show_card_hover_preview(noble_view)
+	)
+	btn.mouse_exited.connect(func() -> void:
+		game._hide_card_hover_preview()
+	)
+	return btn
+
+
+func rebuild_temple_field(row: HBoxContainer, temples: Variant, ours: bool) -> void:
+	for c in row.get_children():
+		c.queue_free()
+	var arr: Array = temples if typeof(temples) == TYPE_ARRAY else []
+	if arr.is_empty():
+		var empty := Label.new()
+		empty.text = "—"
+		empty.modulate = Color(0.45, 0.45, 0.5)
+		row.add_child(empty)
+		return
+	for t in arr:
+		if typeof(t) != TYPE_DICTIONARY:
+			continue
+		row.add_child(make_temple_card(t as Dictionary, ours))
+
+
+func make_temple_card(temple: Dictionary, ours: bool) -> Control:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(HAND_CARD_W, HAND_CARD_H)
+	var shown: String = game._short_noble_name(str(temple.get("name", "Temple")))
+	var used_turn := int(temple.get("used_turn", -1))
+	var exhausted := used_turn == int(game._last_snap.get("turn_number", -999))
+	btn.text = shown
+	btn.add_theme_font_override("font", CARD_TEXT_FONT)
+	btn.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
+	var temple_bg := Color(0.06, 0.11, 0.11)
+	var temple_border := Color(0.32, 0.78, 0.74)
+	var temple_fg := Color(0.85, 0.97, 0.94)
+	var temple_bg_used := Color(0.045, 0.07, 0.07)
+	var temple_border_used := Color(0.22, 0.48, 0.46)
+	var temple_fg_used := Color(0.55, 0.72, 0.7)
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.set_border_width_all(2)
+	sb.bg_color = temple_bg_used if exhausted else temple_bg
+	sb.border_color = temple_border_used if exhausted else temple_border
+	btn.add_theme_stylebox_override("normal", sb)
+	btn.add_theme_color_override("font_color", temple_fg_used if exhausted else temple_fg)
+	var sb_dis := sb.duplicate()
+	btn.add_theme_stylebox_override("disabled", sb_dis)
+	btn.add_theme_color_override("font_disabled_color", temple_fg_used if exhausted else temple_fg)
+	var mid := int(temple.get("mid", -1))
+	var tid := str(temple.get("temple_id", ""))
+	var can_activate: bool = ours and not exhausted and game._temple_field_input_ok()
+	if tid == "delpha_oracles":
+		var cr: Array = game._last_snap.get("your_ritual_crypt_cards", []) as Array
+		var deck_n := int(game._last_snap.get("your_deck", 0))
+		can_activate = can_activate and cr.size() > 0 and deck_n >= 2
+	if can_activate:
+		btn.pressed.connect(func() -> void:
+			game._on_temple_activate_pressed(mid)
+		)
+	else:
+		btn.disabled = true
+	var sb_hover := stylebox_field_hover_glow(sb)
+	btn.add_theme_stylebox_override("hover", sb_hover)
+	btn.add_theme_stylebox_override("pressed", sb_hover)
+	btn.add_theme_stylebox_override("hover_pressed", sb_hover)
+	btn.add_theme_stylebox_override("focus", sb)
+	var tview := temple.duplicate(true)
+	tview["type"] = "temple"
+	btn.mouse_entered.connect(func() -> void:
+		game._show_card_hover_preview(tview)
 	)
 	btn.mouse_exited.connect(func() -> void:
 		game._hide_card_hover_preview()

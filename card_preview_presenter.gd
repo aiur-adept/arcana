@@ -9,6 +9,8 @@ const PREVIEW_RITUAL_BORDER := Color(0.95, 0.78, 0.24)
 const PREVIEW_RITUAL_TEXT := Color(1.0, 0.86, 0.35)
 const PREVIEW_NOBLE_BORDER := Color(0.84, 0.7, 1.0)
 const PREVIEW_NOBLE_TEXT := Color(0.96, 0.93, 1.0)
+const PREVIEW_TEMPLE_BORDER := Color(0.35, 0.82, 0.78)
+const PREVIEW_TEMPLE_TEXT := Color(0.88, 0.98, 0.95)
 const PREVIEW_NEUTRAL_BORDER := Color(0.8, 0.83, 0.9)
 const PREVIEW_NEUTRAL_TEXT := Color(0.92, 0.92, 0.96)
 
@@ -125,6 +127,9 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 		"noble":
 			border_c = PREVIEW_NOBLE_BORDER
 			text_c = PREVIEW_NOBLE_TEXT
+		"temple":
+			border_c = PREVIEW_TEMPLE_BORDER
+			text_c = PREVIEW_TEMPLE_TEXT
 		_:
 			border_c = PREVIEW_NEUTRAL_BORDER
 			text_c = PREVIEW_NEUTRAL_TEXT
@@ -151,6 +156,12 @@ static func card_title(card: Dictionary) -> String:
 		return "%d-Ritual" % int(card.get("value", 0))
 	if t == "noble":
 		return str(card.get("name", "Noble"))
+	if t == "temple":
+		var nm: Variant = card.get("name", null)
+		if nm == null:
+			return "Temple"
+		var ts := str(nm).strip_edges()
+		return ts if not ts.is_empty() else "Temple"
 	if t == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(card.get("verb", "")).capitalize(), int(card.get("value", 0))]
@@ -163,6 +174,8 @@ static func card_type_line(card: Dictionary) -> String:
 	if t == "noble":
 		var cost := _noble_cost_for_id(str(card.get("noble_id", "")))
 		return "Noble%s" % (" (cost %d)" % cost if cost > 0 else "")
+	if t == "temple":
+		return "Temple (cost %d)" % int(card.get("cost", 7))
 	return "Incantation"
 
 
@@ -173,6 +186,8 @@ static func card_rules_text(card: Dictionary) -> String:
 		return "Play one ritual per turn. This allows you to play Incantations and Nobles of power %d if active. Activation requires a complete active chain (1..N)." % [v]
 	if t == "noble":
 		return _noble_preview_text(str(card.get("noble_id", "")))
+	if t == "temple":
+		return _temple_preview_text(str(card.get("temple_id", "")))
 	if t == "dethrone":
 		return "Dethrone 4: destroy 1 opponent noble."
 	var n := int(card.get("value", 0))
@@ -203,6 +218,18 @@ static func _wrath_destroy_count(value: int) -> int:
 	if value == 4:
 		return 2
 	return 0
+
+
+static func _temple_preview_text(temple_id: String) -> String:
+	match temple_id:
+		"phaedra_illusion":
+			return "Once per turn: Insight 1, then draw a card."
+		"delpha_oracles":
+			return "Once per turn: Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
+		"gotha_illness":
+			return "Skip your draw step. Once per turn: discard a card, then draw cards equal to its power/cost."
+		_:
+			return "Temple — sacrifice 7 to play from hand."
 
 
 static func _noble_preview_text(noble_id: String) -> String:

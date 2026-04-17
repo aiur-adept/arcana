@@ -15,7 +15,11 @@ static func effective_kind(card: Dictionary) -> String:
 			return "ritual"
 		if raw == "noble":
 			return "noble"
+		if raw == "temple":
+			return "temple"
 		return raw
+	if card.has("temple_id"):
+		return "temple"
 	if card.has("noble_id"):
 		return "noble"
 	var verb := str(card.get("verb", "")).strip_edges()

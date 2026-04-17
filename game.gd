@@ -50,6 +50,8 @@ var _deck_path: String = DEFAULT_DECK_PATH
 @onready var discard_draw_button: Button = %DiscardDrawButton
 @onready var field_you_cards: HBoxContainer = %FieldYouCards
 @onready var field_opp_cards: HBoxContainer = %FieldOppCards
+@onready var field_you_temples: HBoxContainer = %FieldYouTemples
+@onready var field_opp_temples: HBoxContainer = %FieldOppTemples
 @onready var you_stats_label: RichTextLabel = %YouStatsLabel
 @onready var opp_stats_label: RichTextLabel = %OppStatsLabel
 @onready var sacrifice_row: HBoxContainer = %SacrificeRow
@@ -149,6 +151,16 @@ var _aeoiu_overlay: Control
 var _aeoiu_crypt_row: VBoxContainer
 var _aeoiu_noble_mid: int = -1
 
+var _delpha_overlay: Control
+var _delpha_crypt_row: VBoxContainer
+var _delpha_spin: SpinBox
+var _delpha_temple_mid: int = -1
+
+var _sacrifice_for_temple: bool = false
+var _insight_temple_mid: int = -1
+var _gotha_picking: bool = false
+var _gotha_temple_mid: int = -1
+
 var _hover_preview: Dictionary = {}
 var _game_end_overlay: Control
 var _game_end_modal: PanelContainer
@@ -246,6 +258,7 @@ func _ready() -> void:
 	_build_end_discard_modal()
 	_build_mulligan_bar()
 	_build_crypt_ui()
+	_build_delpha_overlay()
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	discard_draw_button.pressed.connect(_on_discard_draw_pressed)
 	sacrifice_confirm_button.pressed.connect(_on_sacrifice_confirm_pressed)
@@ -382,7 +395,7 @@ func _build_insight_overlay() -> void:
 	add_child(_insight_overlay)
 	var back := ColorRect.new()
 	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	back.color = Color(0, 0, 0, 0.58)
+	back.color = Color(0, 0, 0, 1)
 	back.mouse_filter = Control.MOUSE_FILTER_STOP
 	_insight_overlay.add_child(back)
 	var cc := CenterContainer.new()
@@ -535,6 +548,57 @@ func _build_burn_woe_revive_overlays() -> void:
 	ae_row.add_child(ae_cancel)
 	inner_a.add_child(ae_row)
 	ae_cancel.pressed.connect(_on_aeoiu_cancel_pressed)
+
+
+func _build_delpha_overlay() -> void:
+	_delpha_overlay = Control.new()
+	_delpha_overlay.name = "DelphaOverlay"
+	_delpha_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_delpha_overlay.visible = false
+	_delpha_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_delpha_overlay.z_index = 97
+	add_child(_delpha_overlay)
+	var back_d := ColorRect.new()
+	back_d.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	back_d.color = Color(0, 0, 0, 0.55)
+	_delpha_overlay.add_child(back_d)
+	var ccd := CenterContainer.new()
+	ccd.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_delpha_overlay.add_child(ccd)
+	var inner_d := VBoxContainer.new()
+	inner_d.add_theme_constant_override("separation", 10)
+	ccd.add_child(inner_d)
+	var ld := Label.new()
+	ld.text = "Delpha — choose X (mill 2X from your deck), then pick a ritual from your crypt."
+	inner_d.add_child(ld)
+	var spin_row := HBoxContainer.new()
+	var ls := Label.new()
+	ls.text = "X ="
+	spin_row.add_child(ls)
+	_delpha_spin = SpinBox.new()
+	_delpha_spin.min_value = 1
+	_delpha_spin.max_value = 40
+	_delpha_spin.value = 1
+	spin_row.add_child(_delpha_spin)
+	inner_d.add_child(spin_row)
+	_delpha_crypt_row = VBoxContainer.new()
+	_delpha_crypt_row.add_theme_constant_override("separation", 6)
+	inner_d.add_child(_delpha_crypt_row)
+	var de_row := HBoxContainer.new()
+	var de_cancel := Button.new()
+	de_cancel.text = "Cancel"
+	_apply_ui_button_padding(de_cancel)
+	de_row.add_child(de_cancel)
+	inner_d.add_child(de_row)
+	de_cancel.pressed.connect(_on_delpha_cancel_pressed)
+
+
+func _on_delpha_cancel_pressed() -> void:
+	if _delpha_overlay:
+		_delpha_overlay.visible = false
+	_delpha_temple_mid = -1
+	end_turn_button.disabled = false
+	discard_draw_button.disabled = false
 
 
 func _clear_burn_woe_overlay() -> void:
@@ -1012,6 +1076,13 @@ func _apply_snap(snap: Dictionary) -> void:
 		_clear_sacrifice_mode()
 	if _burn_woe_overlay != null and _burn_woe_overlay.visible and _burn_woe_mode == "tmrsk_woe":
 		_clear_burn_woe_overlay()
+	if _delpha_overlay != null and _delpha_overlay.visible:
+		if int(snap.get("current", -1)) != int(snap.get("you", 0)):
+			_on_delpha_cancel_pressed()
+	if _gotha_picking:
+		if int(snap.get("current", -1)) != int(snap.get("you", 0)) or int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
+			_gotha_picking = false
+			_gotha_temple_mid = -1
 	var yp: int = int(snap.get("your_power", 0))
 	var op: int = int(snap.get("opp_power", 0))
 	var your_hand: Array = snap.get("your_hand", []) as Array
@@ -1027,8 +1098,7 @@ func _apply_snap(snap: Dictionary) -> void:
 	_update_crypt_button_and_popups(snap)
 	if _sacrifice_selecting:
 		_prune_sacrifice_picks_for_snap(snap)
-	_rebuild_ritual_field(field_you_cards, snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(snap)
 	var logs: Array = snap.get("log", [])
 	var tail := ""
 	for i in logs.size():
@@ -1055,6 +1125,10 @@ func _apply_snap(snap: Dictionary) -> void:
 	var scion_waiting := bool(snap.get("scion_pending_waiting", false))
 	var scion_respond := bool(snap.get("scion_pending_you_respond", false))
 	var ui_block := _sacrifice_selecting or _insight_open or _woe_self_picking or bool(snap.get("woe_pending_waiting", false)) or scion_waiting or scion_respond
+	if _delpha_overlay != null and _delpha_overlay.visible:
+		ui_block = true
+	if _gotha_picking:
+		ui_block = true
 	if _burn_woe_overlay != null and _burn_woe_overlay.visible:
 		ui_block = true
 	if _revive_overlay != null and _revive_overlay.visible:
@@ -1660,8 +1734,7 @@ func _enter_sacrifice_mode(hand_idx: int, need: int, card_label: String) -> void
 	sacrifice_confirm_button.text = "Confirm sacrifice"
 	sacrifice_hint.text = "Sacrifice for %s (need sum ≥ %d). Click your rituals, then confirm." % [card_label, need]
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
@@ -1679,8 +1752,7 @@ func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: Strin
 	sacrifice_confirm_button.text = "Confirm destroy"
 	sacrifice_hint.text = "Wrath: select exactly %d opponent ritual(s) to destroy (%s). Then confirm." % [wneed, card_label]
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
@@ -1697,14 +1769,14 @@ func _start_yytzr_bonus_sacrifice_ui() -> void:
 	sacrifice_confirm_button.text = "Confirm sacrifice"
 	sacrifice_hint.text = "Yytzr: sacrifice rituals totaling at least 2 for a second crypt cast."
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 	end_turn_button.disabled = true
 	discard_draw_button.disabled = true
 
 
 func _clear_sacrifice_mode() -> void:
+	_sacrifice_for_temple = false
 	_sacrifice_selecting = false
 	_inc_pick_phase = INC_PICK_NONE
 	_pending_inc_hand_idx = -1
@@ -1767,7 +1839,7 @@ func _show_scion_prompt_ui(snap: Dictionary) -> void:
 		sacrifice_cancel_button.text = "Skip"
 		sacrifice_hint.text = "Smrsk: choose one ritual to sacrifice; then Burn yourself by its power."
 		_update_inc_modal_ui()
-		_rebuild_ritual_field(field_you_cards, snap.get("your_field", []), true)
+		_rebuild_field_strips_from_snap(snap)
 		return
 	if st == "tmrsk_woe":
 		_burn_woe_mode = "tmrsk_woe"
@@ -1789,14 +1861,14 @@ func _on_sacrifice_field_clicked(mid: int) -> void:
 		if _inc_pick_phase == INC_PICK_SMRSK:
 			_smrsk_selected_mid = -1 if _smrsk_selected_mid == mid else mid
 			_update_inc_modal_ui()
-			_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
+			_rebuild_field_strips_from_snap(_last_snap)
 		return
 	if _sacrifice_selected_mids.has(mid):
 		_sacrifice_selected_mids.erase(mid)
 	else:
 		_sacrifice_selected_mids[mid] = true
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
+	_rebuild_field_strips_from_snap(_last_snap)
 
 
 func _on_wrath_field_clicked(mid: int) -> void:
@@ -1809,7 +1881,7 @@ func _on_wrath_field_clicked(mid: int) -> void:
 			return
 		_wrath_selected_mids[mid] = true
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 
 
 func _enter_dethrone_mode(hand_idx: int, locked_sacrifice_mids: Array = []) -> void:
@@ -1825,8 +1897,7 @@ func _enter_dethrone_mode(hand_idx: int, locked_sacrifice_mids: Array = []) -> v
 	else:
 		sacrifice_hint.text = "Dethrone 4: sacrifice locked, now select one opponent noble to destroy."
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
@@ -1835,7 +1906,7 @@ func _on_dethrone_field_clicked(mid: int) -> void:
 		return
 	_dethrone_selected_mid = mid
 	_update_inc_modal_ui()
-	_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+	_rebuild_field_strips_from_snap(_last_snap)
 
 
 func _submit_inc_play(sac: Array, wrath_mids: Array) -> void:
@@ -1896,9 +1967,24 @@ func _submit_noble_activate_with_insight(noble_mid: int, insight_target: int, in
 	_broadcast_sync(true)
 
 
-func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array, noble_mid: int = -1, revive_crypt_idx: int = -1) -> void:
+func _submit_temple_phaedra_insight(temple_mid: int, insight_target: int, insight_top: Array, insight_bottom: Array) -> void:
+	if _is_network_client():
+		submit_temple_phaedra_insight.rpc_id(1, temple_mid, insight_target, insight_top, insight_bottom)
+		_clear_insight_ui()
+		return
+	if _match == null:
+		return
+	if _match.apply_temple_phaedra_insight(_my_player_for_action(), temple_mid, insight_target, insight_top, insight_bottom) != "ok":
+		status_label.text = "Could not activate Phaedra."
+		return
+	_clear_insight_ui()
+	_broadcast_sync(true)
+
+
+func _begin_insight_ui(hand_idx: int, n: int, sac_mids: Array, noble_mid: int = -1, revive_crypt_idx: int = -1, temple_mid: int = -1) -> void:
 	_insight_hand_idx = hand_idx
 	_insight_noble_mid = noble_mid
+	_insight_temple_mid = temple_mid
 	_insight_revive_crypt_idx = revive_crypt_idx
 	_insight_n = n
 	_insight_sac = sac_mids.duplicate()
@@ -1922,6 +2008,7 @@ func _clear_insight_ui() -> void:
 	_insight_open = false
 	_insight_hand_idx = -1
 	_insight_noble_mid = -1
+	_insight_temple_mid = -1
 	_insight_revive_crypt_idx = -1
 	_insight_sac.clear()
 	_insight_top_order.clear()
@@ -1955,8 +2042,8 @@ func _insight_refresh_insight_panel() -> void:
 		_insight_reset_orders_for_current_deck()
 		peek = _match.insight_peek_top_cards(_insight_target, _insight_n)
 		take = peek.size()
-	var insight_card_w := 54.0 * CARD_SCALE
-	var insight_card_h := 78.0 * CARD_SCALE
+	var insight_card_w := 54.0 * CARD_SCALE * 2.0
+	var insight_card_h := 78.0 * CARD_SCALE * 2.0
 	if _insight_top_order.is_empty() and take > 0:
 		var ph: Panel = _insight_make_insight_slot(peek, -1, "top", 0, insight_card_w, insight_card_h, true)
 		_insight_cards_row.add_child(ph)
@@ -2017,7 +2104,7 @@ func _insight_make_insight_slot(peek: Array, orig_idx: int, zone: String, slot_i
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", CARD_TEXT_FONT)
-	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cctr.add_child(lbl)
 	if not empty_ph and orig_idx >= 0 and typeof(peek[orig_idx]) == TYPE_DICTIONARY:
@@ -2110,6 +2197,9 @@ func _on_insight_confirm_pressed() -> void:
 		else:
 			for i in take:
 				top_a.append(i)
+	if _insight_temple_mid >= 0:
+		_submit_temple_phaedra_insight(_insight_temple_mid, _insight_target, top_a, bot_a)
+		return
 	if _insight_noble_mid >= 0:
 		_submit_noble_activate_with_insight(_insight_noble_mid, _insight_target, top_a, bot_a)
 		return
@@ -2172,6 +2262,15 @@ func _on_sacrifice_confirm_pressed() -> void:
 		var sac: Array = []
 		for k in _sacrifice_selected_mids.keys():
 			sac.append(int(k))
+		if _sacrifice_for_temple:
+			var hi_t := _pending_inc_hand_idx
+			_clear_sacrifice_mode()
+			if _is_network_client():
+				submit_play_temple.rpc_id(1, hi_t, sac)
+			else:
+				_try_play_temple(_my_player_for_action(), hi_t, sac)
+			_broadcast_sync(true)
+			return
 		if _pending_dethrone_hand_idx >= 0:
 			var dhi := _pending_dethrone_hand_idx
 			_enter_dethrone_mode(dhi, sac)
@@ -2192,8 +2291,7 @@ func _on_sacrifice_confirm_pressed() -> void:
 			sacrifice_confirm_button.text = "Confirm destroy"
 			sacrifice_hint.text = "Wrath: select exactly %d opponent ritual(s) to destroy. Then confirm." % wneed
 			_update_inc_modal_ui()
-			_rebuild_ritual_field(field_you_cards, _last_snap.get("your_field", []), true)
-			_rebuild_ritual_field(field_opp_cards, _last_snap.get("opp_field", []), false)
+			_rebuild_field_strips_from_snap(_last_snap)
 			return
 		if verb == "insight":
 			var hi := _pending_inc_hand_idx
@@ -2291,6 +2389,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_hide_crypt_modal()
 		return
+
+func _rebuild_field_strips_from_snap(snap: Dictionary) -> void:
+	_rebuild_ritual_field(field_you_cards, snap.get("your_field", []), true)
+	_rebuild_ritual_field(field_opp_cards, snap.get("opp_field", []), false)
+	_ritual_field.rebuild_temple_field(field_you_temples, snap.get("your_temples", []), true)
+	_ritual_field.rebuild_temple_field(field_opp_temples, snap.get("opp_temples", []), false)
+
 
 func _rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> void:
 	_ritual_field.rebuild_ritual_field(row, field, ours)
@@ -2424,6 +2529,106 @@ func _on_aeoiu_cancel_pressed() -> void:
 	discard_draw_button.disabled = false
 
 
+func _temple_field_input_ok() -> bool:
+	if _sacrifice_selecting or _insight_open:
+		return false
+	if _gotha_picking:
+		return false
+	if _delpha_overlay != null and _delpha_overlay.visible:
+		return false
+	if _burn_woe_overlay != null and _burn_woe_overlay.visible:
+		return false
+	if _revive_overlay != null and _revive_overlay.visible:
+		return false
+	if _woe_self_picking:
+		return false
+	return true
+
+
+func _enter_temple_sacrifice_mode(hand_idx: int) -> void:
+	_sacrifice_for_temple = true
+	_enter_sacrifice_mode(hand_idx, 7, "Temple")
+
+
+func _on_temple_activate_pressed(temple_mid: int) -> void:
+	var yours: Array = _last_snap.get("your_temples", [])
+	for tt in yours:
+		if int(tt.get("mid", -1)) != temple_mid:
+			continue
+		var tid := str(tt.get("temple_id", ""))
+		if tid == "phaedra_illusion":
+			_begin_insight_ui(-1, _insight_depth_for(_last_snap, 1), [], -1, -1, temple_mid)
+			return
+		if tid == "delpha_oracles":
+			_start_delpha_pick(temple_mid)
+			return
+		if tid == "gotha_illness":
+			_gotha_picking = true
+			_gotha_temple_mid = temple_mid
+			status_label.text = "Gotha: tap a card in your hand to discard and draw that many."
+			_rebuild_hand(_last_snap.get("your_hand", []))
+			return
+		break
+
+
+func _start_delpha_pick(temple_mid: int) -> void:
+	var deck_n := int(_last_snap.get("your_deck", 0))
+	var max_x: int = deck_n / 2
+	if max_x < 1:
+		status_label.text = "Need at least 2 cards in deck for Delpha."
+		return
+	var rg: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
+	if rg.is_empty():
+		status_label.text = "No rituals in your crypt."
+		return
+	if _match != null and not _is_network_client() and not _match.can_activate_temple(_my_player_for_action(), temple_mid):
+		status_label.text = "Cannot use Delpha right now."
+		return
+	_delpha_temple_mid = temple_mid
+	_delpha_spin.min_value = 1
+	_delpha_spin.max_value = max_x
+	if _delpha_spin.value > max_x:
+		_delpha_spin.value = max_x
+	for c in _delpha_crypt_row.get_children():
+		c.queue_free()
+	var rg2: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
+	var idx := 0
+	for i in rg2.size():
+		var card: Dictionary = rg2[i]
+		var vv := int(card.get("value", 0))
+		var b := Button.new()
+		b.text = "Ritual %d (crypt #%d)" % [vv, idx]
+		var capture := idx
+		b.pressed.connect(func() -> void:
+			_on_delpha_crypt_chosen(capture)
+		)
+		_delpha_crypt_row.add_child(b)
+		idx += 1
+	if _delpha_crypt_row.get_child_count() == 0:
+		status_label.text = "No rituals in your crypt."
+		return
+	_delpha_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_delpha_crypt_chosen(crypt_idx: int) -> void:
+	var tm := _delpha_temple_mid
+	var x := int(_delpha_spin.value)
+	_delpha_overlay.visible = false
+	_delpha_temple_mid = -1
+	end_turn_button.disabled = false
+	discard_draw_button.disabled = false
+	if _is_network_client():
+		submit_temple_delpha.rpc_id(1, tm, x, crypt_idx)
+		return
+	if _match != null:
+		var res: String = _match.apply_temple_delpha(_my_player_for_action(), tm, x, crypt_idx)
+		if res != "ok":
+			status_label.text = "Could not activate Delpha."
+		_broadcast_sync(true)
+
+
 func _rebuild_hand(hand: Variant) -> void:
 	for c in hand_row.get_children():
 		c.queue_free()
@@ -2440,6 +2645,7 @@ func _rebuild_hand(hand: Variant) -> void:
 	var group_duplicates := true
 	var ritual_used := mine and bool(_last_snap.get("your_ritual_played", false))
 	var noble_used := mine and bool(_last_snap.get("your_noble_played", false))
+	var temple_used := mine and bool(_last_snap.get("your_temple_played", false))
 	var idx := 0
 	for card in hand_arr:
 		var stack_key := _hand_card_stack_key(card)
@@ -2450,9 +2656,11 @@ func _rebuild_hand(hand: Variant) -> void:
 		var ctype := _card_type(card)
 		var ritual_blocked := ritual_used and ctype == "ritual"
 		var noble_blocked := noble_used and ctype == "noble"
-		var play_type_blocked := (ritual_blocked or noble_blocked) and not _mode_discard_draw and not _selecting_end_discard
+		var temple_blocked := temple_used and ctype == "temple"
+		var play_type_blocked := (ritual_blocked or noble_blocked or temple_blocked) and not _mode_discard_draw and not _selecting_end_discard
 		var waiting_input_window := mine or woe_you
-		var is_disabled := (not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked
+		var gotha_pick := mine and _gotha_picking
+		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick
 		var picked_count := 0
 		if woe_you:
 			picked_count = int(_woe_self_picked.get(stack_key, 0))
@@ -2488,11 +2696,15 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	var ctype := _card_type(card)
 	var is_ritual := ctype == "ritual"
 	var is_noble := ctype == "noble"
+	var is_temple := ctype == "temple"
 	var ritual_gold := Color(0.95, 0.78, 0.24)
 	var ritual_gold_strong := Color(1.0, 0.86, 0.35)
 	var noble_purple := Color(0.84, 0.7, 1.0)
 	var noble_purple_strong := Color(0.95, 0.82, 1.0)
+	var temple_teal := Color(0.35, 0.88, 0.82)
+	var temple_teal_strong := Color(0.5, 0.96, 0.92)
 	var noble_bg := Color(0.13, 0.1, 0.18)
+	var temple_bg := Color(0.08, 0.14, 0.13)
 	for i in depth:
 		var back := Panel.new()
 		back.position = Vector2(i * shift, 0)
@@ -2504,6 +2716,9 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		if is_noble:
 			bsb.bg_color = Color(0.11, 0.09, 0.15)
 			bsb.border_color = Color(0.5, 0.42, 0.62)
+		elif is_temple:
+			bsb.bg_color = Color(0.07, 0.11, 0.11)
+			bsb.border_color = Color(0.28, 0.55, 0.52)
 		else:
 			bsb.bg_color = Color(0.11, 0.11, 0.14)
 			bsb.border_color = Color(0.46, 0.46, 0.52)
@@ -2519,11 +2734,13 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(3)
 	sb.set_border_width_all(3 if picked else 2)
-	sb.bg_color = noble_bg if is_noble else Color(0.04, 0.04, 0.06)
+	sb.bg_color = noble_bg if is_noble else (temple_bg if is_temple else Color(0.04, 0.04, 0.06))
 	if is_ritual:
 		sb.border_color = ritual_gold_strong if picked else ritual_gold
 	elif is_noble:
 		sb.border_color = noble_purple_strong if picked else noble_purple
+	elif is_temple:
+		sb.border_color = temple_teal_strong if picked else temple_teal
 	else:
 		sb.border_color = Color(0.7, 0.9, 1.0) if picked else Color(0.92, 0.92, 0.95)
 	tap.add_theme_stylebox_override("normal", sb)
@@ -2532,18 +2749,22 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		sb_hover.border_color = ritual_gold_strong if picked else Color(1.0, 0.9, 0.48)
 	elif is_noble:
 		sb_hover.border_color = noble_purple_strong if picked else Color(0.92, 0.82, 1.0)
+	elif is_temple:
+		sb_hover.border_color = temple_teal_strong if picked else Color(0.65, 1.0, 0.95)
 	else:
 		sb_hover.border_color = Color(0.84, 0.96, 1.0) if picked else Color(1.0, 1.0, 1.0)
 	tap.add_theme_stylebox_override("hover", sb_hover)
 	var sb_pressed := sb.duplicate()
-	sb_pressed.bg_color = Color(0.17, 0.14, 0.22) if is_noble else Color(0.08, 0.08, 0.12)
+	sb_pressed.bg_color = Color(0.17, 0.14, 0.22) if is_noble else (Color(0.1, 0.14, 0.14) if is_temple else Color(0.08, 0.08, 0.12))
 	tap.add_theme_stylebox_override("pressed", sb_pressed)
 	var sb_dis := sb.duplicate()
-	sb_dis.bg_color = Color(0.1, 0.08, 0.14) if is_noble else Color(0.08, 0.08, 0.1)
+	sb_dis.bg_color = Color(0.1, 0.08, 0.14) if is_noble else (Color(0.07, 0.1, 0.1) if is_temple else Color(0.08, 0.08, 0.1))
 	if is_ritual:
 		sb_dis.border_color = Color(0.56, 0.5, 0.32)
 	elif is_noble:
 		sb_dis.border_color = Color(0.45, 0.38, 0.58)
+	elif is_temple:
+		sb_dis.border_color = Color(0.25, 0.42, 0.4)
 	else:
 		sb_dis.border_color = Color(0.45, 0.45, 0.5)
 	tap.add_theme_stylebox_override("disabled", sb_dis)
@@ -2551,24 +2772,32 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		tap.add_theme_color_override("font_color", ritual_gold)
 	elif is_noble:
 		tap.add_theme_color_override("font_color", Color(0.96, 0.93, 1.0))
+	elif is_temple:
+		tap.add_theme_color_override("font_color", Color(0.88, 0.98, 0.95))
 	else:
 		tap.add_theme_color_override("font_color", Color(0.98, 0.98, 0.98))
 	if is_ritual:
 		tap.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.48))
 	elif is_noble:
 		tap.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 1.0))
+	elif is_temple:
+		tap.add_theme_color_override("font_hover_color", Color(0.75, 1.0, 0.96))
 	else:
 		tap.add_theme_color_override("font_hover_color", Color(0.98, 0.98, 0.98))
 	if is_ritual:
 		tap.add_theme_color_override("font_pressed_color", ritual_gold_strong)
 	elif is_noble:
 		tap.add_theme_color_override("font_pressed_color", noble_purple_strong)
+	elif is_temple:
+		tap.add_theme_color_override("font_pressed_color", temple_teal_strong)
 	else:
 		tap.add_theme_color_override("font_pressed_color", Color(0.98, 0.98, 0.98))
 	if is_ritual:
 		tap.add_theme_color_override("font_disabled_color", Color(0.62, 0.56, 0.38))
 	elif is_noble:
 		tap.add_theme_color_override("font_disabled_color", Color(0.58, 0.52, 0.68))
+	elif is_temple:
+		tap.add_theme_color_override("font_disabled_color", Color(0.45, 0.58, 0.55))
 	else:
 		tap.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.76))
 	tap.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
@@ -2637,28 +2866,41 @@ func _noble_cost_for_id(nid: String) -> int:
 
 func _make_corner_pip_icon(count: int, filled: bool) -> TextureRect:
 	var n := clampi(count, 0, 24)
-	var icon_size: int = 28
-	var center := Vector2i(icon_size >> 1, icon_size >> 1)
-	var image := Image.create(icon_size, icon_size, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0, 0, 0, 0))
 	var dot_r: int = 4
-	if n == 1:
-		CornerPipDraw.draw_dot_on_image(image, center, dot_r, filled)
-	else:
+	var icon_size: int = 28
+	if n > 1:
 		var remaining: int = n
 		var ring: int = 1
 		var step: float = 6.0
+		var max_ring_radius: int = 0
 		while remaining > 0:
 			var cap: int = ring * 6
 			var take: int = mini(remaining, cap)
 			var radius: int = int(round(ring * step))
-			for i in take:
-				var ang := TAU * (float(i) / float(take)) - PI / 2.0
-				var px := center.x + int(round(cos(ang) * radius))
-				var py := center.y + int(round(sin(ang) * radius))
-				CornerPipDraw.draw_dot_on_image(image, Vector2i(px, py), dot_r, filled)
+			max_ring_radius = maxi(max_ring_radius, radius)
 			remaining -= take
 			ring += 1
+		icon_size = maxi(28, 2 * (max_ring_radius + dot_r) + 2)
+	var center := Vector2i(icon_size >> 1, icon_size >> 1)
+	var image := Image.create(icon_size, icon_size, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	if n == 1:
+		CornerPipDraw.draw_dot_on_image(image, center, dot_r, filled)
+	else:
+		var remaining2: int = n
+		var ring2: int = 1
+		var step2: float = 6.0
+		while remaining2 > 0:
+			var cap2: int = ring2 * 6
+			var take2: int = mini(remaining2, cap2)
+			var radius2: int = int(round(ring2 * step2))
+			for i in take2:
+				var ang := TAU * (float(i) / float(take2)) - PI / 2.0
+				var px := center.x + int(round(cos(ang) * radius2))
+				var py := center.y + int(round(sin(ang) * radius2))
+				CornerPipDraw.draw_dot_on_image(image, Vector2i(px, py), dot_r, filled)
+			remaining2 -= take2
+			ring2 += 1
 	var tex := ImageTexture.create_from_image(image)
 	var rect := TextureRect.new()
 	rect.texture = tex
@@ -2816,6 +3058,16 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		else:
 			_rebuild_hand(hand)
 		return
+	if _gotha_picking:
+		if _is_network_client():
+			submit_temple_gotha.rpc_id(1, _gotha_temple_mid, hand_idx)
+		else:
+			if _match == null or _match.apply_temple_gotha(_my_player_for_action(), _gotha_temple_mid, hand_idx) != "ok":
+				status_label.text = "Could not activate Gotha."
+		_gotha_picking = false
+		_gotha_temple_mid = -1
+		_broadcast_sync(true)
+		return
 	if _insight_open:
 		return
 	if _sacrifice_selecting:
@@ -2862,6 +3114,15 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			submit_play_noble.rpc_id(1, hand_idx)
 		else:
 			_try_play_noble(_my_player_for_action(), hand_idx)
+	elif _card_type(c) == "temple":
+		if bool(snap.get("your_temple_played", false)):
+			status_label.text = "You already played a temple this turn."
+			return
+		var field_ty: Array = snap.get("your_field", [])
+		if _field_ritual_total_value(field_ty) < 7:
+			status_label.text = "Not enough ritual value on your field to sacrifice for a temple (need 7)."
+			return
+		_enter_temple_sacrifice_mode(hand_idx)
 	elif _card_type(c) == "dethrone":
 		var opp_nobles: Array = snap.get("opp_nobles", [])
 		if opp_nobles.is_empty():
@@ -2961,6 +3222,16 @@ func _try_play_noble(player: int, hand_idx: int, trigger_cpu_check: bool = true)
 		return false
 	if _match.play_noble(player, hand_idx) != "ok":
 		status_label.text = "Can't play that noble now."
+		return false
+	_broadcast_sync(trigger_cpu_check)
+	return true
+
+
+func _try_play_temple(player: int, hand_idx: int, sacrifice_mids: Array, trigger_cpu_check: bool = true) -> bool:
+	if _match == null:
+		return false
+	if _match.play_temple(player, hand_idx, sacrifice_mids) != "ok":
+		status_label.text = "Can't play that temple now."
 		return false
 	_broadcast_sync(trigger_cpu_check)
 	return true
@@ -3180,6 +3451,49 @@ func submit_play_noble(hand_idx: int) -> void:
 
 
 @rpc("any_peer", "reliable")
+func submit_play_temple(hand_idx: int, sacrifice_mids: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	_try_play_temple(pl, hand_idx, sacrifice_mids)
+
+
+@rpc("any_peer", "reliable")
+func submit_temple_phaedra_insight(temple_mid: int, insight_target: int, insight_top: Array = [], insight_bottom: Array = []) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_temple_phaedra_insight(pl, temple_mid, insight_target, insight_top, insight_bottom) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_temple_delpha(temple_mid: int, x: int, crypt_idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_temple_delpha(pl, temple_mid, x, crypt_idx) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_temple_gotha(temple_mid: int, hand_idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.apply_temple_gotha(pl, temple_mid, hand_idx) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
 func submit_play_inc(hand_idx: int, sacrifice_mids: Array, wrath_mids: Array = [], ctx: Dictionary = {}) -> void:
 	if not multiplayer.is_server():
 		return
@@ -3343,6 +3657,11 @@ func request_play_again() -> void:
 func _on_end_turn_pressed() -> void:
 	if _insight_open:
 		return
+	if _gotha_picking:
+		_gotha_picking = false
+		_gotha_temple_mid = -1
+	if _delpha_overlay != null and _delpha_overlay.visible:
+		_on_delpha_cancel_pressed()
 	if _sacrifice_selecting:
 		_on_sacrifice_cancel_pressed()
 	if _match == null and not _is_network_client():

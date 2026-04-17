@@ -57,11 +57,13 @@ A player wins the game when they have 20 ritual power on the field (only Rituals
 
 ## Deckbuilding constraints
 
-Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maximum of 4 Nobles of each first name, eg. 4 x "Yrss"
+Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maximum of 1 Noble of each first name, eg. 1 x "Yrss"
 
 There can be no more than 9 of one ritual card value in the deck, for example you may have 9 4-Rituals.
 
-You may only have 4 copies of a given incantation. For example you can have 4x seek-1, 4x seek-2, and 4x wrath
+You may only have 4 copies of a given incantation. For example you can have 4x seek-1, 4x seek-2, and 4x wrath.
+
+You may have up to 3 temples of each name.
 
 —
 
@@ -121,10 +123,10 @@ You may only have 4 copies of a given incantation. For example you can have 4x s
 
 ### Temples
 
-#### Cost 8
+#### Cost 7
 
-*Phaedra, Temple of Illusion*: once per turn you may view the top card of your deck and choose whether to send it to the bottom.
+*Phaedra, Temple of Illusion*: once per turn you may Insight 1 and then draw a card.
 
-*Delpha, Temple of Oracles*: once per turn you may burn yourself X (discard 2X from your deck) to play an additional Ritual from your crypt.
+*Delpha, Temple of Oracles*: once per turn you may Burn yourself X (discard 2X from your deck) to play an additional Ritual from your crypt.
 
 *Gotha, Temple of Illness*: skip your draw step. once per turn you may discard a card and draw cards equal to its power/cost.

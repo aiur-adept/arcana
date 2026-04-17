@@ -229,28 +229,41 @@ func _card_corner_pip_spec(card: Dictionary) -> Dictionary:
 
 func _make_corner_pip_icon(count: int, filled: bool) -> TextureRect:
 	var n := clampi(count, 0, 24)
-	var icon_size: int = 28
-	var center := Vector2i(icon_size >> 1, icon_size >> 1)
-	var image := Image.create(icon_size, icon_size, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0, 0, 0, 0))
 	var dot_r: int = 4
-	if n == 1:
-		CornerPipDraw.draw_dot_on_image(image, center, dot_r, filled)
-	else:
+	var icon_size: int = 28
+	if n > 1:
 		var remaining: int = n
 		var ring: int = 1
 		var step: float = 6.0
+		var max_ring_radius: int = 0
 		while remaining > 0:
 			var cap: int = ring * 6
 			var take: int = mini(remaining, cap)
 			var radius: int = int(round(ring * step))
-			for i in take:
-				var ang := TAU * (float(i) / float(take)) - PI / 2.0
-				var px := center.x + int(round(cos(ang) * radius))
-				var py := center.y + int(round(sin(ang) * radius))
-				CornerPipDraw.draw_dot_on_image(image, Vector2i(px, py), dot_r, filled)
+			max_ring_radius = maxi(max_ring_radius, radius)
 			remaining -= take
 			ring += 1
+		icon_size = maxi(28, 2 * (max_ring_radius + dot_r) + 2)
+	var center := Vector2i(icon_size >> 1, icon_size >> 1)
+	var image := Image.create(icon_size, icon_size, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	if n == 1:
+		CornerPipDraw.draw_dot_on_image(image, center, dot_r, filled)
+	else:
+		var remaining2: int = n
+		var ring2: int = 1
+		var step2: float = 6.0
+		while remaining2 > 0:
+			var cap2: int = ring2 * 6
+			var take2: int = mini(remaining2, cap2)
+			var radius2: int = int(round(ring2 * step2))
+			for i in take2:
+				var ang := TAU * (float(i) / float(take2)) - PI / 2.0
+				var px := center.x + int(round(cos(ang) * radius2))
+				var py := center.y + int(round(sin(ang) * radius2))
+				CornerPipDraw.draw_dot_on_image(image, Vector2i(px, py), dot_r, filled)
+			remaining2 -= take2
+			ring2 += 1
 	var tex := ImageTexture.create_from_image(image)
 	var rect := TextureRect.new()
 	rect.texture = tex

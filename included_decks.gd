@@ -139,6 +139,10 @@ static func _log_data_issues_once(bundle: Dictionary) -> void:
 				var noble_id := str(c.get("noble_id", "")).strip_edges()
 				if noble_id.is_empty():
 					print("INFO: included_decks data issue: deck '%s' noble card[%d] missing noble_id." % [slug, j])
+			elif ctype == "temple":
+				var temple_id := str(c.get("temple_id", "")).strip_edges()
+				if temple_id.is_empty():
+					print("INFO: included_decks data issue: deck '%s' temple card[%d] missing temple_id." % [slug, j])
 			else:
 				print("INFO: included_decks data issue: deck '%s' card[%d] has unknown type '%s'." % [slug, j, ctype])
 

@@ -111,6 +111,28 @@ func run_turn(host: Node) -> void:
 			break
 		if played_noble:
 			continue
+		var played_temple := false
+		for i in hand.size():
+			if host._card_type(hand[i]) != "temple":
+				continue
+			if not host._match.can_play_temple(1, i):
+				break
+			var sac_t: Array = greedy_sacrifice_mids(snap, 7)
+			var sum_t := 0
+			var fld_t: Array = snap.get("your_field", [])
+			for mid in sac_t:
+				for x in fld_t:
+					if int(x.get("mid", 0)) == int(mid):
+						sum_t += int(x.get("value", 0))
+						break
+			if sum_t < 7:
+				break
+			if host._match.play_temple(1, i, sac_t) == "ok":
+				host._broadcast_sync(false)
+				played_temple = true
+			break
+		if played_temple:
+			continue
 		var noble_field: Array = snap.get("your_nobles", [])
 		for nn in noble_field:
 			var nmid := int(nn.get("mid", -1))

@@ -30,6 +30,12 @@ const NOBLE_DEFS := [
 	{"id": "wndrr_incantation", "name": "Wndrr, Noble of Incantation"},
 	{"id": "rndrr_incantation", "name": "Rndrr, Noble of Incantation"}
 ]
+const TEMPLE_DEFS := [
+	{"id": "phaedra_illusion", "name": "Phaedra, Temple of Illusion", "cost": 7},
+	{"id": "delpha_oracles", "name": "Delpha, Temple of Oracles", "cost": 7},
+	{"id": "gotha_illness", "name": "Gotha, Temple of Illness", "cost": 7}
+]
+const MAX_TEMPLE_COPIES := 3
 
 @onready var deck_list: ItemList = %DeckList
 @onready var deck_name_edit: LineEdit = %DeckNameEdit
@@ -88,6 +94,8 @@ func _build_gallery_entries() -> Array[Dictionary]:
 				out.append({"kind": "incantation", "verb": verb, "value": value})
 	for noble in NOBLE_DEFS:
 		out.append({"kind": "noble", "noble_id": str(noble.get("id", "")), "name": str(noble.get("name", ""))})
+	for tm in TEMPLE_DEFS:
+		out.append({"kind": "temple", "temple_id": str(tm.get("id", "")), "name": str(tm.get("name", "")), "cost": int(tm.get("cost", 7))})
 	return out
 
 
@@ -193,6 +201,10 @@ func _entry_key_noble(noble_id: String) -> String:
 	return "n_%s" % noble_id
 
 
+func _entry_key_temple(temple_id: String) -> String:
+	return "tm_%s" % temple_id
+
+
 func _canonical_noble_name(noble_id: String, fallback_name: String = "") -> String:
 	for noble in NOBLE_DEFS:
 		if str(noble.get("id", "")) == noble_id:
@@ -205,6 +217,8 @@ func _entry_display_name(entry: Dictionary) -> String:
 		return "%d-Ritual" % int(entry.get("value", 0))
 	if str(entry.get("kind", "")) == "noble":
 		return str(entry.get("name", "Noble"))
+	if str(entry.get("kind", "")) == "temple":
+		return str(entry.get("name", "Temple"))
 	if str(entry.get("kind", "")) == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(entry.get("verb", "")).capitalize(), int(entry.get("value", 0))]
@@ -222,6 +236,8 @@ func _entry_key(entry: Dictionary) -> String:
 		return _entry_key_ritual(int(entry.get("value", 0)))
 	if kind == "noble":
 		return _entry_key_noble(str(entry.get("noble_id", "")))
+	if kind == "temple":
+		return _entry_key_temple(str(entry.get("temple_id", "")))
 	if kind == "dethrone":
 		return "dethrone"
 	return _entry_key_incantation(str(entry.get("verb", "")), int(entry.get("value", 0)))
@@ -280,6 +296,15 @@ func _build_gallery_card(entry: Dictionary, readonly: bool) -> Control:
 		font_color = Color(0.96, 0.93, 1.0)
 		font_hover_color = Color(0.99, 0.96, 1.0)
 		font_disabled_color = Color(0.69, 0.64, 0.78)
+	elif kind == "temple":
+		base_bg = Color(0.07, 0.11, 0.11)
+		base_border = Color(0.32, 0.78, 0.74)
+		hover_border = Color(0.5, 0.95, 0.9)
+		disabled_bg = Color(0.06, 0.09, 0.09)
+		disabled_border = Color(0.22, 0.45, 0.42)
+		font_color = Color(0.85, 0.97, 0.94)
+		font_hover_color = Color(0.75, 1.0, 0.96)
+		font_disabled_color = Color(0.5, 0.62, 0.6)
 
 	var sb := StyleBoxFlat.new()
 	sb.set_corner_radius_all(10)
@@ -339,6 +364,23 @@ func _ingest_deck_dictionary(parsed_dict: Dictionary) -> void:
 		elif kind == "dethrone":
 			if int(card.get("value", 4)) == 4:
 				_add_or_increment_entry("dethrone", {"kind": "dethrone", "value": 4})
+		elif kind == "temple":
+			var tid := str(card.get("temple_id", ""))
+			var tname := str(card.get("name", ""))
+			if not tid.is_empty():
+				_add_or_increment_entry(_entry_key_temple(tid), {
+					"kind": "temple",
+					"temple_id": tid,
+					"name": _canonical_temple_name(tid, tname),
+					"cost": int(card.get("cost", 7))
+				})
+
+
+func _canonical_temple_name(temple_id: String, fallback_name: String = "") -> String:
+	for tm in TEMPLE_DEFS:
+		if str(tm.get("id", "")) == temple_id:
+			return str(tm.get("name", fallback_name))
+	return fallback_name
 
 
 func _load_deck_path(path: String) -> void:
@@ -538,6 +580,10 @@ func _can_increase_entry(entry: Dictionary) -> bool:
 		if count >= MAX_INCANTATION_COPIES:
 			return false
 		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
+	if kind == "temple":
+		if count >= MAX_TEMPLE_COPIES:
+			return false
+		return int(totals.get("non_ritual", 0)) < TARGET_NON_RITUAL_COUNT
 	return false
 
 
@@ -615,6 +661,7 @@ func _totals() -> Dictionary:
 	var ritual_total := 0
 	var incantation_total := 0
 	var noble_total := 0
+	var temple_total := 0
 	var dethrone_total := 0
 	for entry in _entries.values():
 		var count := int(entry.get("count", 0))
@@ -627,14 +674,17 @@ func _totals() -> Dictionary:
 			incantation_total += count
 		elif kind == "noble":
 			noble_total += count
+		elif kind == "temple":
+			temple_total += count
 		elif kind == "dethrone":
 			dethrone_total += count
 	return {
 		"rituals": ritual_total,
 		"incantations": incantation_total,
 		"nobles": noble_total,
+		"temples": temple_total,
 		"dethrones": dethrone_total,
-		"non_ritual": incantation_total + noble_total + dethrone_total
+		"non_ritual": incantation_total + noble_total + temple_total + dethrone_total
 	}
 
 
@@ -677,6 +727,7 @@ func _build_deck_payload() -> Dictionary:
 	var ritual_counts: Dictionary = {}
 	var incantation_counts: Dictionary = {}
 	var noble_counts: Dictionary = {}
+	var temple_counts: Dictionary = {}
 	var dethrone_count := 0
 	for value in RITUAL_VALUES:
 		ritual_counts[str(value)] = 0
@@ -685,6 +736,8 @@ func _build_deck_payload() -> Dictionary:
 			incantation_counts["%s_%d" % [verb, value]] = 0
 	for n in NOBLE_DEFS:
 		noble_counts[str(n.get("id", ""))] = 0
+	for tm in TEMPLE_DEFS:
+		temple_counts[str(tm.get("id", ""))] = 0
 
 	for entry in _entries.values():
 		var count := int(entry.get("count", 0))
@@ -702,6 +755,14 @@ func _build_deck_payload() -> Dictionary:
 				noble_counts[nid] = count
 				for _k in count:
 					cards.append({"type": "Noble", "noble_id": nid, "name": nname})
+				continue
+			if str(entry.get("kind", "")) == "temple":
+				var tid2 := str(entry.get("temple_id", ""))
+				var tnam := str(entry.get("name", ""))
+				var tcost := int(entry.get("cost", 7))
+				temple_counts[tid2] = count
+				for _ti in count:
+					cards.append({"type": "Temple", "temple_id": tid2, "name": tnam, "cost": tcost})
 				continue
 			if str(entry.get("kind", "")) == "dethrone":
 				dethrone_count = count
@@ -722,6 +783,7 @@ func _build_deck_payload() -> Dictionary:
 			"rituals": ritual_counts,
 			"incantations": incantation_counts,
 			"nobles": noble_counts,
+			"temples": temple_counts,
 			"dethrones": dethrone_count
 		},
 		"rules_snapshot": {

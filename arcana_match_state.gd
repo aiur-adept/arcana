@@ -8,6 +8,11 @@ const START_HAND := 5
 const WIN_POWER := 20
 const NOBLES_DIR := "res://nobles"
 
+const TEMPLE_PLAY_COST := 7
+const TEMPLE_PHAEDRA := "phaedra_illusion"
+const TEMPLE_DELPHA := "delpha_oracles"
+const TEMPLE_GOTHA := "gotha_illness"
+
 enum Phase { MAIN, GAME_OVER }
 
 var rng: RandomNumberGenerator
@@ -15,6 +20,7 @@ var phase: Phase = Phase.MAIN
 var current: int
 var ritual_played_this_turn: bool = false
 var noble_played_this_turn: bool = false
+var temple_played_this_turn: bool = false
 var discard_draw_used: bool
 var winner: int = -1
 var empty_deck_end: bool = false
@@ -120,10 +126,18 @@ func _make_player(deck_template: Array) -> Dictionary:
 		"hand": [],
 		"field": [],
 		"noble_field": [],
+		"temple_field": [],
 		"crypt": [],
 		"inc_abyss": [],
 		"deck_crypt": []
 	}
+
+
+func _temple_field_safe(p: int) -> Array:
+	var pl: Dictionary = _players[p]
+	if not pl.has("temple_field"):
+		pl["temple_field"] = []
+	return pl["temple_field"] as Array
 
 
 func _shuffle(arr: Array) -> void:
@@ -160,11 +174,23 @@ func _turn_start_draw() -> void:
 		return
 	ritual_played_this_turn = false
 	noble_played_this_turn = false
+	temple_played_this_turn = false
 	turn_number += 1
+	if _skip_draw_for_gotha(current):
+		discard_draw_used = false
+		_log("Turn P%d draw step skipped (Gotha)." % current)
+		return
 	if not _draw_one_attempt(current):
 		return
 	discard_draw_used = false
 	_log("Turn P%d draw step." % current)
+
+
+func _skip_draw_for_gotha(p: int) -> bool:
+	for x in _temple_field_safe(p):
+		if str(x.get("temple_id", "")) == TEMPLE_GOTHA:
+			return true
+	return false
 
 
 func _draw_one_attempt(p: int) -> bool:
@@ -392,6 +418,7 @@ func snapshot(for_player: int) -> Dictionary:
 		"your_mulligan_bottom_needed": _mulligan_bottom_needed[for_player],
 		"your_ritual_played": for_player == current and ritual_played_this_turn,
 		"your_noble_played": for_player == current and noble_played_this_turn,
+		"your_temple_played": for_player == current and temple_played_this_turn,
 		"discard_draw_used": discard_draw_used,
 		"winner": winner,
 		"empty_deck_end": empty_deck_end,
@@ -404,6 +431,8 @@ func snapshot(for_player: int) -> Dictionary:
 		"opp_field": _players[opp]["field"].duplicate(true),
 		"your_nobles": _players[for_player]["noble_field"].duplicate(true),
 		"opp_nobles": _players[opp]["noble_field"].duplicate(true),
+		"your_temples": _temple_field_safe(for_player).duplicate(true),
+		"opp_temples": _temple_field_safe(opp).duplicate(true),
 		"your_power": ritual_power(for_player),
 		"opp_power": ritual_power(opp),
 		"your_inc_disc": _inc_crypt_cards(_players[for_player]).size(),
@@ -497,6 +526,67 @@ func play_noble(p: int, hand_idx: int) -> String:
 	noble_played_this_turn = true
 	_log("P%d summons %s." % [p, field_noble["name"]])
 	return "ok"
+
+
+func _valid_temple_id(tid: String) -> bool:
+	return tid == TEMPLE_PHAEDRA or tid == TEMPLE_DELPHA or tid == TEMPLE_GOTHA
+
+
+func can_play_temple(p: int, hand_idx: int) -> bool:
+	if phase != Phase.MAIN or _is_mulligan_active() or p != current or temple_played_this_turn:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return false
+	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
+		return false
+	var c: Variant = _card_at_hand(p, hand_idx)
+	if c == null or _card_kind(c) != "temple":
+		return false
+	var tid := str((c as Dictionary).get("temple_id", ""))
+	if not _valid_temple_id(tid):
+		return false
+	return _can_sacrifice(p, TEMPLE_PLAY_COST)
+
+
+func play_temple(p: int, hand_idx: int, sacrifice_mids: Array) -> String:
+	if not can_play_temple(p, hand_idx):
+		return "illegal"
+	var c: Variant = _card_at_hand(p, hand_idx)
+	var tid := str((c as Dictionary).get("temple_id", ""))
+	if not _valid_temple_id(tid):
+		return "illegal"
+	var mids: Dictionary = {}
+	for m in sacrifice_mids:
+		mids[int(m)] = true
+	if not _sacrifice_valid(p, TEMPLE_PLAY_COST, mids):
+		mids.clear()
+		for mid in _greedy_sacrifice_mids_for_player(p, TEMPLE_PLAY_COST):
+			mids[int(mid)] = true
+		if not _sacrifice_valid(p, TEMPLE_PLAY_COST, mids):
+			return "illegal_sacrifice"
+	_apply_sacrifice(p, mids)
+	var pl: Dictionary = _players[p]
+	var hand: Array = pl["hand"]
+	hand.remove_at(hand_idx)
+	var tmid := _next_temple_mid(pl)
+	var entry := {
+		"mid": tmid,
+		"temple_id": tid,
+		"name": str((c as Dictionary).get("name", tid)),
+		"used_turn": -1
+	}
+	_temple_field_safe(p).append(entry)
+	temple_played_this_turn = true
+	_log("P%d plays temple %s." % [p, entry["name"]])
+	return "ok"
+
+
+func _next_temple_mid(pl: Dictionary) -> int:
+	var tf: Array = pl["temple_field"] if pl.has("temple_field") else []
+	var mx := 0
+	for x in tf:
+		mx = maxi(mx, int(x.get("mid", 0)))
+	return mx + 1
 
 
 func _next_mid(pl: Dictionary) -> int:
@@ -1135,6 +1225,130 @@ func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, crypt_idx: int) -> St
 	pl["field"].append({"mid": mid, "value": int(c["value"])})
 	_mark_noble_used_this_turn(p, noble_mid)
 	_log("P%d plays %d-Ritual from crypt (Aeoiu)." % [p, int(c["value"])])
+	_check_power_win(p)
+	return "ok"
+
+
+func _find_temple_on_field(p: int, temple_mid: int) -> Dictionary:
+	for x in _temple_field_safe(p):
+		if int(x.get("mid", -1)) == temple_mid:
+			return x
+	return {}
+
+
+func _mark_temple_used_this_turn(p: int, temple_mid: int) -> void:
+	var tf: Array = _temple_field_safe(p)
+	for i in tf.size():
+		if int(tf[i].get("mid", -1)) == temple_mid:
+			var d: Dictionary = tf[i]
+			d["used_turn"] = turn_number
+			tf[i] = d
+			break
+
+
+func can_activate_temple(p: int, temple_mid: int) -> bool:
+	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
+		return false
+	if _woe_waiting_on_response() and p == _woe_pending_instigator:
+		return false
+	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
+		return false
+	var t := _find_temple_on_field(p, temple_mid)
+	if t.is_empty():
+		return false
+	if int(t.get("used_turn", -1)) == turn_number:
+		return false
+	var tid := str(t.get("temple_id", ""))
+	if tid == TEMPLE_DELPHA:
+		var pl: Dictionary = _players[p]
+		if _ritual_crypt_cards(pl).is_empty():
+			return false
+		if (pl["deck"] as Array).size() < 2:
+			return false
+	return true
+
+
+func apply_temple_phaedra_insight(p: int, temple_mid: int, insight_target: int, insight_top: Array = [], insight_bottom: Array = []) -> String:
+	if not can_activate_temple(p, temple_mid):
+		return "illegal"
+	var t := _find_temple_on_field(p, temple_mid)
+	if str(t.get("temple_id", "")) != TEMPLE_PHAEDRA:
+		return "illegal"
+	var ctx := {"insight_target": insight_target, "insight_top": insight_top, "insight_bottom": insight_bottom}
+	if _validate_play_ctx(p, "insight", 1, [], ctx) != "ok":
+		return "illegal"
+	var err := execute_incantation_effect(p, "insight", 1, [], ctx)
+	if err != "ok":
+		return err
+	_queue_post_effect_scion_trigger(p, "insight")
+	_draw_n(p, 1)
+	_mark_temple_used_this_turn(p, temple_mid)
+	_log("P%d activates Phaedra (Insight 1, draw 1)." % p)
+	return "ok"
+
+
+func apply_temple_delpha(p: int, temple_mid: int, x: int, crypt_idx: int) -> String:
+	if not can_activate_temple(p, temple_mid):
+		return "illegal"
+	var t := _find_temple_on_field(p, temple_mid)
+	if str(t.get("temple_id", "")) != TEMPLE_DELPHA:
+		return "illegal"
+	if x < 1:
+		return "illegal"
+	var pl: Dictionary = _players[p]
+	if (pl["deck"] as Array).size() < 2 * x:
+		return "illegal"
+	var berr := execute_incantation_effect(p, "burn", x, [], {"mill_target": p})
+	if berr != "ok":
+		return berr
+	var rg: Array = _ritual_crypt_cards(pl)
+	if crypt_idx < 0 or crypt_idx >= rg.size():
+		return "illegal"
+	var global_crypt_idx := _ritual_crypt_index_to_crypt_index(pl, crypt_idx)
+	if global_crypt_idx < 0:
+		return "illegal"
+	var c: Dictionary = ((pl["crypt"] as Array)[global_crypt_idx] as Dictionary).duplicate(true)
+	(pl["crypt"] as Array).remove_at(global_crypt_idx)
+	var rmid := _next_mid(pl)
+	pl["field"].append({"mid": rmid, "value": int(c["value"])})
+	_mark_temple_used_this_turn(p, temple_mid)
+	_log("P%d activates Delpha (Burn %d, ritual from crypt)." % [p, x])
+	_check_power_win(p)
+	return "ok"
+
+
+func _gotha_draw_value_for_card(c: Dictionary) -> int:
+	var k := _card_kind(c)
+	if k == "ritual" or k == "incantation":
+		return maxi(0, int(c.get("value", 0)))
+	if k == "noble":
+		return maxi(0, _noble_play_cost(str(c.get("noble_id", ""))))
+	if k == "temple":
+		return maxi(0, int(c.get("cost", TEMPLE_PLAY_COST)))
+	if k == "dethrone":
+		return 4
+	return 0
+
+
+func apply_temple_gotha(p: int, temple_mid: int, hand_idx: int) -> String:
+	if not can_activate_temple(p, temple_mid):
+		return "illegal"
+	var t := _find_temple_on_field(p, temple_mid)
+	if str(t.get("temple_id", "")) != TEMPLE_GOTHA:
+		return "illegal"
+	var pl: Dictionary = _players[p]
+	var hand: Array = pl["hand"]
+	if hand_idx < 0 or hand_idx >= hand.size():
+		return "illegal"
+	var c: Dictionary = (hand[hand_idx] as Dictionary).duplicate(true)
+	var n := _gotha_draw_value_for_card(c)
+	if n < 1:
+		return "illegal"
+	hand.remove_at(hand_idx)
+	pl["crypt"].append(c)
+	_draw_n(p, n)
+	_mark_temple_used_this_turn(p, temple_mid)
+	_log("P%d activates Gotha (discard for %d)." % [p, n])
 	_check_power_win(p)
 	return "ok"
 

@@ -67,6 +67,8 @@ static func card_label(card: Variant) -> String:
 		return "%d-R" % int(card.get("value", 0))
 	if t == "noble":
 		return short_noble_name(str(card.get("name", "Noble")))
+	if t == "temple":
+		return short_noble_name(str(card.get("name", "Temple")))
 	if t == "dethrone":
 		return "Dethrone 4"
 	return "%s %d" % [str(card.get("verb", "")), int(card.get("value", 0))]
@@ -78,6 +80,8 @@ static func hand_card_stack_key(card: Variant) -> String:
 		return "r:%d" % int(card.get("value", 0))
 	if t == "noble":
 		return "n:%s" % str(card.get("noble_id", ""))
+	if t == "temple":
+		return "t:%s" % str(card.get("temple_id", ""))
 	if t == "dethrone":
 		return "dethrone"
 	return "i:%s:%d" % [str(card.get("verb", "")).to_lower(), int(card.get("value", 0))]
@@ -109,4 +113,6 @@ static func card_corner_pip_spec(card: Variant) -> Dictionary:
 		return {"count": max(0, int(card.get("value", 0))), "filled": false}
 	if t == "noble":
 		return {"count": noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}
+	if t == "temple":
+		return {"count": max(0, int(card.get("cost", 7))), "filled": false}
 	return {"count": 0, "filled": false}
