@@ -962,7 +962,8 @@ func _begin_revive_hand_ui(hand_idx: int, n: int, sac_mids: Array, for_noble_mid
 	_revive_pick_phase = true
 	for c in _revive_crypt_row.get_children():
 		c.queue_free()
-	var crypt: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation", "dethrone"])
+	var crypt: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation"])
+	print(crypt)
 	var idx := 0
 	for card in crypt:
 		var b := Button.new()
@@ -3046,6 +3047,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_hide_crypt_modal()
 		return
+	if event.is_action_pressed("ui_cancel") and _mode_discard_draw:
+		get_viewport().set_input_as_handled()
+		_cancel_discard_draw_mode()
+		return
 
 
 func _input(event: InputEvent) -> void:
@@ -3905,6 +3910,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		return
 	if _mode_discard_draw:
 		_mode_discard_draw = false
+		discard_draw_button.text = "Discard for draw (once)"
 		if _is_network_client():
 			submit_discard_draw.rpc_id(1, hand_idx)
 		else:
@@ -4624,10 +4630,23 @@ func _on_discard_draw_pressed() -> void:
 		return
 	if _sacrifice_selecting:
 		return
+	if _mode_discard_draw:
+		_cancel_discard_draw_mode()
+		return
 	_mode_discard_draw = true
+	discard_draw_button.text = "Cancel"
 	status_label.text = "Click a card to discard for draw."
 	if not _last_snap.is_empty():
 		_rebuild_hand(_last_snap.get("your_hand", []))
+
+
+func _cancel_discard_draw_mode() -> void:
+	if not _mode_discard_draw:
+		return
+	_mode_discard_draw = false
+	discard_draw_button.text = "Discard for draw (once)"
+	if not _last_snap.is_empty():
+		_apply_snap(_last_snap)
 
 
 func _on_mulligan_keep_pressed() -> void:

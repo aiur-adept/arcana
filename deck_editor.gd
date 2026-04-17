@@ -7,8 +7,7 @@ const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "rev
 const INCANTATION_VALUES: Array[int] = [1, 2, 3, 4]
 const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
-const MIN_DECK_SIZE := 40
-const MAX_DECK_SIZE := 50
+const DECK_SIZE := 40
 const MAX_RITUAL_COPIES := 9
 const MAX_INCANTATION_COPIES := 4
 const MAX_NOBLE_FIRSTNAME_COPIES := 4
@@ -801,19 +800,17 @@ func _totals() -> Dictionary:
 func _update_validation() -> void:
 	var totals := _totals()
 	var total_cards := int(totals["rituals"]) + int(totals["non_ritual"])
-	totals_label.text = "Rituals %d/%d   Non-Ritual %d/%d   Total %d (%d-%d)" % [
+	totals_label.text = "Rituals %d/%d   Non-Ritual %d/%d   Total %d (/ 40)" % [
 		totals["rituals"],
 		TARGET_RITUAL_COUNT,
 		totals["non_ritual"],
 		TARGET_NON_RITUAL_COUNT,
 		total_cards,
-		MIN_DECK_SIZE,
-		MAX_DECK_SIZE
 	]
 	var copies_ok := _incantation_copy_limit_ok()
 	var noble_ok := _noble_copy_limit_ok()
 	var bird_ok := _bird_copy_limit_ok()
-	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and total_cards >= MIN_DECK_SIZE and total_cards <= MAX_DECK_SIZE and copies_ok and noble_ok and bird_ok
+	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and total_cards == DECK_SIZE and copies_ok and noble_ok and bird_ok
 	var ro := _deck_readonly()
 	if ro:
 		is_valid = true
@@ -1054,8 +1051,8 @@ func _on_save_button_pressed() -> void:
 		status_label.modulate = Color(1, 0.55, 0.55)
 		return
 	var total_cards := int(totals["rituals"]) + int(totals["non_ritual"])
-	if totals["rituals"] != TARGET_RITUAL_COUNT or totals["non_ritual"] != TARGET_NON_RITUAL_COUNT or total_cards < MIN_DECK_SIZE or total_cards > MAX_DECK_SIZE:
-		status_label.text = "Deck is invalid. Rituals=%d, non-ritual=%d, total 40." % [TARGET_RITUAL_COUNT, TARGET_NON_RITUAL_COUNT]
+	if totals["rituals"] != TARGET_RITUAL_COUNT or totals["non_ritual"] != TARGET_NON_RITUAL_COUNT or total_cards != DECK_SIZE:
+		status_label.text = "Deck is invalid. Rituals=%d, non-ritual=%d, total=%d." % [TARGET_RITUAL_COUNT, TARGET_NON_RITUAL_COUNT, DECK_SIZE]
 		status_label.modulate = Color(1, 0.55, 0.55)
 		return
 	var path := _current_deck_path()
