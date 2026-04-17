@@ -226,13 +226,13 @@ static func _wrath_destroy_count(value: int) -> int:
 static func _temple_preview_text(temple_id: String) -> String:
 	match temple_id:
 		"phaedra_illusion":
-			return "Once per turn: Insight 1, then draw a card."
+			return "Activate (once per turn): Insight 1, then draw a card."
 		"delpha_oracles":
-			return "Once per turn: Send a Ritual of power X to the abyss to Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
+			return "Activate (once per turn): Send a Ritual of power X to the abyss to Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
 		"gotha_illness":
-			return "Skip your draw step. Once per turn: discard a card, then draw cards equal to its power/cost."
+			return "Skip your draw step. Activate (once per turn): discard a card, then draw cards equal to its power/cost."
 		"ytria_cycles":
-			return "Once per turn: discard your hand, then draw that many cards."
+			return "Activate (once per turn): discard your hand, then draw that many cards."
 		_:
 			return "Temple — sacrifice 7 to play from hand."
 
