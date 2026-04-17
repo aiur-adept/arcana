@@ -91,7 +91,7 @@ text = "New Deck"
 [node name="ExportDecksButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Export Decks"
+text = "Export Deck"
 
 [node name="CopyDeckJsonButton" type="Button" parent="MainMargin/RootVBox/Split/DecksPanel/DecksMargin/DecksVBox/DeckButtons"]
 unique_name_in_owner = true

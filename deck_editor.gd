@@ -16,6 +16,7 @@ const MAX_BIRD_COPIES := 4
 const DECK_DIR := "user://decks"
 const DECK_EXT := ".json"
 const DECK_EXPORT_PREFIX := "decks_export_"
+const EXPORT_DIALOG_CONFIG_PATH := "user://deck_export_dir.txt"
 const NOBLE_DEFS := [
 	{"id": "krss_power", "name": "Krss, Noble of Power"},
 	{"id": "rmrsk_emanation", "name": "Rmrsk, Scion of Emanation"},
@@ -73,6 +74,7 @@ var _selected_deck_path := ""
 var _entries: Dictionary = {}
 var _hover_preview: Dictionary = {}
 var _gallery_entries: Array[Dictionary] = []
+var _export_dialog: FileDialog = null
 
 
 func _ready() -> void:
@@ -933,61 +935,90 @@ func _write_json(path: String, payload: Dictionary) -> int:
 	return OK
 
 
-func _load_deck_payload(path: String) -> Dictionary:
-	if IncludedDecks.is_token(path):
-		return IncludedDecks.payload_for_slug(IncludedDecks.slug_from_token(path))
-	if not FileAccess.file_exists(path):
-		return {}
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return {}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return {}
-	return parsed as Dictionary
+func _export_filename_for_current_deck(payload: Dictionary) -> String:
+	var deck_name := str(payload.get("deck_name", "")).strip_edges()
+	var slug := _sanitize_deck_name(deck_name)
+	if slug.is_empty():
+		if IncludedDecks.is_token(_selected_deck_path):
+			slug = IncludedDecks.slug_from_token(_selected_deck_path)
+		elif not _selected_deck_path.is_empty():
+			slug = _selected_deck_path.get_file().trim_suffix(DECK_EXT)
+	if slug.is_empty():
+		slug = "deck"
+	return slug + DECK_EXT
 
 
-func _export_path() -> String:
-	var stamp := Time.get_datetime_string_from_system(false).replace(":", "-").replace(" ", "_")
-	return "%s/%s%s%s" % [DECK_DIR, DECK_EXPORT_PREFIX, stamp, DECK_EXT]
+func _load_last_export_dir() -> String:
+	if not FileAccess.file_exists(EXPORT_DIALOG_CONFIG_PATH):
+		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	var f := FileAccess.open(EXPORT_DIALOG_CONFIG_PATH, FileAccess.READ)
+	if f == null:
+		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	var dir := f.get_as_text().strip_edges()
+	if dir.is_empty() or not DirAccess.dir_exists_absolute(dir):
+		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	return dir
 
 
-func _build_decks_export_payload() -> Dictionary:
-	var exported_decks: Array[Dictionary] = []
-	for path in _deck_paths:
-		if IncludedDecks.is_token(path):
-			continue
-		var payload := _load_deck_payload(path)
-		if payload.is_empty():
-			continue
-		exported_decks.append({
-			"file_name": path.get_file(),
-			"deck_name": str(payload.get("deck_name", path.get_file().trim_suffix(DECK_EXT))),
-			"payload": payload
-		})
-	return {
-		"schema_version": 1,
-		"exported_at": Time.get_datetime_string_from_system(true),
-		"deck_count": exported_decks.size(),
-		"decks": exported_decks
-	}
+func _save_last_export_dir(path: String) -> void:
+	var dir := path.get_base_dir()
+	if dir.is_empty():
+		return
+	var f := FileAccess.open(EXPORT_DIALOG_CONFIG_PATH, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(dir)
+
+
+func _ensure_export_dialog() -> FileDialog:
+	if _export_dialog != null and is_instance_valid(_export_dialog):
+		return _export_dialog
+	_export_dialog = FileDialog.new()
+	_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_export_dialog.use_native_dialog = true
+	_export_dialog.filters = PackedStringArray(["*.json ; Deck JSON"])
+	_export_dialog.title = "Export Deck"
+	_export_dialog.file_selected.connect(_on_export_dialog_file_selected)
+	add_child(_export_dialog)
+	return _export_dialog
 
 
 func _on_export_decks_button_pressed() -> void:
-	_refresh_deck_list()
-	var export_payload := _build_decks_export_payload()
-	var export_count := int(export_payload.get("deck_count", 0))
-	if export_count <= 0:
-		status_label.text = "No saved deck files found to export."
+	var payload := _build_deck_payload()
+	if payload.is_empty() or (payload.get("cards", []) as Array).is_empty():
+		status_label.text = "Nothing to export: current deck is empty."
 		status_label.modulate = Color(1, 0.95, 0.6)
 		return
-	var path := _export_path()
-	var result := _write_json(path, export_payload)
-	if result != OK:
-		status_label.text = "Failed to export decks to %s (error %d)." % [path, result]
+	var deck_name := str(payload.get("deck_name", "")).strip_edges()
+	if deck_name.is_empty():
+		status_label.text = "Set a deck name before exporting."
+		status_label.modulate = Color(1, 0.95, 0.6)
+		return
+	var dialog := _ensure_export_dialog()
+	dialog.current_dir = _load_last_export_dir()
+	dialog.current_file = _export_filename_for_current_deck(payload)
+	dialog.popup_centered_ratio(0.6)
+
+
+func _on_export_dialog_file_selected(path: String) -> void:
+	var payload := _build_deck_payload()
+	if payload.is_empty():
+		status_label.text = "Nothing to export."
+		status_label.modulate = Color(1, 0.95, 0.6)
+		return
+	if not path.to_lower().ends_with(DECK_EXT):
+		path += DECK_EXT
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		status_label.text = "Failed to export to %s (error %d)." % [path, FileAccess.get_open_error()]
 		status_label.modulate = Color(1, 0.55, 0.55)
 		return
-	status_label.text = "Exported %d deck(s): %s" % [export_count, path]
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.close()
+	_save_last_export_dir(path)
+	var deck_name := str(payload.get("deck_name", "deck"))
+	status_label.text = "Exported '%s' to %s" % [deck_name, path]
 	status_label.modulate = Color(0.65, 1, 0.65)
 
 
@@ -1004,7 +1035,7 @@ func _on_copy_deck_json_button_pressed() -> void:
 		status_label.modulate = Color(1, 0.95, 0.6)
 		return
 	DisplayServer.clipboard_set(JSON.stringify(payload, "\t"))
-	status_label.text = "Copied deck JSON to clipboard for included_decks.json."
+	status_label.text = "Copied deck JSON to clipboard."
 	status_label.modulate = Color(0.65, 1, 0.65)
 
 

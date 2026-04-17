@@ -35,9 +35,9 @@ Use this checklist whenever you add a new card, card variant, temple, or noble.
 - If temple/noble activation availability has special constraints, update `game_ritual_field_view.gd`.
 
 ## 6) Data and starter content
-- If the card should exist in included decks, update `included_decks.json`.
+- If the card should exist in included decks, add/update a deck file in `included_decks/` and keep `included_decks/index.json` in sync.
 - Keep `counts` blocks in sync when editing included deck payloads.
-- If a new exported deck template is needed, regenerate it from the editor and re-import.
+- If a new exported deck template is needed, export it from the deck editor into `included_decks/`.
 
 ## 7) Validation + sanity checks
 - Run in solo and (if relevant) multiplayer host/client.

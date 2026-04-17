@@ -1,0 +1,236 @@
+{
+	"cards": [
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 1.0
+		},
+		{
+			"type": "Ritual",
+			"value": 2.0
+		},
+		{
+			"type": "Ritual",
+			"value": 2.0
+		},
+		{
+			"type": "Ritual",
+			"value": 2.0
+		},
+		{
+			"type": "Ritual",
+			"value": 2.0
+		},
+		{
+			"type": "Ritual",
+			"value": 3.0
+		},
+		{
+			"type": "Ritual",
+			"value": 3.0
+		},
+		{
+			"type": "Ritual",
+			"value": 3.0
+		},
+		{
+			"type": "Ritual",
+			"value": 3.0
+		},
+		{
+			"type": "Ritual",
+			"value": 4.0
+		},
+		{
+			"type": "Ritual",
+			"value": 4.0
+		},
+		{
+			"type": "Ritual",
+			"value": 4.0
+		},
+		{
+			"type": "Ritual",
+			"value": 4.0
+		},
+		{
+			"type": "Ritual",
+			"value": 4.0
+		},
+		{
+			"type": "Incantation",
+			"value": 2.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 2.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 2.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 2.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"name": "Aeoiu, Scion of Rituals",
+			"noble_id": "aeoiu_rituals",
+			"type": "Noble"
+		},
+		{
+			"name": "Aeoiu, Scion of Rituals",
+			"noble_id": "aeoiu_rituals",
+			"type": "Noble"
+		},
+		{
+			"name": "Aeoiu, Scion of Rituals",
+			"noble_id": "aeoiu_rituals",
+			"type": "Noble"
+		},
+		{
+			"name": "Aeoiu, Scion of Rituals",
+			"noble_id": "aeoiu_rituals",
+			"type": "Noble"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "burn"
+		},
+		{
+			"name": "Sndrr, Noble of Incantation",
+			"noble_id": "sndrr_incantation",
+			"type": "Noble"
+		},
+		{
+			"name": "Sndrr, Noble of Incantation",
+			"noble_id": "sndrr_incantation",
+			"type": "Noble"
+		},
+		{
+			"name": "Sndrr, Noble of Incantation",
+			"noble_id": "sndrr_incantation",
+			"type": "Noble"
+		},
+		{
+			"name": "Sndrr, Noble of Incantation",
+			"noble_id": "sndrr_incantation",
+			"type": "Noble"
+		},
+		{
+			"type": "Dethrone",
+			"value": 4.0
+		}
+	],
+	"counts": {
+		"dethrones": 1.0,
+		"incantations": {
+			"burn_1": 4.0,
+			"burn_2": 4.0,
+			"burn_3": 4.0,
+			"burn_4": 0.0,
+			"dethrone_4": 0.0,
+			"insight_1": 0.0,
+			"insight_2": 0.0,
+			"insight_3": 0.0,
+			"insight_4": 0.0,
+			"revive_1": 0.0,
+			"seek_1": 0.0,
+			"seek_2": 0.0,
+			"seek_3": 0.0,
+			"seek_4": 0.0,
+			"woe_1": 0.0,
+			"woe_2": 0.0,
+			"woe_3": 0.0,
+			"woe_4": 0.0,
+			"wrath_4": 0.0
+		},
+		"nobles": {
+			"aeoiu_rituals": 4.0,
+			"bndrr_incantation": 0.0,
+			"indrr_incantation": 0.0,
+			"krss_power": 0.0,
+			"rndrr_incantation": 0.0,
+			"sndrr_incantation": 4.0,
+			"trss_power": 0.0,
+			"wndrr_incantation": 0.0,
+			"xytzr_emanation": 0.0,
+			"yrss_power": 0.0,
+			"yytzr_occultation": 0.0,
+			"zytzr_annihilation": 0.0
+		},
+		"rituals": {
+			"1": 6.0,
+			"2": 4.0,
+			"3": 4.0,
+			"4": 5.0
+		}
+	},
+	"deck_name": "Ritual Reanimator",
+	"rules_snapshot": {
+		"max_ritual_copies": 9.0,
+		"non_ritual_target": 21.0,
+		"ritual_target": 19.0,
+		"total_cards": 40.0
+	},
+	"schema_version": 1.0
+}

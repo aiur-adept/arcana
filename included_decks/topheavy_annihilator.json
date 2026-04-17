@@ -1,0 +1,233 @@
+{
+	"cards": [
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 4
+		},
+		{
+			"type": "Ritual",
+			"value": 3
+		},
+		{
+			"type": "Ritual",
+			"value": 3
+		},
+		{
+			"type": "Ritual",
+			"value": 3
+		},
+		{
+			"type": "Ritual",
+			"value": 3
+		},
+		{
+			"type": "Ritual",
+			"value": 2
+		},
+		{
+			"type": "Ritual",
+			"value": 2
+		},
+		{
+			"type": "Ritual",
+			"value": 2
+		},
+		{
+			"type": "Ritual",
+			"value": 2
+		},
+		{
+			"type": "Ritual",
+			"value": 1
+		},
+		{
+			"type": "Ritual",
+			"value": 1
+		},
+		{
+			"type": "Ritual",
+			"value": 1
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "wrath"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "wrath"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "wrath"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "wrath"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "woe"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "woe"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "woe"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "woe"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "seek"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "seek"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "seek"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
+			"verb": "seek"
+		},
+		{
+			"type": "Dethrone",
+			"value": 4
+		},
+		{
+			"type": "Dethrone",
+			"value": 4
+		},
+		{
+			"type": "Dethrone",
+			"value": 4
+		},
+		{
+			"type": "Dethrone",
+			"value": 4
+		},
+		{
+			"name": "Zytzr, Noble of Annihilation",
+			"noble_id": "zytzr_annihilation",
+			"type": "Noble"
+		}
+	],
+	"counts": {
+		"dethrones": 4,
+		"incantations": {
+			"burn_1": 0,
+			"burn_2": 0,
+			"burn_3": 0,
+			"burn_4": 4,
+			"dethrone_4": 0,
+			"insight_1": 0,
+			"insight_2": 0,
+			"insight_3": 0,
+			"insight_4": 0,
+			"revive_1": 0,
+			"seek_1": 0,
+			"seek_2": 0,
+			"seek_3": 0,
+			"seek_4": 4,
+			"woe_1": 0,
+			"woe_2": 0,
+			"woe_3": 0,
+			"woe_4": 4,
+			"wrath_4": 4
+		},
+		"nobles": {
+			"aeoiu_rituals": 0,
+			"bndrr_incantation": 0,
+			"indrr_incantation": 0,
+			"krss_power": 0,
+			"rndrr_incantation": 0,
+			"sndrr_incantation": 0,
+			"trss_power": 0,
+			"wndrr_incantation": 0,
+			"xytzr_emanation": 0,
+			"yrss_power": 0,
+			"yytzr_occultation": 0,
+			"zytzr_annihilation": 1
+		},
+		"rituals": {
+			"1": 3,
+			"2": 4,
+			"3": 4,
+			"4": 8
+		}
+	},
+	"deck_name": "Topheavy Annihilator",
+	"rules_snapshot": {
+		"max_ritual_copies": 9,
+		"non_ritual_target": 21,
+		"ritual_target": 19,
+		"total_cards": 40
+	},
+	"schema_version": 1
+}
