@@ -2207,44 +2207,8 @@
 				},
 				{
 					"cost": 7.0,
-					"name": "Phaedra, Temple of Illusion",
-					"temple_id": "phaedra_illusion",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
-					"name": "Phaedra, Temple of Illusion",
-					"temple_id": "phaedra_illusion",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
 					"name": "Delpha, Temple of Oracles",
 					"temple_id": "delpha_oracles",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
-					"name": "Delpha, Temple of Oracles",
-					"temple_id": "delpha_oracles",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
-					"name": "Delpha, Temple of Oracles",
-					"temple_id": "delpha_oracles",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
-					"name": "Gotha, Temple of Illness",
-					"temple_id": "gotha_illness",
-					"type": "Temple"
-				},
-				{
-					"cost": 7.0,
-					"name": "Gotha, Temple of Illness",
-					"temple_id": "gotha_illness",
 					"type": "Temple"
 				},
 				{
@@ -2299,22 +2263,50 @@
 					"verb": "seek"
 				},
 				{
-					"cost": 7.0,
+					"cost": 9.0,
 					"name": "Ytria, Temple of Cycles",
 					"temple_id": "ytria_cycles",
 					"type": "Temple"
 				},
 				{
-					"cost": 7.0,
-					"name": "Ytria, Temple of Cycles",
-					"temple_id": "ytria_cycles",
-					"type": "Temple"
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
 				},
 				{
-					"cost": 7.0,
-					"name": "Ytria, Temple of Cycles",
-					"temple_id": "ytria_cycles",
-					"type": "Temple"
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "seek"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
+				},
+				{
+					"type": "Incantation",
+					"value": 1.0,
+					"verb": "insight"
 				}
 			],
 			"counts": {
@@ -2325,12 +2317,12 @@
 					"burn_3": 0.0,
 					"burn_4": 0.0,
 					"dethrone_4": 0.0,
-					"insight_1": 0.0,
+					"insight_1": 4.0,
 					"insight_2": 4.0,
 					"insight_3": 0.0,
 					"insight_4": 0.0,
 					"revive_1": 0.0,
-					"seek_1": 1.0,
+					"seek_1": 5.0,
 					"seek_2": 4.0,
 					"seek_3": 0.0,
 					"seek_4": 0.0,
@@ -2364,10 +2356,10 @@
 					"4": 4.0
 				},
 				"temples": {
-					"delpha_oracles": 3.0,
-					"gotha_illness": 3.0,
-					"phaedra_illusion": 3.0,
-					"ytria_cycles": 3.0
+					"delpha_oracles": 1.0,
+					"gotha_illness": 1.0,
+					"phaedra_illusion": 1.0,
+					"ytria_cycles": 1.0
 				}
 			},
 			"deck_name": "Temples Test",

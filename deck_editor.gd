@@ -462,28 +462,47 @@ func _build_entry_pill(key: String, entry: Dictionary, readonly: bool) -> Contro
 	var bg := PanelContainer.new()
 	bg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.15, 0.17, 0.22)
-	sb.border_color = Color(0.45, 0.5, 0.62)
+	var kind := str(entry.get("kind", ""))
+	var base_bg := Color(0.15, 0.17, 0.22)
+	var border := Color(0.45, 0.5, 0.62)
+	if kind == "ritual":
+		base_bg = Color(0.17, 0.14, 0.08)
+		border = Color(0.95, 0.78, 0.24)
+	elif kind == "noble":
+		base_bg = Color(0.13, 0.1, 0.18)
+		border = Color(0.84, 0.7, 1.0)
+	elif kind == "temple":
+		base_bg = Color(0.07, 0.11, 0.11)
+		border = Color(0.32, 0.78, 0.74)
+	sb.bg_color = base_bg
+	sb.border_color = border
 	sb.set_border_width_all(2)
 	sb.set_corner_radius_all(12)
 	bg.add_theme_stylebox_override("panel", sb)
 	row.add_child(bg)
 	var preview_card := _entry_to_preview_card(entry)
-	bg.mouse_entered.connect(func() -> void:
-		CardPreviewPresenter.show_preview(_hover_preview, preview_card)
-	)
-	bg.mouse_exited.connect(func() -> void:
-		CardPreviewPresenter.hide_preview(_hover_preview)
-	)
 
 	var inner := HBoxContainer.new()
 	inner.add_theme_constant_override("separation", 8)
 	bg.add_child(inner)
 
 	var lbl := Label.new()
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	lbl.text = "%s x%d" % [_entry_display_name(entry), int(entry.get("count", 0))]
+	lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+	lbl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	lbl.mouse_entered.connect(func() -> void:
+		CardPreviewPresenter.show_preview(_hover_preview, preview_card)
+	)
+	lbl.mouse_exited.connect(func() -> void:
+		CardPreviewPresenter.hide_preview(_hover_preview)
+	)
 	inner.add_child(lbl)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(spacer)
 
 	var minus := Button.new()
 	minus.text = "-"

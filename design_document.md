@@ -1,52 +1,67 @@
-# Arcana Design document
+# Arcana Rules Reference (Set 1)
 
-## Rules
+This document defines the complete game rules for Arcana as currently implemented.
 
-Two **40-card** decks.
+## 1) Match Setup
 
-Players determine who goes first based on a challenge (ie. D20)
+- Two players each use a legal **40-card** deck.
+- Determine starting player by any agreed random method (for example, a d20 challenge).
+- Each player draws **5** cards.
+- Each player may take **one** London mulligan:
+  - Shuffle hand into deck.
+  - Draw 5 new cards.
+  - Put exactly 1 card from hand on the bottom of deck.
+- After mulligans are complete, the starting player takes the first turn and performs the normal turn-start draw.
 
-Starting hands: **5 cards** (with a single london mulligan allowed (draw 5 put one on the bottom of library))
+## 2) Zones
 
-### Game zones 
+- **Deck**: face-down draw pile.
+- **Hand**: private cards in hand.
+- **Ritual Field**: your rituals in play.
+- **Noble Field**: your nobles in play.
+- **Temple Field**: your temples in play.
+- **Crypt**: your discard pile; destroyed/sacrificed/discarded cards go here unless stated otherwise.
+- **Abyss**: a separate pile for specific effects (primarily cards cast via Revive, and some temple costs).
 
-- player hand
-- player field [where rituals and nobles go]
-- player crypt [where discarded cards go]
-- the abyss [cards revived go here instead of the crypt]
+## 3) Card Types
 
-Card types: **ritual**, **incantation**, **noble**
+- **Ritual**: persistent card played to ritual field; contributes ritual power when active.
+- **Incantation**: one-shot spell card played from hand, then put into crypt.
+- **Noble**: persistent unit with static and/or activated/triggered abilities.
+- **Temple**: persistent card played by sacrificing rituals; has once-per-turn activations.
+- **Dethrone**: a special spell card (value 4) that destroys an enemy noble.
 
-### Draw phase, Main phase
+## 4) Turn Structure
 
-At the start of a player's turn, they draw a card from their deck.
+Each turn has three practical steps:
 
-During a player’s turn, they may play any number of incantation cards from their hand and up to one ritual, one noble, and one temple. Once during a player's turn, they may discard a card to draw a card.
+1. **Turn-start draw**
+   - Active player draws 1 card.
+   - Exception: if that player controls Gotha, they skip this draw.
+2. **Main phase**
+   - Active player may perform actions in any order, including:
+     - Play any number of incantations (if legal and paid).
+     - Play up to one ritual.
+     - Play up to one noble.
+     - Play up to one temple.
+     - Activate eligible nobles (generally once each per turn).
+     - Activate eligible temples (once each per turn).
+     - Once per turn: discard one card to draw one card.
+3. **End turn / hand cleanup**
+   - Active player must discard down to **7** cards.
+   - Then turn passes to opponent, who immediately starts their turn with turn-start draw.
 
-### Rituals 
+## 5) Ritual Lanes and Active Rituals
 
-Rituals stay on the field when played. Rituals are marked with a number, which is their ritual number. Rituals are active when all ritual numbers between their number and 1 are also active. 1-Rituals are always active. There are 4 ritual powers: 1, 2, 3, and 4. 
+Ritual values are 1, 2, 3, and 4.
 
-### Incantations 
-Incantations are used a single time and discarded, and they can typically* only be played if the player has an active ritual in play that matches the incantation’s number. For example if the player had rituals 1, 2 and 3, then incantation lane 3 would be active, and they could play incantations with value 3.
+- A **1-ritual is always active**.
+- A ritual of value **N > 1** is active only if you also have at least one active ritual of every value from 1 to N-1.
+- A ritual lane is active if you control at least one active ritual of that value.
 
-\* Incantations worth N can be played - if a player doesn’t have the ritual for them - by sacrificing rituals worth at least that much. For example, you could sacrifice two 2-Ritual cards to play a 4-Incantation, although you didn’t have a 4-Ritual in play. You could also sacrifice four 1-Rituals, or one 1-Ritual and one 3-Ritual, etc.
+**Ritual power** is the sum of values of your active rituals only.
 
-### Nobles 
-
-Nobles are special cards with a certain ability on them. They have a cost just like incantations, which means they can only be played when that ritual lane (eg. 3) is active.
-
-### Temples
-
-Temples are cards that must be played by sacrifice due to their cost. They remain on the field, and offer a benefit.
-
-### Discard phase 
-
-When a player has finished their turn, they discard down to 7 cards.
-
-### Winning the game
-
-A player wins the game when they have 20 ritual power on the field (only Rituals count toward ritual power, Nobles don't add to ritual power), or when a player attempts to draw from the empty deck, the player with the most ritual power wins. Ritual power counts active rituals only. So for example, the below represents 16 ritual power:
+Example:
 
 ```
 1 x 1R
@@ -55,82 +70,152 @@ A player wins the game when they have 20 ritual power on the field (only Rituals
 2 x 4R
 ```
 
-## Deckbuilding constraints
+All are active, so ritual power is `1 + 2 + 2 + 3 + 4 + 4 = 16`.
 
-Every legal deck must have 19 Ritual cards and 21 non-Ritual cards, with a maximum of 1 Noble of each first name, eg. 1 x "Yrss"
+## 6) Playing Cards and Paying Costs
 
-There can be no more than 9 of one ritual card value in the deck, for example you may have 9 4-Rituals.
+### 6.1 Incantations
 
-You may only have 4 copies of a given incantation. For example you can have 4x seek-1, 4x seek-2, and 4x wrath.
+To play an incantation of value **N**, you must either:
 
-You may have up to 3 temples of each name.
+- Have active lane N, or
+- Sacrifice rituals with total value at least N.
 
-—
+If sacrificed, those rituals leave your field and go to your crypt.
 
-## Mechanics of Set 1
+### 6.2 Nobles
 
-*Seek* X: draw X cards from your deck
+To play a noble, you must have the noble's cost lane active (no sacrifice payment for noble play).
+Only one noble may be played from hand per turn.
 
-*Insight* X: rearrange the top X cards of a chosen player's deck or put any number of them to the bottom.
+### 6.3 Temples
 
-*Burn* X: discard the top 2*X cards of a chosen player's deck
+To play a temple, you must sacrifice rituals with total value at least its temple cost:
 
-*Woe* X: a chosen player discards X cards
+- Most temples cost **7**.
+- Ytria costs **9**.
 
-*Wrath 4*: Choose and destroy 2 opponent rituals
+Only one temple may be played from hand per turn.
 
-*Revive 1*: you may play 1 incantation or noble from your crypt (Wrath cannot be revived). Cards played this way go to the abyss instead of the crypt (a revived noble dethroned will go to the abyss).
+### 6.4 Dethrone
 
-*Dethrone 4*: Choose and destroy an opponent's noble
+Dethrone has value 4.
+To play Dethrone, you must either have active lane 4 or sacrifice rituals totaling at least 4.
+It destroys one target opposing noble.
 
-### Nobles:
+## 7) Action Limits and Timing Locks
 
-#### Cost 4
+- During your turn, you may play:
+  - At most 1 ritual from hand.
+  - At most 1 noble from hand.
+  - At most 1 temple from hand.
+  - Any number of incantations (as long as each is legal and payable).
+- `Discard-for-draw` may be used once per turn.
+- Each noble/temple activation is once per turn per permanent.
+- You cannot take further proactive actions while waiting for a required response to a pending effect you created (for example, opponent discard choice from Woe, or your own optional scion trigger decision).
 
-*Yrss, Noble of Power*: Grants access to incantation lane 3.
+## 8) Win and Draw Conditions
 
-*Xytzr, Noble of Emanation*: Whenever you *Seek*, draw an additional card. Whenever you *Insight*, look at and additional card.
+Game ends immediately when any of the following occurs:
 
-*Yytzr, Noble of Occultation*: Whenever you *Burn*, add 3 to the number to be discarded. Whenever you *Revive*, you may sacrifice {2R} or more. If you do, you may play an additional card from the crypt.
+1. A player reaches **20 or more ritual power**.
+2. A player attempts to draw from an empty deck.
 
-*Zytzr, Noble of Annihilation*: Whenever you *Wrath*, destroy an extra ritual. Whenever you *Woe*, the player discards an additional card.
+If empty-deck draw is attempted:
 
-*Aeoiu, Scion of Rituals*: Once per turn, you may play a Ritual from your crypt (in addition to the ritual for turn).
+- Compare both players' current active ritual power.
+- Higher ritual power wins.
+- Equal ritual power is a draw.
 
-#### Cost 3 
+## 9) Core Mechanics (Set 1)
 
-*Trss, Noble of Power*: Grants access to incantation lane 2.
+- **Seek X**: Draw X cards.
+- **Insight X**: Look at top X cards of target player's deck; reorder any on top and/or move any number to bottom.
+- **Burn X**: Mill `2 * X` cards from target player's deck into that player's crypt.
+- **Woe X**: Target player discards X chosen cards from hand.
+- **Wrath 4**: Destroy 2 opponent rituals.
+- **Revive 1**: Cast 1 eligible incantation from your crypt.
+  - Revive itself cannot be revived.
+  - Wrath cannot be cast via revive.
+  - Cards cast this way go to abyss (not crypt).
+- **Dethrone 4**: Destroy one opposing noble.
 
-*Bndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Burn 1* effect.
+## 10) Noble Abilities (Set 1)
 
-*Indrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Insight 2* effect.
+All noble static abilities apply while that noble remains on the field.
 
-*Rndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Revive 1* effect.
+### 10.1 Cost 4
 
-*Sndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Seek 1* effect.
+- **Yrss, Noble of Power**: Grants incantation lane 3 while on field (static).
+- **Xytzr, Noble of Emanation** (static):
+  - Your Seek effects draw +1 card.
+  - Your Insight effects affect +1 card.
+- **Yytzr, Noble of Occultation** (static):
+  - Your Burn effects mill an additional 3 cards.
+  - When you play Revive, you may additionally sacrifice rituals totaling at least 2 to add one extra revive step.
+- **Zytzr, Noble of Annihilation** (static):
+  - Your Wrath destroys 1 extra ritual.
+  - Your Woe forces 1 additional discard.
+- **Aeoiu, Scion of Rituals** (activated, once per turn):
+  - Play one ritual from your crypt to your field.
+  - This is in addition to your normal one ritual-from-hand per turn.
 
-*Wndrr, Noble of Incantation*: Once per turn, it can activate to cast a spell-like *Woe 1* effect.
+### 10.2 Cost 3
 
-*Rmrsk, Scion of Emanation*: Whenever you Insight, you may then draw a card.
+- **Trss, Noble of Power**: Grants incantation lane 2 while on field (static).
+- **Bndrr, Noble of Incantation**: Once per turn, Burn 1.
+- **Indrr, Noble of Incantation**: Once per turn, Insight 2.
+- **Rndrr, Noble of Incantation**: Once per turn, Revive 1.
+- **Sndrr, Noble of Incantation**: Once per turn, Seek 1.
+- **Wndrr, Noble of Incantation**: Once per turn, Woe 1.
 
-*Smrsk, Scion of Occultation*: Whenever you Burn or Revive, you may then sacrifice a Ritual of power X to burn yourself X (discard 2X cards from deck).
+### 10.3 Cost 2
 
-*Tmrsk, Scion of Annihilation*: Whenever you Wrath, you may then Woe 1.
+- **Rmrsk, Scion of Emanation** (triggered, optional):
+  - After you resolve Insight, you may draw 1.
+- **Smrsk, Scion of Occultation** (triggered, optional):
+  - After you resolve Burn or Revive, you may sacrifice one ritual of value X, then Burn yourself X.
+- **Tmrsk, Scion of Annihilation** (triggered, optional):
+  - After you resolve Wrath, you may perform Woe 1.
 
-#### Cost 2
 
-*Krss, Noble of Power*: Grants access to incantation lane 1.
+- **Krss, Noble of Power**: Grants incantation lane 1 while on field (static).
 
-### Temples
+## 11) Temple Abilities (Set 1)
 
-#### Cost 7
+Temple activations are once per turn per temple.
 
-*Phaedra, Temple of Illusion*: once per turn you may Insight 1 and then draw a card.
+### 11.1 Cost 7 temples
 
-*Delpha, Temple of Oracles*: once per turn you may Burn yourself X (discard 2X from your deck) to play an additional Ritual from your crypt.
+- **Phaedra, Temple of Illusion**:
+  - Insight 1, then draw 1.
+- **Delpha, Temple of Oracles**:
+  - Sacrifice one ritual of value X from field (it goes to abyss), then Burn yourself X, then play one ritual from your crypt.
+  - Legal only if you have enough cards in deck to mill `2X`.
+- **Gotha, Temple of Illness**:
+  - Static: Skip your turn-start draw.
+  - Activated: Discard one card, then draw cards equal to that card's value/cost.
 
-*Gotha, Temple of Illness*: skip your draw step. once per turn you may discard a card and draw cards equal to its power/cost.
+### 11.2 Cost 9 temple
 
-#### Cost 9
+- **Ytria, Temple of Cycles**:
+  - Discard your hand, then draw that many cards.
 
-*Ytria, Temple of Cycles*: once per turn you may discard your hand to draw that many cards.
+## 12) Clarifications and Edge Cases
+
+- **Lane grants are static**: If a Noble of Power is on field, its granted lane is available continuously.
+- **Woe with insufficient hand**: target discards as many as possible (up to required amount).
+- **Wrath with too few enemy rituals**: destroys as many as possible, up to required amount.
+- **Milling is not drawing**: Burn moving cards from deck to crypt does not trigger empty-deck loss by itself.
+- **Empty deck loss check** only occurs when a player attempts to draw.
+- **Revived cards to abyss**: an incantation cast via revive is placed in abyss after resolution; if a revived noble is later destroyed/dethroned, it goes to abyss.
+
+## 13) Deck Construction Rules
+
+For legal 40-card decks:
+
+- Exactly **19 Ritual** cards and **21 non-Ritual** cards.
+- At most **9 rituals of any one value** (for example, no more than 9 copies of value-4 rituals).
+- At most **4 copies** of any named incantation card.
+- At most **1 copy** of any named temple card.
+- For nobles, at most **1** card per noble first name (for example, max 1 "Yrss").

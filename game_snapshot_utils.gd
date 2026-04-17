@@ -105,6 +105,16 @@ static func noble_cost_for_id(nid: String) -> int:
 			return 0
 
 
+static func temple_cost_for_id(tid: String) -> int:
+	match tid:
+		"ytria_cycles":
+			return 9
+		"phaedra_illusion", "delpha_oracles", "gotha_illness":
+			return 7
+		_:
+			return 7
+
+
 static func card_corner_pip_spec(card: Variant) -> Dictionary:
 	var t := card_type(card)
 	if t == "ritual":
@@ -114,5 +124,8 @@ static func card_corner_pip_spec(card: Variant) -> Dictionary:
 	if t == "noble":
 		return {"count": noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}
 	if t == "temple":
-		return {"count": max(0, int(card.get("cost", 7))), "filled": false}
+		var raw := int(card.get("cost", 0))
+		if raw <= 0:
+			raw = temple_cost_for_id(str(card.get("temple_id", "")))
+		return {"count": max(0, raw), "filled": false}
 	return {"count": 0, "filled": false}

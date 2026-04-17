@@ -175,7 +175,10 @@ static func card_type_line(card: Dictionary) -> String:
 		var cost := _noble_cost_for_id(str(card.get("noble_id", "")))
 		return "Noble%s" % (" (cost %d)" % cost if cost > 0 else "")
 	if t == "temple":
-		return "Temple (cost %d)" % int(card.get("cost", 7))
+		var raw_cost := int(card.get("cost", 0))
+		if raw_cost <= 0:
+			raw_cost = _temple_cost_for_id(str(card.get("temple_id", "")))
+		return "Temple (cost %d)" % raw_cost
 	return "Incantation"
 
 
@@ -232,6 +235,16 @@ static func _temple_preview_text(temple_id: String) -> String:
 			return "Once per turn: discard your hand, then draw that many cards."
 		_:
 			return "Temple — sacrifice 7 to play from hand."
+
+
+static func _temple_cost_for_id(temple_id: String) -> int:
+	match temple_id:
+		"ytria_cycles":
+			return 9
+		"phaedra_illusion", "delpha_oracles", "gotha_illness":
+			return 7
+		_:
+			return 7
 
 
 static func _noble_preview_text(noble_id: String) -> String:
