@@ -2,118 +2,123 @@
 	"cards": [
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 1.0
+			"value": 1
 		},
 		{
 			"type": "Ritual",
-			"value": 2.0
+			"value": 2
 		},
 		{
 			"type": "Ritual",
-			"value": 2.0
+			"value": 2
 		},
 		{
 			"type": "Ritual",
-			"value": 2.0
+			"value": 2
 		},
 		{
 			"type": "Ritual",
-			"value": 2.0
+			"value": 2
 		},
 		{
 			"type": "Ritual",
-			"value": 3.0
+			"value": 3
 		},
 		{
 			"type": "Ritual",
-			"value": 3.0
+			"value": 3
 		},
 		{
 			"type": "Ritual",
-			"value": 3.0
+			"value": 3
 		},
 		{
 			"type": "Ritual",
-			"value": 3.0
+			"value": 3
 		},
 		{
 			"type": "Ritual",
-			"value": 4.0
+			"value": 4
 		},
 		{
 			"type": "Ritual",
-			"value": 4.0
+			"value": 4
 		},
 		{
 			"type": "Ritual",
-			"value": 4.0
+			"value": 4
 		},
 		{
 			"type": "Ritual",
-			"value": 4.0
+			"value": 4
 		},
 		{
 			"type": "Ritual",
-			"value": 4.0
+			"value": 4
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
+			"value": 3,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
+			"value": 3,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
+			"value": 3,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
+			"value": 3,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
+			"value": 2,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
+			"value": 2,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
+			"value": 2,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
+			"value": 2,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 4,
 			"verb": "burn"
 		},
 		{
@@ -122,114 +127,135 @@
 			"type": "Noble"
 		},
 		{
-			"name": "Aeoiu, Scion of Rituals",
-			"noble_id": "aeoiu_rituals",
-			"type": "Noble"
-		},
-		{
-			"name": "Aeoiu, Scion of Rituals",
-			"noble_id": "aeoiu_rituals",
-			"type": "Noble"
-		},
-		{
-			"name": "Aeoiu, Scion of Rituals",
-			"noble_id": "aeoiu_rituals",
-			"type": "Noble"
+			"cost": 7,
+			"name": "Phaedra, Temple of Illusion",
+			"temple_id": "phaedra_illusion",
+			"type": "Temple"
 		},
 		{
 			"type": "Incantation",
-			"value": 1.0,
+			"value": 1,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 1.0,
+			"value": 1,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 1.0,
+			"value": 1,
 			"verb": "burn"
 		},
 		{
 			"type": "Incantation",
-			"value": 1.0,
+			"value": 1,
 			"verb": "burn"
 		},
 		{
-			"name": "Sndrr, Noble of Incantation",
-			"noble_id": "sndrr_incantation",
-			"type": "Noble"
-		},
-		{
-			"name": "Sndrr, Noble of Incantation",
-			"noble_id": "sndrr_incantation",
-			"type": "Noble"
-		},
-		{
-			"name": "Sndrr, Noble of Incantation",
-			"noble_id": "sndrr_incantation",
-			"type": "Noble"
-		},
-		{
-			"name": "Sndrr, Noble of Incantation",
-			"noble_id": "sndrr_incantation",
-			"type": "Noble"
+			"type": "Incantation",
+			"value": 1,
+			"verb": "revive"
 		},
 		{
 			"type": "Incantation",
-			"value": 4.0,
-			"verb": "dethrone"
+			"value": 1,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
+			"value": 1,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
+			"value": 2,
+			"verb": "insight"
+		},
+		{
+			"type": "Incantation",
+			"value": 2,
+			"verb": "insight"
+		},
+		{
+			"type": "Incantation",
+			"value": 2,
+			"verb": "insight"
 		}
 	],
 	"counts": {
-		"dethrones": 1.0,
+		"birds": {
+			"eagle": 0,
+			"finch": 0,
+			"gull": 0,
+			"hawk": 0,
+			"kestrel": 0,
+			"raven": 0,
+			"shrike": 0,
+			"sparrow": 0,
+			"wren": 0
+		},
 		"incantations": {
-			"burn_1": 4.0,
-			"burn_2": 4.0,
-			"burn_3": 4.0,
-			"burn_4": 0.0,
-			"dethrone_4": 0.0,
-			"insight_1": 0.0,
-			"insight_2": 0.0,
-			"insight_3": 0.0,
-			"insight_4": 0.0,
-			"revive_1": 0.0,
-			"seek_1": 0.0,
-			"seek_2": 0.0,
-			"seek_3": 0.0,
-			"seek_4": 0.0,
-			"woe_3": 0.0,
-			"woe_4": 0.0,
-			"wrath_4": 0.0
+			"burn_1": 4,
+			"burn_2": 4,
+			"burn_3": 4,
+			"burn_4": 1,
+			"deluge_2": 0,
+			"deluge_3": 0,
+			"deluge_4": 0,
+			"dethrone_4": 0,
+			"insight_1": 0,
+			"insight_2": 3,
+			"insight_3": 0,
+			"insight_4": 0,
+			"revive_1": 3,
+			"seek_1": 0,
+			"seek_2": 0,
+			"tears_3": 0,
+			"void_0": 0,
+			"woe_3": 0,
+			"woe_4": 0,
+			"wrath_4": 0
 		},
 		"nobles": {
-			"aeoiu_rituals": 4.0,
-			"bndrr_incantation": 0.0,
-			"indrr_incantation": 0.0,
-			"krss_power": 0.0,
-			"rndrr_incantation": 0.0,
-			"sndrr_incantation": 4.0,
-			"trss_power": 0.0,
-			"wndrr_incantation": 0.0,
-			"xytzr_emanation": 0.0,
-			"yrss_power": 0.0,
-			"yytzr_occultation": 0.0,
-			"zytzr_annihilation": 0.0
+			"aeoiu_rituals": 1,
+			"bndrr_incantation": 0,
+			"indrr_incantation": 0,
+			"krss_power": 0,
+			"rmrsk_emanation": 0,
+			"rndrr_incantation": 0,
+			"smrsk_occultation": 0,
+			"sndrr_incantation": 0,
+			"tmrsk_annihilation": 0,
+			"trss_power": 0,
+			"wndrr_incantation": 0,
+			"xytzr_emanation": 0,
+			"yrss_power": 0,
+			"yytzr_occultation": 0,
+			"zytzr_annihilation": 0
 		},
 		"rituals": {
-			"1": 6.0,
-			"2": 4.0,
-			"3": 4.0,
-			"4": 5.0
+			"1": 6,
+			"2": 4,
+			"3": 4,
+			"4": 5
+		},
+		"temples": {
+			"delpha_oracles": 0,
+			"eyrie_feathers": 0,
+			"gotha_illness": 0,
+			"phaedra_illusion": 1,
+			"ytria_cycles": 0
 		}
 	},
-	"deck_name": "Ritual Reanimator",
+	"deck_name": "ritual_reanimator",
 	"rules_snapshot": {
-		"max_ritual_copies": 9.0,
-		"non_ritual_target": 21.0,
-		"ritual_target": 19.0,
-		"total_cards": 40.0
+		"max_bird_copies": 4,
+		"max_ritual_copies": 9,
+		"non_ritual_target": 21,
+		"ritual_target": 19,
+		"total_cards_max": 50,
+		"total_cards_min": 40
 	},
-	"schema_version": 1.0
+	"schema_version": 1
 }
