@@ -121,7 +121,7 @@ func run_turn(host: Node) -> void:
 			if host._card_type(hand[i]) != "noble":
 				continue
 			if host._match.can_play_noble(1, i):
-				host._try_play_noble(1, i, false)
+				host._try_play_noble(1, i, [], false)
 				played_noble = true
 			break
 		if played_noble:

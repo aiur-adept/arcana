@@ -1,7 +1,10 @@
 # Arcana Monte Carlo Simulator
 
 A Python multiprocess Monte Carlo simulator that mirrors the GDScript match engine
-(`arcana_match_state.gd`) and plays two greedy AI pilots against each other.
+(`arcana_match_state.gd`) and plays two deck-specialized pilots against each other.
+Both sides of every game use the pilot registered for their deck slug (see
+`sim/pilots/`), so matchup win-rates reflect each archetype executing its real
+meta plan rather than the generic greedy fallback.
 
 ## Usage
 
@@ -52,6 +55,39 @@ All of Set 1 per `design_document.md` is implemented:
 - Win at ≥20 match power or on empty-deck draw attempt; draw on ties and on the
   turn cap.
 
+## Pilots
+
+Per-deck pilots live in `sim/pilots/<slug>.py` and all subclass
+`GreedyAI` from `sim/ai.py`. The base class exposes scoring weights as
+class constants (`W_RITUAL_BASE`, `W_NOBLE_BIG_TRIPLET`,
+`W_EFFECT_WRATH_PER_KILLED`, …) and decision hooks
+(`mulligan`, `score_ritual_play`, `score_noble_play`,
+`score_incantation`, `score_temple_play`, `score_dethrone`,
+`adjust_ring_score`, `choose_wrath_targets`, `choose_revive_target`,
+`choose_burn_target`, `choose_insight_bottom`, `should_nest`,
+`scion_response`, `woe_response`, `end_turn_discards`, …). Each pilot
+overrides only the hooks that differentiate its archetype:
+
+| Slug | Pilot class | Key behavior |
+|---|---|---|
+| `incantations` | `IncantationsPilot` | 1R+2R mulligan; save Wrath 4 vs weak boards; revive prefers Woe/Wrath/Burn. |
+| `noble_test` | `NobleTestPilot` | Serraf-first; Power-noble play priority; aggressive Dethrone targeting. |
+| `wrathseek-sac` | `WrathseekSacPilot` | Wrath gets +12 play bonus and revives first; lowered sac penalty. |
+| `ritual_reanimator` | `RitualReanimatorPilot` | Aeoiu priority; self-Burn to seed crypt rituals; Phaedra-on-full-hand bonus. |
+| `topheavy_annihilator` | `TopheavyAnnihilatorPilot` | Refuses incantation sacs (preserves 1/2/3 ladder to keep lane 4 live); Zytzr-only Wrath sac exception. |
+| `occultation` | `OccultationPilot` | Yytzr/Cymbil priority; Burn-base weights doubled; revive prefers Burn. |
+| `annihilation` | `AnnihilationPilot` | Celadon ring priority; Wrath and Woe base weights elevated; always accept Tmrsk. |
+| `emanation` | `EmanationPilot` | Sybiline priority; always accept Rmrsk; save Dethrone for cost-6+ targets. |
+| `scions` | `ScionsPilot` | Scion + Serraf priority; Smrsk always declined, Tmrsk always accepted. |
+| `temples` | `TemplesPilot` | Explicit Phaedra>Delpha>Gotha>Ytria play ordering; Ytria needs hand ≥ 5. |
+| `bird_test` | `BirdTestPilot` | Eyrie bonus boosted; Sinofia homes to a Raven; Ravens/Hawks never nest. |
+| `void_temples` | `VoidTemplesPilot` | Temple play ordering (see `temples`); Void discard-cost left at default (lowest among incantations). |
+| `revive` | `RevivePilot` | Rndrr priority; revive prefers highest-value Seek/Insight. |
+
+The registry is exposed via `sim.pilots.get_pilot(slug)` and a shared
+`PILOTS` dict. Any slug not registered falls back to the base
+`GreedyAI` (pure greedy behavior, untuned).
+
 ## Known simplifications
 
 - Bird combat uses single-attacker / single-defender pairings rather than the
@@ -61,9 +97,13 @@ All of Set 1 per `design_document.md` is implemented:
 - Insight reordering picks "send N to bottom" only; it does not attempt to
   permute the top stack. The AI uses this to bottom known-useless cards from
   the opponent.
-- Mulligan is a simple heuristic: mulligan if 0 rituals, all rituals, or
-  ritual-heavy with no lane-1.
+- Mulligan heuristics live on each pilot; the base default is the same
+  ritual-count heuristic as before.
 - The 400-turn cap is not in the rules; it guards against pathological stalls.
+- **Void is not modeled.** `VERB_VOID` is declared in `sim/cards.py` but the
+  engine has no effect handler for it, so Void cards sit dead in hand. This
+  structurally under-powers `void_temples`; matchup numbers for that deck
+  should be read as a lower bound relative to the real meta.
 
 ## Per-slug accounting
 

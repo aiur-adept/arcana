@@ -20,6 +20,7 @@ from typing import Any
 from .ai import GreedyAI, simple_mulligan
 from .decks import included_deck_slugs, load_all_included_decks
 from .match import EndOfGame, MatchState
+from .pilots import get_pilot
 
 
 POWER_CURVE_MARKERS = [1, 3, 5, 10, 15, 20]
@@ -59,13 +60,18 @@ def _merge_bucket(dst: dict[str, Any], src: dict[str, Any]) -> None:
             dst[k] += v
 
 
-def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random) -> dict[str, Any]:
+def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
+                   p0_pilot_cls: type[GreedyAI], p1_pilot_cls: type[GreedyAI]) -> dict[str, Any]:
     state = MatchState((p0_deck_cards, p1_deck_cards), rng)
-    ai0 = GreedyAI(0)
-    ai1 = GreedyAI(1)
+    ai0 = p0_pilot_cls(0)
+    ai1 = p1_pilot_cls(1)
     ais = (ai0, ai1)
+
+    def pilot_mulligan(s: MatchState, pid: int) -> bool:
+        return ais[pid].mulligan(s, pid)
+
     try:
-        state.start(mulligan_heuristic=simple_mulligan)
+        state.start(mulligan_heuristic=pilot_mulligan)
         while not state.game_over_flag:
             if state.pending is not None:
                 ais[state.pending.responder].respond(state)
@@ -125,12 +131,18 @@ def run_shard(args: tuple) -> dict[str, dict[str, Any]]:
     slugs = included_deck_slugs()
     rng = random.Random(shard_seed)
     p0_deck = decks[p0_slug]
+    p0_pilot_cls = get_pilot(p0_slug)
+    pilot_cache: dict[str, type[GreedyAI]] = {p0_slug: p0_pilot_cls}
     stats: dict[str, dict[str, Any]] = {}
     for _ in range(runs_in_shard):
         p1_slug = slugs[rng.randrange(len(slugs))]
         p1_deck = decks[p1_slug]
+        p1_pilot_cls = pilot_cache.get(p1_slug)
+        if p1_pilot_cls is None:
+            p1_pilot_cls = get_pilot(p1_slug)
+            pilot_cache[p1_slug] = p1_pilot_cls
         game_rng = random.Random(rng.getrandbits(64))
-        res = _play_one_game(p0_deck, p1_deck, game_rng)
+        res = _play_one_game(p0_deck, p1_deck, game_rng, p0_pilot_cls, p1_pilot_cls)
         bucket = stats.setdefault(p1_slug, _empty_bucket())
         _record_result(bucket, res)
     return stats

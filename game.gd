@@ -174,6 +174,8 @@ var _delpha_ritual_mid: int = -1
 var _delpha_x: int = 0
 
 var _sacrifice_for_temple: bool = false
+var _sacrifice_for_noble: bool = false
+var _pending_noble_hand_idx: int = -1
 var _insight_temple_mid: int = -1
 var _gotha_picking: bool = false
 var _gotha_temple_mid: int = -1
@@ -2471,6 +2473,8 @@ func _start_yytzr_bonus_sacrifice_ui() -> void:
 
 func _clear_sacrifice_mode() -> void:
 	_sacrifice_for_temple = false
+	_sacrifice_for_noble = false
+	_pending_noble_hand_idx = -1
 	_sacrifice_selecting = false
 	_inc_pick_phase = INC_PICK_NONE
 	_pending_inc_hand_idx = -1
@@ -3340,6 +3344,15 @@ func _on_sacrifice_confirm_pressed() -> void:
 				_try_play_temple(_my_player_for_action(), hi_t, sac)
 			_broadcast_sync(true)
 			return
+		if _sacrifice_for_noble:
+			var hi_n := _pending_noble_hand_idx
+			_clear_sacrifice_mode()
+			if _is_network_client():
+				submit_play_noble.rpc_id(1, hi_n, sac)
+			else:
+				_try_play_noble(_my_player_for_action(), hi_n, sac, true)
+			_broadcast_sync(true)
+			return
 		if _pending_dethrone_hand_idx >= 0:
 			var dhi := _pending_dethrone_hand_idx
 			_enter_dethrone_mode(dhi, sac)
@@ -3718,6 +3731,12 @@ func _temple_field_input_ok() -> bool:
 	if _woe_self_picking:
 		return false
 	return true
+
+
+func _enter_noble_sacrifice_mode(hand_idx: int, cost: int, noble_label: String) -> void:
+	_sacrifice_for_noble = true
+	_pending_noble_hand_idx = hand_idx
+	_enter_sacrifice_mode(hand_idx, cost, "Summon %s" % noble_label)
 
 
 func _enter_temple_sacrifice_mode(hand_idx: int) -> void:
@@ -4436,10 +4455,24 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		if bool(snap.get("your_noble_played", false)):
 			status_label.text = "You already played a noble this turn."
 			return
-		if _is_network_client():
-			submit_play_noble.rpc_id(1, hand_idx)
-		else:
-			_try_play_noble(_my_player_for_action(), hand_idx)
+		var nid_n := str(c.get("noble_id", ""))
+		var base_cost_n := _GameSnapshotUtils.noble_cost_for_id(nid_n)
+		var eff_cost_n := base_cost_n
+		if _match != null:
+			eff_cost_n = _match.effective_noble_cost(_my_player_for_action(), base_cost_n)
+		var field_n: Array = snap.get("your_field", [])
+		var your_nobles_n: Array = snap.get("your_nobles", [])
+		var has_lane_n := eff_cost_n <= 4 and ArcanaMatchState.has_lane_for_field_and_nobles(field_n, your_nobles_n, eff_cost_n)
+		if eff_cost_n == 0 or has_lane_n:
+			if _is_network_client():
+				submit_play_noble.rpc_id(1, hand_idx, [])
+			else:
+				_try_play_noble(_my_player_for_action(), hand_idx, [], true)
+			return
+		if _field_ritual_total_value(field_n) < eff_cost_n:
+			status_label.text = "Not enough ritual value on your field to summon this noble."
+			return
+		_enter_noble_sacrifice_mode(hand_idx, eff_cost_n, str(c.get("name", nid_n)))
 	elif _card_type(c) == "bird":
 		if bool(snap.get("your_bird_played", false)):
 			status_label.text = "You already played a bird this turn."
@@ -4574,10 +4607,10 @@ func _try_play_ritual(player: int, hand_idx: int, trigger_cpu_check: bool = true
 	return true
 
 
-func _try_play_noble(player: int, hand_idx: int, trigger_cpu_check: bool = true) -> bool:
+func _try_play_noble(player: int, hand_idx: int, sacrifice_mids: Array = [], trigger_cpu_check: bool = true) -> bool:
 	if _match == null:
 		return false
-	if _match.play_noble(player, hand_idx) != "ok":
+	if _match.play_noble(player, hand_idx, sacrifice_mids) != "ok":
 		status_label.text = "Can't play that noble now."
 		return false
 	_broadcast_sync(trigger_cpu_check)
@@ -4898,13 +4931,13 @@ func submit_play_ritual(hand_idx: int) -> void:
 
 
 @rpc("any_peer", "reliable")
-func submit_play_noble(hand_idx: int) -> void:
+func submit_play_noble(hand_idx: int, sacrifice_mids: Array = []) -> void:
 	if not multiplayer.is_server():
 		return
 	if _match == null:
 		return
 	var pl := _peer_to_player(_sender_peer())
-	_try_play_noble(pl, hand_idx)
+	_try_play_noble(pl, hand_idx, sacrifice_mids, true)
 
 
 @rpc("any_peer", "reliable")
