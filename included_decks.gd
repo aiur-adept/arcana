@@ -189,6 +189,8 @@ static func _log_data_issues_once() -> void:
 					ok_value = value >= 2 and value <= 4
 				elif verb == "tears":
 					ok_value = value == 3
+				elif verb == "void":
+					ok_value = value == 0
 				if verb == "dethrone":
 					ok_value = value == 4
 				if not ok_value:
@@ -201,6 +203,10 @@ static func _log_data_issues_once() -> void:
 				var temple_id := str(c.get("temple_id", "")).strip_edges()
 				if temple_id.is_empty():
 					print("INFO: included_decks data issue: deck '%s' temple card[%d] missing temple_id." % [slug, j])
+			elif ctype == "ring":
+				var ring_id := str(c.get("ring_id", "")).strip_edges()
+				if ring_id.is_empty():
+					print("INFO: included_decks data issue: deck '%s' ring card[%d] missing ring_id." % [slug, j])
 			elif ctype == "bird":
 				var bird_id := str(c.get("bird_id", "")).strip_edges()
 				if bird_id.is_empty():
