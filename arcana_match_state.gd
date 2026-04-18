@@ -869,6 +869,7 @@ func nest_bird(p: int, bird_mid: int, temple_mid: int) -> String:
 		tf[j] = td
 		break
 	_log("P%d nests a bird (mid %d) in temple (mid %d)." % [p, bird_mid, temple_mid])
+	_check_power_win(p)
 	return "ok"
 
 
