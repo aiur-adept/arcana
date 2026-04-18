@@ -354,7 +354,7 @@ static func card_rules_text(card: Dictionary) -> String:
 		"tears":
 			return "Tears %d: return a Bird from your crypt to your field." % n
 		"void":
-			return "Void: during the opponent's turn, discard one card from your hand to nullify a non-ritual card they just played (it goes to their crypt with no effect). Void can nullify another Void. 3-second response window."
+			return "Void: during the opponent's turn, discard one card from your hand to nullify a non-ritual card they just played (it goes to their crypt with no effect). Void can nullify another Void. 10-second response window."
 		_:
 			return "Incantation %d." % n
 
