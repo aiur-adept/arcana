@@ -5,7 +5,7 @@ func build_definition() -> Dictionary:
 		"id": "bndrr_incantation",
 		"name": "Bndrr, Noble of Incantation",
 		"cost": 3,
-		"active_text": "Once per turn, you may Burn 2"
+		"active_text": "Once per turn, discard the top 4 cards of a chosen player's deck"
 	}
 
 

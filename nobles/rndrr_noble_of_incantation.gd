@@ -5,7 +5,7 @@ func build_definition() -> Dictionary:
 		"id": "rndrr_incantation",
 		"name": "Rndrr, Noble of Incantation",
 		"cost": 3,
-		"active_text": "Once per turn, you may Revive 1"
+		"active_text": "Once per turn, cast one incantation from your crypt; the cast card goes to the abyss"
 	}
 
 

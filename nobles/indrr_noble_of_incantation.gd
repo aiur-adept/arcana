@@ -5,7 +5,7 @@ func build_definition() -> Dictionary:
 		"id": "indrr_incantation",
 		"name": "Indrr, Noble of Incantation",
 		"cost": 3,
-		"active_text": "Once per turn, you may Insight 1"
+		"active_text": "Once per turn, look at the top card of a chosen deck; keep it on top or place it on the bottom"
 	}
 
 

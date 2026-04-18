@@ -359,9 +359,9 @@ static func card_rules_text(card: Dictionary) -> String:
 		"woe":
 			return "Woe %d: a chosen player discards %d chosen card(s) from hand." % [n, maxi(n - 2, 0)]
 		"revive":
-			return "Revive %d: you may cast %d incantation(s) from your crypt (chosen; no ritual cost)." % [n, n]
+			return "Revive %d: you may cast %d incantation from your crypt (chosen; no ritual cost)." % [n, n]
 		"wrath":
-			return "Wrath %d: destroy %d opponent ritual(s)." % [n, _wrath_destroy_count(n)]
+			return "Wrath 4: destroy 1 opponent ritual."
 		"deluge":
 			return "Deluge %d: destroy all birds with power %d or less." % [n, n - 1]
 		"tears":
@@ -430,12 +430,6 @@ static func _card_type(card: Dictionary) -> String:
 	return CardTraits.effective_kind(card)
 
 
-static func _wrath_destroy_count(value: int) -> int:
-	if value == 4:
-		return 1
-	return 0
-
-
 static func _ring_preview_text(ring_id: String) -> String:
 	match ring_id:
 		"sybiline_emanation":
@@ -455,9 +449,9 @@ static func _ring_preview_text(ring_id: String) -> String:
 static func _temple_preview_text(temple_id: String) -> String:
 	match temple_id:
 		"phaedra_illusion":
-			return "Activate (once per turn): Insight 1, then draw a card."
+			return "Activate (once per turn): look at the top card of a chosen deck and keep it on top or place it on the bottom, then draw a card."
 		"delpha_oracles":
-			return "Activate (once per turn): Send a Ritual of power X to the abyss to Burn yourself X (mill up to 2X from your deck), then play an additional Ritual from your crypt."
+			return "Activate (once per turn): send a Ritual of power X to the abyss, then discard the top 2X cards of your own deck, then play a Ritual from your crypt."
 		"gotha_illness":
 			return "Skip your draw step. Activate (once per turn): discard a non-temple card, then draw cards equal to its power/cost."
 		"ytria_cycles":
@@ -489,29 +483,29 @@ static func _noble_preview_text(noble_id: String) -> String:
 		"yrss_power":
 			return "Passive: grants access to 3-cost incantations."
 		"sndrr_incantation":
-			return "Activate (once per turn): discard a card to Seek 1."
+			return "Activate (once per turn): discard a card, then draw a card."
 		"wndrr_incantation":
-			return "Activate (once per turn): discard a card to Woe 3."
+			return "Activate (once per turn): discard a card, then the opponent discards a chosen card from hand."
 		"bndrr_incantation":
-			return "Activate (once per turn): Burn 2."
+			return "Activate (once per turn): discard the top 4 cards of a chosen player's deck."
 		"rndrr_incantation":
-			return "Activate (once per turn): Revive 1."
+			return "Activate (once per turn): cast one incantation from your crypt; the cast card goes to the abyss."
 		"indrr_incantation":
-			return "Activate (once per turn): Insight 1."
+			return "Activate (once per turn): look at the top card of a chosen deck; keep it on top or place it on the bottom."
 		"xytzr_emanation":
-			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at an additional card."
+			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at one additional card."
 		"yytzr_occultation":
-			return "Whenever you Burn, add 3 to the number discarded. Whenever you Revive, you may sacrifice 2+ ritual power for an extra crypt cast."
+			return "Whenever you Burn, 3 additional cards are discarded from the top of that deck. Whenever you Revive, you may sacrifice rituals totaling at least 2 to cast one additional incantation from your crypt."
 		"zytzr_annihilation":
-			return "Whenever you Wrath, destroy an extra ritual. Whenever you Woe, the victim discards an additional card."
+			return "Whenever you Wrath, destroy one additional opponent ritual. Whenever you Woe, the victim discards one additional card."
 		"aeoiu_rituals":
 			return "Activate (once per turn): play a Ritual from your crypt."
 		"rmrsk_emanation":
 			return "Whenever you Insight, you may then draw a card."
 		"smrsk_occultation":
-			return "Whenever you Burn or Revive, you may sacrifice a Ritual of power X to Burn yourself X."
+			return "Whenever you Burn or Revive, you may sacrifice a Ritual of power X, then discard the top 2X cards of your own deck."
 		"tmrsk_annihilation":
-			return "Whenever you Wrath, Woe 3."
+			return "Whenever you Wrath, the opponent discards a chosen card from hand."
 		_:
 			return "Noble effect."
 
