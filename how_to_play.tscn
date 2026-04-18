@@ -52,15 +52,19 @@ bbcode_enabled = false
 fit_content = true
 scroll_active = false
 text = "During Your Turn
-1. Draw — Draw 1 card from your deck.
-2. Play cards — You may play:
-   - Any number of Incantations (provided you have the matching active Ritual, or sacrifice Rituals to cover the cost)
-   - Up to 1 Ritual
-   - Up to 1 Noble
-   - Up to 1 Temple
-3. Activate permanents — Each Noble and each Temple can activate once per turn.
-4. Loot (optional) — Once per turn, you may discard a card to draw a card.
-5. Discard down — At the end of your turn, discard until you have 7 cards in hand."
+1. Draw — Draw 1 card from your deck (the player who goes first skips this on turn 1).
+2. Play cards — In any order, you may play:
+   - Any number of Incantations (each needs a matching active Ritual lane, or sacrifice Rituals to cover the cost)
+   - Up to 1 Ritual from hand
+   - Up to 1 Noble from hand
+   - Up to 1 Temple from hand
+   - Up to 1 Bird from hand
+   - Any number of Rings
+3. Nest Birds — Move any of your un-nested Birds under your Temples (a Temple can hold up to cost-many Birds).
+4. Bird combat (optional, once per turn) — Send any set of your un-nested Birds against one opposing un-nested Bird; both sides deal damage equal to total Bird power and you assign damage among your own Birds.
+5. Activate permanents — Each card on the field with an activated ability can activate once per turn.
+6. Loot (optional, once per turn) — Discard a card to draw a card.
+7. Discard down — At the end of your turn, discard until you have 7 cards in hand."
 
 [node name="ExamplesTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2
