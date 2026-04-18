@@ -5,7 +5,7 @@ func build_definition() -> Dictionary:
 		"id": "wndrr_incantation",
 		"name": "Wndrr, Noble of Incantation",
 		"cost": 3,
-		"active_text": "Once per turn, you may Woe 2"
+		"active_text": "Once per turn, you may discard a card to Woe 2"
 	}
 
 

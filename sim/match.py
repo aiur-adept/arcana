@@ -779,6 +779,13 @@ class MatchState:
             return
         if verb is None:
             return
+        if info.get("activation_discard"):
+            if not p.hand:
+                return
+            di = ctx.get("discard_hand_idx", 0)
+            if not (0 <= di < len(p.hand)):
+                return
+            p.crypt.append(p.hand.pop(di))
         pseudo = Card(kind=Kind.INCANTATION, verb=verb, value=val)
         self._resolve_incantation_effect(pid, pseudo, ctx)
         n.used_turn = self.turn_number
@@ -808,8 +815,6 @@ class MatchState:
             if r is None:
                 return
             x = r.value
-            if len(p.deck) < 2 * x:
-                return
             crypt_ritual_idx = ctx.get("crypt_ritual_idx")
             if crypt_ritual_idx is None:
                 best = None

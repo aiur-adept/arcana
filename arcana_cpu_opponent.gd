@@ -186,16 +186,20 @@ func run_turn(host: Node) -> void:
 			var nid2 := str(nn.get("noble_id", ""))
 			var ok_act := false
 			if nid2 == "bndrr_incantation":
-				ok_act = host._match.apply_noble_spell_like(1, nmid, "burn", 1, [], {"mill_target": 0}) == "ok"
+				ok_act = host._match.apply_noble_spell_like(1, nmid, "burn", 2, [], {"mill_target": 0}) == "ok"
 			elif nid2 == "wndrr_incantation":
-				ok_act = host._match.apply_noble_spell_like(1, nmid, "woe", 1, [], {"woe_target": 0}) == "ok"
+				var hand_w: Array = snap.get("your_hand", []) as Array
+				if not hand_w.is_empty():
+					ok_act = host._match.apply_noble_spell_like(1, nmid, "woe", 2, [], {"woe_target": 0, "discard_hand_idx": 0}) == "ok"
 			elif nid2 == "sndrr_incantation":
-				ok_act = host._match.apply_noble_spell_like(1, nmid, "seek", 1, [], {}) == "ok"
+				var hand_s: Array = snap.get("your_hand", []) as Array
+				if not hand_s.is_empty():
+					ok_act = host._match.apply_noble_spell_like(1, nmid, "seek", 1, [], {"discard_hand_idx": 0}) == "ok"
 			elif nid2 == "rndrr_incantation":
 				ok_act = host._match.apply_noble_revive_from_crypt(1, nmid, {"revive_steps": [{"revive_skip": true}]}) == "ok"
 			elif nid2 == "indrr_incantation":
 				var tgt_i := 0
-				var idn: int = host._match.insight_effective_n(1, 2)
+				var idn: int = host._match.insight_effective_n(1, 1)
 				var peek2: Array = host._match.insight_peek_top_cards(tgt_i, idn)
 				var perm_i: Array = []
 				for ii in peek2.size():

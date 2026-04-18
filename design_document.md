@@ -170,6 +170,7 @@ If empty-deck draw is attempted:
   - Wrath cannot be cast via revive.
   - Cards cast this way go to abyss (not crypt).
 - **Dethrone 4**: Destroy one opposing noble.
+- **Deluge X**: Destroy all Birds of power X-1 or less.
 - **Tears 3**: Return a Bird from your crypt to the field. 
 
 ## 10) Noble Abilities (Set 1)
@@ -195,11 +196,11 @@ All noble static abilities apply while that noble remains on the field.
 ### 10.2 Cost 3
 
 - **Trss, Noble of Power**: Grants ritual lane 2 while on field (static).
-- **Bndrr, Noble of Incantation**: Once per turn, Burn 1.
-- **Indrr, Noble of Incantation**: Once per turn, Insight 2.
+- **Bndrr, Noble of Incantation**: Once per turn, Burn 2.
+- **Indrr, Noble of Incantation**: Once per turn, Insight 1.
 - **Rndrr, Noble of Incantation**: Once per turn, Revive 1.
-- **Sndrr, Noble of Incantation**: Once per turn, Seek 1.
-- **Wndrr, Noble of Incantation**: Once per turn, Woe 2.
+- **Sndrr, Noble of Incantation**: Once per turn, you may discard a card to Seek 1.
+- **Wndrr, Noble of Incantation**: Once per turn, you may discard a card to Woe 2.
 
 ### 10.3 Cost 2
 
@@ -208,7 +209,7 @@ All noble static abilities apply while that noble remains on the field.
 - **Smrsk, Scion of Occultation** (triggered, optional):
   - After you resolve Burn or Revive, you may sacrifice one ritual of value X, then Burn yourself X.
 - **Tmrsk, Scion of Annihilation** (triggered, optional):
-  - After you resolve Wrath, you may perform Woe 2.
+  - After you resolve Wrath, you may Woe 2.
 
 
 - **Krss, Noble of Power**: Grants ritual lane 1 while on field (static).
@@ -228,7 +229,6 @@ Temple activations are once per turn per temple.
   - Insight 1, then draw 1.
 - **Delpha, Temple of Oracles**:
   - Sacrifice one ritual of value X from field (it goes to abyss), then Burn yourself X, then play one ritual from your crypt.
-  - Legal only if you have enough cards in deck to mill `2X`.
 - **Gotha, Temple of Illness**:
   - Static: Skip your turn-start draw.
   - Activated: Discard one non-temple card, then draw cards equal to that card's cost (or power if Ritual).
@@ -245,7 +245,7 @@ Temple activations are once per turn per temple.
 - **Wrath with too few enemy rituals**: destroys as many as possible, up to required amount.
 - **Milling is not drawing**: Burn moving cards from deck to crypt does not trigger empty-deck loss by itself.
 - **Empty deck loss check** only occurs when a player attempts to draw.
-- **Revived cards to abyss**: an incantation cast via revive is placed in abyss after resolution; if a revived noble is later destroyed/dethroned, it goes to abyss.
+- **Revived cards to abyss**: an incantation cast via revive is placed in the abyss after resolution; if a revived noble is later destroyed, it goes to the abyss.
 - **Temples and nobles cannot be revived**: revive only works on incantations.
 
 ## 13) Deck Construction Rules

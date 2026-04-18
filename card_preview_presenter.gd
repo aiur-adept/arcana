@@ -1,7 +1,6 @@
 extends RefCounted
 class_name CardPreviewPresenter
 
-const CardTraits = preload("res://card_traits.gd")
 const CornerPipDraw = preload("res://corner_pip_draw.gd")
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 const PREVIEW_SCALE := 1.618
@@ -424,7 +423,7 @@ static func _temple_preview_text(temple_id: String) -> String:
 		"phaedra_illusion":
 			return "Activate (once per turn): Insight 1, then draw a card."
 		"delpha_oracles":
-			return "Activate (once per turn): Send a Ritual of power X to the abyss to Burn yourself X (mill 2X from your deck), then play an additional Ritual from your crypt."
+			return "Activate (once per turn): Send a Ritual of power X to the abyss to Burn yourself X (mill up to 2X from your deck), then play an additional Ritual from your crypt."
 		"gotha_illness":
 			return "Skip your draw step. Activate (once per turn): discard a non-temple card, then draw cards equal to its power/cost."
 		"ytria_cycles":
@@ -456,15 +455,15 @@ static func _noble_preview_text(noble_id: String) -> String:
 		"yrss_power":
 			return "Passive: grants access to 3-cost incantations."
 		"sndrr_incantation":
-			return "Activate (once per turn): Seek 1."
+			return "Activate (once per turn): discard a card to Seek 1."
 		"wndrr_incantation":
-			return "Activate (once per turn): Woe 2."
+			return "Activate (once per turn): discard a card to Woe 2."
 		"bndrr_incantation":
-			return "Activate (once per turn): Burn 1."
+			return "Activate (once per turn): Burn 2."
 		"rndrr_incantation":
 			return "Activate (once per turn): Revive 1."
 		"indrr_incantation":
-			return "Activate (once per turn): Insight 2."
+			return "Activate (once per turn): Insight 1."
 		"xytzr_emanation":
 			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at an additional card."
 		"yytzr_occultation":

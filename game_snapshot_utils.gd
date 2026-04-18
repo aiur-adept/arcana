@@ -1,8 +1,6 @@
 extends RefCounted
 class_name GameSnapshotUtils
 
-const CardTraits = preload("res://card_traits.gd")
-
 static func your_crypt_cards_from_snap(snap: Dictionary) -> Array:
 	return (snap.get("your_crypt_cards", []) as Array).duplicate(true)
 

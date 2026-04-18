@@ -5,7 +5,7 @@ func build_definition() -> Dictionary:
 		"id": "sndrr_incantation",
 		"name": "Sndrr, Noble of Incantation",
 		"cost": 3,
-		"active_text": "Once per turn, you may Seek 1"
+		"active_text": "Once per turn, you may discard a card to Seek 1"
 	}
 
 

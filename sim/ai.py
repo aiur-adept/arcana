@@ -210,11 +210,24 @@ class GreedyAI:
             if not verb:
                 continue
             val = info.get("activated_value", 0)
+            if info.get("activation_discard") and not p.hand:
+                continue
             eff = self._score_effect(state, pid, verb, val)
             if eff is None:
                 continue
             score, ctx = eff
             score += 30
+            if info.get("activation_discard"):
+                ctx = dict(ctx or {})
+                worst_i = 0
+                worst_score = None
+                for ci, cc in enumerate(p.hand):
+                    cs = cc.cost if cc.cost else cc.value
+                    if worst_score is None or cs < worst_score:
+                        worst_score = cs
+                        worst_i = ci
+                ctx["discard_hand_idx"] = worst_i
+                score -= 8
             actions.append((score, "activate_noble", (n.mid, ctx)))
 
         for t in p.temple_field:

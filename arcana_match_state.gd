@@ -1,8 +1,6 @@
 class_name ArcanaMatchState
 extends RefCounted
 
-const CardTraits = preload("res://card_traits.gd")
-
 const MAX_HAND_END := 7
 const START_HAND := 5
 const WIN_POWER := 20
@@ -1467,20 +1465,36 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 	var noble := _find_noble_on_field(p, noble_mid)
 	var nid := str(noble.get("noble_id", ""))
 	var v := verb.to_lower()
+	var needs_cost_discard := false
 	match nid:
 		"bndrr_incantation":
-			if v != "burn" or value != 1:
+			if v != "burn" or value != 2:
 				return "illegal"
 		"wndrr_incantation":
 			if v != "woe" or value != 2:
 				return "illegal"
+			if int(ctx.get("woe_target", -1)) != 1 - p:
+				return "illegal"
+			needs_cost_discard = true
 		"sndrr_incantation":
 			if v != "seek" or value != 1:
 				return "illegal"
+			needs_cost_discard = true
 		_:
+			return "illegal"
+	var cost_idx := -1
+	if needs_cost_discard:
+		var hand_sz_cost: int = (_players[p]["hand"] as Array).size()
+		cost_idx = int(ctx.get("discard_hand_idx", -1))
+		if cost_idx < 0 or cost_idx >= hand_sz_cost:
 			return "illegal"
 	if _validate_play_ctx(p, v, value, wrath_mids, ctx) != "ok":
 		return "illegal"
+	if needs_cost_discard:
+		var pl_pay: Dictionary = _players[p]
+		var hand_pay: Array = pl_pay["hand"]
+		_move_hand_card_to_discard(pl_pay, hand_pay, cost_idx)
+		_log("P%d discards 1 card to activate %s." % [p, str(noble.get("name", nid))])
 	var wr_r: Array = []
 	if v == "wrath":
 		wr_r = _wrath_resolve_mids(1 - p, value, wrath_mids, p)
@@ -1505,7 +1519,7 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 	_mark_noble_used_this_turn(p, noble_mid)
 	match nid:
 		"bndrr_incantation":
-			_log("P%d activates Bndrr (Burn 1)." % p)
+			_log("P%d activates Bndrr (Burn 2)." % p)
 		"wndrr_incantation":
 			_log("P%d activates Wndrr (Woe 2)." % p)
 		"sndrr_incantation":
@@ -1647,8 +1661,6 @@ func can_activate_temple(p: int, temple_mid: int) -> bool:
 		var pl: Dictionary = _players[p]
 		if _ritual_crypt_cards(pl).is_empty():
 			return false
-		if (pl["deck"] as Array).size() < 2:
-			return false
 		if (pl["field"] as Array).is_empty():
 			return false
 	if tid == TEMPLE_YTRIA:
@@ -1695,8 +1707,6 @@ func apply_temple_delpha(p: int, temple_mid: int, ritual_mid: int, crypt_idx: in
 			continue
 		keep.append(r)
 	if not removed or x < 1:
-		return "illegal"
-	if (pl["deck"] as Array).size() < 2 * x:
 		return "illegal"
 	var abyss_ritual := {"mid": ritual_mid, "type": "ritual", "value": x}
 	pl["field"] = keep
@@ -1936,12 +1946,12 @@ func activate_noble_with_insight(p: int, noble_mid: int, insight_target: int, in
 	var noble := _find_noble_on_field(p, noble_mid)
 	if str(noble.get("noble_id", "")) == "indrr_incantation":
 		var ctx := {"insight_target": insight_target, "insight_top": insight_top, "insight_bottom": insight_bottom}
-		if _validate_play_ctx(p, "insight", 2, [], ctx) != "ok":
+		if _validate_play_ctx(p, "insight", 1, [], ctx) != "ok":
 			return "illegal"
-		execute_incantation_effect(p, "insight", 2, [], ctx)
+		execute_incantation_effect(p, "insight", 1, [], ctx)
 		_queue_post_effect_scion_trigger(p, "insight")
 		_mark_noble_used_this_turn(p, noble_mid)
-		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 2)])
+		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 1)])
 		return "ok"
 	var hook: Variant = _hook_for_noble(noble)
 	var result: Variant = hook.call("activate", self, p, noble)

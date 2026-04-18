@@ -1,7 +1,6 @@
 extends Control
 
 const IncludedDecks = preload("res://included_decks.gd")
-const CardTraits = preload("res://card_traits.gd")
 const CornerPipDraw = preload("res://corner_pip_draw.gd")
 const CARD_TEXT_FONT: Font = preload("res://fonts/Macondo-Regular.ttf")
 const _ArcanaCpuOpponent = preload("res://arcana_cpu_opponent.gd")
@@ -176,6 +175,10 @@ var _sacrifice_for_temple: bool = false
 var _insight_temple_mid: int = -1
 var _gotha_picking: bool = false
 var _gotha_temple_mid: int = -1
+var _sndrr_picking: bool = false
+var _sndrr_noble_mid: int = -1
+var _wndrr_picking: bool = false
+var _wndrr_noble_mid: int = -1
 
 var _eyrie_overlay: Control
 var _eyrie_label: Label
@@ -886,10 +889,10 @@ func _on_burn_woe_confirm_pressed() -> void:
 	if _burn_woe_mode == "noble_burn":
 		var ctxb := {"mill_target": _pending_mill_target}
 		if _is_network_client():
-			submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "burn", 1, [], ctxb)
+			submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "burn", 2, [], ctxb)
 		else:
 			if _match != null:
-				_match.apply_noble_spell_like(_my_player_for_action(), _noble_spell_mid, "burn", 1, [], ctxb)
+				_match.apply_noble_spell_like(_my_player_for_action(), _noble_spell_mid, "burn", 2, [], ctxb)
 		_noble_spell_mid = -1
 		_clear_incantation_flow_ui()
 		_broadcast_sync(true)
@@ -1360,6 +1363,12 @@ func _apply_snap(snap: Dictionary) -> void:
 		if int(snap.get("current", -1)) != int(snap.get("you", 0)) or int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 			_gotha_picking = false
 			_gotha_temple_mid = -1
+	if _sndrr_picking or _wndrr_picking:
+		if int(snap.get("current", -1)) != int(snap.get("you", 0)) or int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
+			_sndrr_picking = false
+			_sndrr_noble_mid = -1
+			_wndrr_picking = false
+			_wndrr_noble_mid = -1
 	if bool(snap.get("eyrie_pending_you_respond", false)):
 		_show_eyrie_overlay_from_snap(snap)
 	else:
@@ -2400,6 +2409,10 @@ func _clear_incantation_flow_ui() -> void:
 	_clear_revive_overlay()
 	_pending_noble_woe_mid = -1
 	_noble_spell_mid = -1
+	_sndrr_picking = false
+	_sndrr_noble_mid = -1
+	_wndrr_picking = false
+	_wndrr_noble_mid = -1
 
 
 func _submit_dethrone_play(hand_idx: int, noble_mids: Array, sacrifice_mids: Array = []) -> void:
@@ -3144,13 +3157,15 @@ func _set_zone_visible(zone_row: HBoxContainer, zone_visible: bool) -> void:
 
 
 func _on_noble_activate_pressed(noble_mid: int) -> void:
+	if _sndrr_picking or _wndrr_picking or _gotha_picking:
+		return
 	var yours: Array = _last_snap.get("your_nobles", [])
 	for noble in yours:
 		if int(noble.get("mid", -1)) != noble_mid:
 			continue
 		var nid := str(noble.get("noble_id", ""))
 		if nid == "indrr_incantation":
-			_begin_insight_ui(-1, _insight_depth_for(_last_snap, 2), [], noble_mid)
+			_begin_insight_ui(-1, _insight_depth_for(_last_snap, 1), [], noble_mid)
 			return
 		if nid == "bndrr_incantation":
 			_start_noble_burn(noble_mid)
@@ -3162,12 +3177,7 @@ func _on_noble_activate_pressed(noble_mid: int) -> void:
 			_start_noble_revive(noble_mid)
 			return
 		if nid == "sndrr_incantation":
-			if _is_network_client():
-				submit_noble_spell_like.rpc_id(1, noble_mid, "seek", 1, [], {})
-			else:
-				if _match != null:
-					_match.apply_noble_spell_like(_my_player_for_action(), noble_mid, "seek", 1, [], {})
-			_broadcast_sync(true)
+			_start_noble_seek(noble_mid)
 			return
 		if nid == "aeoiu_rituals":
 			_start_aeoiu_ritual_pick(noble_mid)
@@ -3187,7 +3197,7 @@ func _start_noble_burn(noble_mid: int) -> void:
 	_noble_spell_mid = noble_mid
 	_burn_woe_mode = "noble_burn"
 	_pending_mill_target = int(_last_snap.get("you", 0))
-	_burn_woe_title.text = "Bndrr — choose deck to mill"
+	_burn_woe_title.text = "Bndrr — choose deck to Burn 2"
 	_tgt_left_btn.text = "Your deck"
 	_tgt_right_btn.text = "Opponent deck"
 	_burn_woe_hint.text = "Confirm."
@@ -3197,16 +3207,25 @@ func _start_noble_burn(noble_mid: int) -> void:
 
 
 func _start_noble_woe(noble_mid: int) -> void:
-	_noble_spell_mid = noble_mid
-	_burn_woe_mode = "noble_woe"
-	_pending_woe_target = int(_last_snap.get("you", 0))
-	_burn_woe_title.text = "Wndrr — who discards?"
-	_tgt_left_btn.text = "You"
-	_tgt_right_btn.text = "Opponent"
-	_burn_woe_hint.text = "Confirm."
-	_burn_woe_overlay.visible = true
-	end_turn_button.disabled = true
-	discard_draw_button.disabled = true
+	var hand: Array = _last_snap.get("your_hand", []) as Array
+	if hand.is_empty():
+		status_label.text = "Wndrr needs a card to discard."
+		return
+	_wndrr_picking = true
+	_wndrr_noble_mid = noble_mid
+	status_label.text = "Wndrr: discard a card to Woe 2 the opponent."
+	_rebuild_hand(hand)
+
+
+func _start_noble_seek(noble_mid: int) -> void:
+	var hand: Array = _last_snap.get("your_hand", []) as Array
+	if hand.is_empty():
+		status_label.text = "Sndrr needs a card to discard."
+		return
+	_sndrr_picking = true
+	_sndrr_noble_mid = noble_mid
+	status_label.text = "Sndrr: discard a card to Seek 1."
+	_rebuild_hand(hand)
 
 
 func _start_noble_revive(noble_mid: int) -> void:
@@ -3275,6 +3294,8 @@ func _temple_field_input_ok() -> bool:
 		return false
 	if _gotha_picking:
 		return false
+	if _sndrr_picking or _wndrr_picking:
+		return false
 	if _delpha_overlay != null and _delpha_overlay.visible:
 		return false
 	if _eyrie_overlay != null and _eyrie_overlay.visible:
@@ -3328,10 +3349,6 @@ func _on_temple_activate_pressed(temple_mid: int) -> void:
 
 
 func _start_delpha_pick(temple_mid: int) -> void:
-	var deck_n := int(_last_snap.get("your_deck", 0))
-	if deck_n < 2:
-		status_label.text = "Need at least 2 cards in deck for Delpha."
-		return
 	var rg: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
 	if rg.is_empty():
 		status_label.text = "No rituals in your crypt."
@@ -3354,8 +3371,6 @@ func _start_delpha_pick(temple_mid: int) -> void:
 		var rm := int(r.get("mid", -1))
 		var rv := int(r.get("value", 0))
 		if rm < 0 or rv < 1:
-			continue
-		if deck_n < 2 * rv:
 			continue
 		var rb := Button.new()
 		rb.text = "Field ritual %d (mid %d)" % [rv, rm]
@@ -3456,7 +3471,8 @@ func _rebuild_hand(hand: Variant) -> void:
 		var play_type_blocked := (ritual_blocked or noble_blocked or temple_blocked or bird_blocked) and not _mode_discard_draw and not _selecting_end_discard
 		var waiting_input_window := mine or woe_you
 		var gotha_pick := mine and _gotha_picking
-		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick
+		var noble_cost_pick := mine and (_sndrr_picking or _wndrr_picking)
+		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick and not noble_cost_pick
 		var picked_count := 0
 		if woe_you:
 			picked_count = int(_woe_self_picked.get(stack_key, 0))
@@ -3904,6 +3920,29 @@ func _on_hand_pressed(hand_idx: int) -> void:
 				status_label.text = "Could not activate Gotha."
 		_gotha_picking = false
 		_gotha_temple_mid = -1
+		_broadcast_sync(true)
+		return
+	if _sndrr_picking:
+		var ctxs := {"discard_hand_idx": hand_idx}
+		if _is_network_client():
+			submit_noble_spell_like.rpc_id(1, _sndrr_noble_mid, "seek", 1, [], ctxs)
+		else:
+			if _match == null or _match.apply_noble_spell_like(_my_player_for_action(), _sndrr_noble_mid, "seek", 1, [], ctxs) != "ok":
+				status_label.text = "Could not activate Sndrr."
+		_sndrr_picking = false
+		_sndrr_noble_mid = -1
+		_broadcast_sync(true)
+		return
+	if _wndrr_picking:
+		var opp_w := 1 - int(snap.get("you", 0))
+		var ctxw := {"discard_hand_idx": hand_idx, "woe_target": opp_w}
+		if _is_network_client():
+			submit_noble_spell_like.rpc_id(1, _wndrr_noble_mid, "woe", 2, [], ctxw)
+		else:
+			if _match == null or _match.apply_noble_spell_like(_my_player_for_action(), _wndrr_noble_mid, "woe", 2, [], ctxw) != "ok":
+				status_label.text = "Could not activate Wndrr."
+		_wndrr_picking = false
+		_wndrr_noble_mid = -1
 		_broadcast_sync(true)
 		return
 	if _insight_open:
@@ -4601,6 +4640,12 @@ func _on_end_turn_pressed() -> void:
 	if _gotha_picking:
 		_gotha_picking = false
 		_gotha_temple_mid = -1
+	if _sndrr_picking:
+		_sndrr_picking = false
+		_sndrr_noble_mid = -1
+	if _wndrr_picking:
+		_wndrr_picking = false
+		_wndrr_noble_mid = -1
 	if _delpha_overlay != null and _delpha_overlay.visible:
 		_on_delpha_cancel_pressed()
 	if _sacrifice_selecting:
