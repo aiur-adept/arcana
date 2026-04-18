@@ -422,7 +422,9 @@ class GreedyAI:
             threshold = val - 1
             opp_hit = sum(1 for b in opp_p.bird_field if b.power <= threshold and b.nest_mid < 0)
             me_hit = sum(1 for b in me.bird_field if b.power <= threshold and b.nest_mid < 0)
-            net = opp_hit - me_hit
+            opp_unnest = sum(1 for b in opp_p.bird_field if b.nest_mid >= 0)
+            me_unnest = sum(1 for b in me.bird_field if b.nest_mid >= 0)
+            net = (opp_hit - me_hit) + (opp_unnest - me_unnest)
             if net <= 0:
                 return None
             return (5 + net * 4.0, {})

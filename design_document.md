@@ -113,23 +113,26 @@ If sacrificed, those rituals leave your field and go to your crypt.
 
 ### 6.2 Nobles
 
-To play a noble, you must have the noble's cost lane active (no sacrifice payment for noble play).
-Only one noble may be played from hand per turn.
+To play a Noble, you must have the Noble's cost lane active (no sacrifice payment for Noble play).
+Only one Noble may be played from hand per turn.
 
 ### 6.3 Temples
 
-To play a temple, you must sacrifice rituals with total value at least its temple cost:
+To play a Temple, you must sacrifice rituals with total value at least its cost:
 
 - Most temples cost **7**.
 - Ytria costs **9**.
 
-Only one temple may be played from hand per turn.
+Only one Temple may be played from hand per turn.
 
-### 6.4 Dethrone
+### 6.4 Birds
 
-Dethrone has value 4.
-To play Dethrone, you must either have active lane 4 or sacrifice rituals totaling at least 4.
-It destroys one target opposing noble.
+To play a Bird, you must have the Bird's cost lane active (no sacrifice payment for Bird play).
+Only one Bird may be played from hand per turn.
+
+### 6.5 Rings
+
+To play a Ring, you must have the Ring's cost lane active (no sacrifice payment for Bird play).
 
 ## 7) Action Limits and Timing Locks
 
@@ -168,7 +171,7 @@ If empty-deck draw is attempted:
   - Revive itself cannot be revived.
   - Cards cast this way go to abyss (not crypt).
 - **Dethrone 4**: Destroy one opposing noble.
-- **Deluge X**: Destroy all Birds of power X-1 or less. [comes in Deluge 2, 3 and 4]
+- **Deluge X**: Destroy all wild Birds of power X-1 or less, then all nested birds become wild again. [comes in Deluge 2, 3 and 4]
 - **Tears 3**: Return a Bird from your crypt to the field. 
 - **Void**: Can be played during the opponent's turn by discarding one other card from your hand to nullify a non-ritual card the opponent just played (it goes to their crypt with no effect; costs already paid such as sacrifices are not refunded). Void has no other cost — no lane or ritual sacrifice is required. Void may nullify another Void. The reactive decision window is 10 seconds, counted client-side; timing out auto-skips. The countdown is paused once the reactor begins picking a discard (so committing to Void gives unrestricted time to choose what to pitch). In networked PvP this leaks one bit of information ("I hold Void"), accepted as the cost of avoiding a universal delay on all card plays.
 
@@ -214,19 +217,17 @@ All noble static abilities apply while that noble remains on the field.
 
 ## 10A) Rings
 
-Rings are silver cards that attach to a Noble or Bird you control. Their static effects remain active as long as they stay on the field.
+Rings are cards that attach to a Noble or Bird you control. Their static effects remain active as long as they stay on the field.
 
 ### 10A.1 Cost and Play
 
 - Every ring has cost **2**. To play a ring you must have the 2-lane active and choose a legal host.
 - A legal host is one of your Nobles or one of your Birds that is not nested in a Temple.
 - A ring enters play attached to its host. Multiple rings can be attached to the same host.
-- Rings themselves are not Birds or Nobles; Dethrone and Deluge cannot target them, and Wrath cannot destroy them.
 
 ### 10A.2 Attachment and Destruction
 
 - When a host is destroyed or otherwise leaves the field (for example, Dethrone on a Noble, Deluge or bird combat on a Bird), its attached rings are put into their owner's crypt.
-- Rings cannot be cast via Revive (Revive works on Incantations only).
 
 ### 10A.3 Restrictions
 
@@ -235,11 +236,8 @@ Rings are silver cards that attach to a Noble or Bird you control. Their static 
 
 ### 10A.4 Cost Reduction and Stacking
 
-- While a ring is on the field, it reduces the printed cost of the listed card types by 1 (to a minimum of 0).
-- Multiple rings stack additively. For example, two copies of Sybiline on the field make Seek and Insight each cost 2 less.
-- If an Incantation's effective cost is 0, it can be played with no active lane and no sacrifice.
-- If a Noble's or Bird's effective cost is 0, it can be played without an active ritual lane.
-- Cost reductions never affect payment for Temples (which are paid by sacrificing Rituals), Void (no cost), or Dethrone.
+- While a ring is on the field, it reduces the cost of the listed card types by 1 (to a minimum of 0).
+- If an Incantation, Noble, or Bird's effective cost is 0, it can be played with no active lane.
 
 ### 10A.5 Set 1 Rings
 

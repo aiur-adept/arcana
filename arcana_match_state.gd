@@ -1737,7 +1737,7 @@ func execute_incantation_effect(p: int, verb: String, value: int, wrath_resolved
 				return "illegal"
 			var threshold := value - 1
 			var destroyed := _destroy_birds_with_power_at_most(threshold)
-			_log("Deluge %d destroys %d bird(s) with power %d or less." % [value, destroyed, threshold])
+			_log("Deluge %d destroys %d wild bird(s) with power %d or less, then unnests all surviving birds." % [value, destroyed, threshold])
 			return "ok"
 		"tears":
 			var tidx := int(ctx.get("tears_crypt_idx", -1))
@@ -2784,19 +2784,13 @@ func _destroy_birds_by_mids(target: int, mids: Array) -> void:
 
 
 func _destroy_birds_with_power_at_most(power: int) -> int:
-	if power <= 0:
-		return 0
 	var total := 0
 	for p in range(2):
 		var pl: Dictionary = _players[p]
 		var keep: Array = []
 		for b in pl["bird_field"]:
 			var bd := b as Dictionary
-			var bmid2 := int(bd.get("mid", -1))
-			if int(bd.get("power", 0)) <= power:
-				var ntm2 := _bird_nest_temple_mid(bd)
-				if ntm2 >= 0:
-					_remove_bird_from_temple_nest(p, ntm2, bmid2)
+			if power > 0 and int(bd.get("power", 0)) <= power and _bird_nest_temple_mid(bd) < 0:
 				_shed_rings_to_crypt(pl, bd)
 				var to_crypt := bd.duplicate(true)
 				to_crypt.erase("damage")
@@ -2809,7 +2803,25 @@ func _destroy_birds_with_power_at_most(power: int) -> int:
 				kept["damage"] = 0
 				keep.append(kept)
 		pl["bird_field"] = keep
+		_unnest_all_birds(p)
 	return total
+
+
+func _unnest_all_birds(p: int) -> void:
+	var pl: Dictionary = _players[p]
+	var bf: Array = pl["bird_field"]
+	for i in bf.size():
+		var bd: Dictionary = bf[i]
+		if int(bd.get("nest_temple_mid", -1)) >= 0:
+			bd["nest_temple_mid"] = -1
+			bf[i] = bd
+	var tf: Array = _temple_field_safe(p)
+	for j in tf.size():
+		var td: Dictionary = tf[j]
+		if not (td.get("nested_bird_mids", []) as Array).is_empty() or bool(td.get("nested", false)):
+			td["nested_bird_mids"] = []
+			td["nested"] = false
+			tf[j] = td
 
 
 func resolve_bird_fight(p: int, attacker_mids: Array, defender_mid: int, attacker_damage_assign: Dictionary = {}) -> String:

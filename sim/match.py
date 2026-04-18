@@ -699,11 +699,7 @@ class MatchState:
             p = self.players[q]
             keep = []
             for b in p.bird_field:
-                if b.power <= threshold:
-                    if b.nest_mid >= 0:
-                        for t in p.temple_field:
-                            if t.mid == b.nest_mid and b.mid in t.nested:
-                                t.nested.remove(b.mid)
+                if b.power <= threshold and b.nest_mid < 0:
                     p.crypt.append(Card(kind=Kind.BIRD, bird_id=b.bird_id, cost=b.cost, power=b.power,
                                         name=BIRD_DEFS[b.bird_id]["name"]))
                     if b.rings:
@@ -711,6 +707,11 @@ class MatchState:
                 else:
                     keep.append(b)
             p.bird_field = keep
+            for b in p.bird_field:
+                b.nest_mid = -1
+            for t in p.temple_field:
+                if t.nested:
+                    t.nested = []
 
     def _effect_tears(self, pid: int, ctx: dict) -> None:
         p = self.players[pid]
