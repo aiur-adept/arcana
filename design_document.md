@@ -160,7 +160,7 @@ If empty-deck draw is attempted:
 
 ## 9) Core Mechanics (Set 1)
 
-- **Seek X**: Draw X cards.
+- **Seek X**: Draw X cards. [comes in Seek 1 and Seek 2]
 - **Insight X**: Look at top X cards of target player's deck; reorder any on top and/or move any number to bottom.
 - **Burn X**: Mill `2 * X` cards from target player's deck into that player's crypt.
 - **Woe X**: Target player discards X-1 chosen cards from hand.
