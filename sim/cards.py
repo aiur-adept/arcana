@@ -28,6 +28,7 @@ VERB_WRATH = "wrath"
 VERB_REVIVE = "revive"
 VERB_DELUGE = "deluge"
 VERB_TEARS = "tears"
+VERB_VOID = "void"  # reactive counterspell; not modeled in the MC simulator
 
 
 @dataclass(frozen=True)

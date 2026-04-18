@@ -59,10 +59,9 @@ Ritual values are 1, 2, 3, and 4.
 - A **1-ritual is always active**.
 - A ritual of value **N > 1** is active only if you also have at least one active ritual of every value from 1 to N-1.
 - A ritual lane is active if you control at least one active ritual of that value.
-- Birds can additionally activate one ritual lane: the lane whose value equals the total Bird power you control.
 
 **Ritual power** is the sum of values of your active rituals only.
-**Match power** equals your ritual power plus 1 for each Bird you control.
+**Match power** equals your ritual power plus 1 for each Bird you control (+1 extra if it's nested).
 
 Example:
 
@@ -172,6 +171,7 @@ If empty-deck draw is attempted:
 - **Dethrone 4**: Destroy one opposing noble.
 - **Deluge X**: Destroy all Birds of power X-1 or less. [comes in Deluge 2, 3 and 4]
 - **Tears 3**: Return a Bird from your crypt to the field. 
+- **Void**: Can be played during the opponent's turn by discarding one other card from your hand to nullify a non-ritual card the opponent just played (it goes to their crypt with no effect; costs already paid such as sacrifices are not refunded). Void has no other cost — no lane or ritual sacrifice is required. Void may nullify another Void. The reactive decision window is 10 seconds, counted client-side; timing out auto-skips. The countdown is paused once the reactor begins picking a discard (so committing to Void gives unrestricted time to choose what to pitch). In networked PvP this leaks one bit of information ("I hold Void"), accepted as the cost of avoiding a universal delay on all card plays.
 
 ## 10) Noble Abilities (Set 1)
 
@@ -221,7 +221,7 @@ Temple activations are once per turn per temple.
 ### 11.1 Cost 6 temples
 
 **Eyrie, Temple of Feathers**:
-  - When this Temple enters, search your deck for two bird cards and put them onto your field, then shuffle your deck.
+  - When this Temple enters, search your deck for a Bird card and put it onto your field, then shuffle your deck.
 
 ### 11.2 Cost 7 temples
 

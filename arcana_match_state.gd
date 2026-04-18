@@ -8,7 +8,7 @@ const NOBLES_DIR := "res://nobles"
 
 const TEMPLE_PLAY_COST := 7
 const TEMPLE_EYRIE_COST := 6
-const EYRIE_SEARCH_COUNT := 2
+const EYRIE_SEARCH_COUNT := 1
 const TEMPLE_PHAEDRA := "phaedra_illusion"
 const TEMPLE_DELPHA := "delpha_oracles"
 const TEMPLE_GOTHA := "gotha_illness"
@@ -57,6 +57,11 @@ var _scion_pending_next_id: int = 1
 
 var _eyrie_pending_player: int = -1
 var _eyrie_pending_remaining: int = 0
+
+const VOID_RESPONSE_MS := 10000
+var _pending_stack: Array = []
+var _pending_next_id: int = 1
+var _void_deadline_ms: int = 0
 
 
 func _card_kind(c: Variant) -> String:
@@ -566,9 +571,72 @@ func snapshot(for_player: int) -> Dictionary:
 		"eyrie_pending_waiting": eyrie_waiting_opp,
 		"eyrie_pending_remaining": _eyrie_pending_remaining if eyrie_you else 0,
 		"eyrie_bird_candidates": eyrie_candidates,
+		"void_pending_you_respond": _void_pending_you_respond_for(for_player),
+		"void_pending_waiting": _void_pending_waiting_for(for_player),
+		"void_pending_kind": _void_pending_kind_view(),
+		"void_pending_card_label": _void_pending_label_view(),
+		"void_pending_card": _void_pending_card_view(),
+		"void_pending_cost": _void_pending_cost_view(),
+		"void_pending_deadline_ms": _void_deadline_ms,
+		"void_pending_id": _void_pending_id_view(),
 		"log": log_lines.duplicate(),
 		"goldfish": goldfish
 	}
+
+
+func _void_pending_you_respond_for(for_player: int) -> bool:
+	if _pending_stack.is_empty():
+		return false
+	var reactor := _pending_reactor()
+	if reactor != for_player:
+		return false
+	return _responder_can_void(reactor)
+
+
+func _void_pending_waiting_for(for_player: int) -> bool:
+	if _pending_stack.is_empty():
+		return false
+	var reactor := _pending_reactor()
+	if reactor < 0 or reactor == for_player:
+		return false
+	return _responder_can_void(reactor)
+
+
+func _void_pending_kind_view() -> String:
+	if _pending_stack.is_empty():
+		return ""
+	var top: Dictionary = _pending_stack_top()
+	if bool(top.get("is_void", false)):
+		return "void"
+	return str(top.get("kind", ""))
+
+
+func _void_pending_label_view() -> String:
+	if _pending_stack.is_empty():
+		return ""
+	return str(_pending_stack_top().get("label", ""))
+
+
+func _void_pending_card_view() -> Dictionary:
+	if _pending_stack.is_empty():
+		return {}
+	var top: Dictionary = _pending_stack_top()
+	var c: Variant = top.get("card", {})
+	if typeof(c) != TYPE_DICTIONARY:
+		return {}
+	return (c as Dictionary).duplicate(true)
+
+
+func _void_pending_cost_view() -> int:
+	if _pending_stack.is_empty():
+		return 0
+	return int(_pending_stack_top().get("cost", 0))
+
+
+func _void_pending_id_view() -> int:
+	if _pending_stack.is_empty():
+		return -1
+	return int(_pending_stack_top().get("id", -1))
 
 
 func can_play_ritual(p: int, hand_idx: int) -> bool:
@@ -579,6 +647,8 @@ func can_play_ritual(p: int, hand_idx: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	return c != null and _card_kind(c) == "ritual"
@@ -608,6 +678,8 @@ func can_play_noble(p: int, hand_idx: int) -> bool:
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
 		return false
+	if _pending_stack_blocks_action(p):
+		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "noble":
 		return false
@@ -632,17 +704,30 @@ func play_noble(p: int, hand_idx: int) -> String:
 	if not _noble_hooks.has(nid):
 		return "illegal_noble"
 	hand.remove_at(hand_idx)
+	noble_played_this_turn = true
+	var frame := {
+		"kind": "noble",
+		"card": c,
+		"label": str(c.get("name", nid)),
+		"cost": _noble_play_cost(nid),
+		"payload": {"nid": nid, "name": str(c.get("name", nid))}
+	}
+	_open_void_window_or_resolve(p, frame)
+	return "ok"
+
+
+func _finalize_play_noble(p: int, card: Dictionary, payload: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
+	var nid := str(payload.get("nid", card.get("noble_id", "")))
 	var mid := _next_noble_mid(pl)
 	var field_noble := {
 		"mid": mid,
 		"noble_id": nid,
-		"name": str(c.get("name", nid)),
+		"name": str(payload.get("name", card.get("name", nid))),
 		"used_turn": -1
 	}
 	pl["noble_field"].append(field_noble)
-	noble_played_this_turn = true
 	_log("P%d summons %s." % [p, field_noble["name"]])
-	return "ok"
 
 
 func can_play_bird(p: int, hand_idx: int) -> bool:
@@ -653,6 +738,8 @@ func can_play_bird(p: int, hand_idx: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "bird":
@@ -670,20 +757,33 @@ func play_bird(p: int, hand_idx: int) -> String:
 	var hand: Array = pl["hand"]
 	var c: Dictionary = hand[hand_idx]
 	hand.remove_at(hand_idx)
+	bird_played_this_turn = true
+	var frame := {
+		"kind": "bird",
+		"card": c,
+		"label": str(c.get("name", "Bird")),
+		"cost": int(c.get("cost", 0)),
+		"payload": {}
+	}
+	_open_void_window_or_resolve(p, frame)
+	return "ok"
+
+
+func _finalize_play_bird(p: int, card: Dictionary, _payload: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
 	var mid := _next_bird_mid(pl)
 	var bird := {
 		"mid": mid,
-		"bird_id": str(c.get("bird_id", "")),
-		"name": str(c.get("name", "Bird")),
-		"cost": int(c.get("cost", 0)),
-		"power": int(c.get("power", 0)),
+		"bird_id": str(card.get("bird_id", "")),
+		"name": str(card.get("name", "Bird")),
+		"cost": int(card.get("cost", 0)),
+		"power": int(card.get("power", 0)),
 		"damage": 0,
 		"nest_temple_mid": -1
 	}
 	pl["bird_field"].append(bird)
-	bird_played_this_turn = true
 	_log("P%d summons %s." % [p, bird["name"]])
-	return "ok"
+	_check_power_win(p)
 
 
 func _valid_temple_id(tid: String) -> bool:
@@ -706,6 +806,8 @@ func can_play_temple(p: int, hand_idx: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "temple":
@@ -737,22 +839,37 @@ func play_temple(p: int, hand_idx: int, sacrifice_mids: Array) -> String:
 	var pl: Dictionary = _players[p]
 	var hand: Array = pl["hand"]
 	hand.remove_at(hand_idx)
+	temple_played_this_turn = true
+	var card_d := c as Dictionary
+	var frame := {
+		"kind": "temple",
+		"card": card_d,
+		"label": str(card_d.get("name", tid)),
+		"cost": temple_cost,
+		"payload": {"tid": tid, "temple_cost": temple_cost, "name": str(card_d.get("name", tid))}
+	}
+	_open_void_window_or_resolve(p, frame)
+	return "ok"
+
+
+func _finalize_play_temple(p: int, _card: Dictionary, payload: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
+	var tid := str(payload.get("tid", ""))
+	var temple_cost := int(payload.get("temple_cost", TEMPLE_PLAY_COST))
 	var tmid := _next_temple_mid(pl)
 	var entry := {
 		"mid": tmid,
 		"temple_id": tid,
-		"name": str((c as Dictionary).get("name", tid)),
+		"name": str(payload.get("name", tid)),
 		"cost": temple_cost,
 		"used_turn": -1,
 		"nested": false,
 		"nested_bird_mids": []
 	}
 	_temple_field_safe(p).append(entry)
-	temple_played_this_turn = true
 	_log("P%d plays temple %s." % [p, entry["name"]])
 	if tid == TEMPLE_EYRIE:
 		_trigger_eyrie_enter(p)
-	return "ok"
 
 
 func _trigger_eyrie_enter(p: int) -> void:
@@ -763,7 +880,7 @@ func _trigger_eyrie_enter(p: int) -> void:
 		return
 	_eyrie_pending_player = p
 	_eyrie_pending_remaining = mini(EYRIE_SEARCH_COUNT, candidates.size())
-	_log("P%d's Eyrie searches the deck for up to %d bird(s)." % [p, _eyrie_pending_remaining])
+	_log("P%d's Eyrie searches the deck for a bird." % p)
 
 
 func _eyrie_snapshot_candidates(p: int) -> Array:
@@ -857,6 +974,8 @@ func can_nest_bird(p: int, bird_mid: int, temple_mid: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var b := _find_bird_on_field(p, bird_mid)
 	if b.is_empty():
@@ -999,6 +1118,113 @@ func _set_scion_pending(player: int, ptype: String) -> void:
 	_scion_pending_next_id += 1
 
 
+func _is_void_card(c: Variant) -> bool:
+	if typeof(c) != TYPE_DICTIONARY:
+		return false
+	var cd := c as Dictionary
+	if _card_kind(cd) != "incantation":
+		return false
+	return str(cd.get("verb", "")).to_lower() == "void"
+
+
+func _player_has_void_in_hand(p: int) -> bool:
+	for c in _players[p]["hand"]:
+		if _is_void_card(c):
+			return true
+	return false
+
+
+func _responder_can_void(p: int) -> bool:
+	var hand: Array = _players[p]["hand"]
+	if hand.size() < 2:
+		return false
+	return _player_has_void_in_hand(p)
+
+
+func _pending_stack_blocks_action(_p: int) -> bool:
+	return not _pending_stack.is_empty()
+
+
+func _pending_stack_top() -> Dictionary:
+	if _pending_stack.is_empty():
+		return {}
+	return _pending_stack[_pending_stack.size() - 1] as Dictionary
+
+
+func _pending_reactor() -> int:
+	if _pending_stack.is_empty():
+		return -1
+	var top: Dictionary = _pending_stack_top()
+	return 1 - int(top.get("player", -1))
+
+
+func _void_waiting_on_response() -> bool:
+	if _pending_stack.is_empty():
+		return false
+	var reactor := _pending_reactor()
+	if reactor < 0:
+		return false
+	return _responder_can_void(reactor)
+
+
+func _open_void_window_or_resolve(instigator: int, frame: Dictionary) -> void:
+	frame["id"] = _pending_next_id
+	frame["player"] = instigator
+	if not frame.has("is_void"):
+		frame["is_void"] = false
+	_pending_next_id += 1
+	_pending_stack.append(frame)
+	var reactor := 1 - instigator
+	if _responder_can_void(reactor):
+		_void_deadline_ms = Time.get_ticks_msec() + VOID_RESPONSE_MS
+		_log("P%d plays %s (awaiting Void window)." % [instigator, str(frame.get("label", ""))])
+		return
+	_void_deadline_ms = 0
+	_resolve_pending_stack_tail()
+
+
+func _resolve_pending_stack_tail() -> void:
+	while not _pending_stack.is_empty():
+		var top: Dictionary = _pending_stack.pop_back() as Dictionary
+		if bool(top.get("is_void", false)):
+			if _pending_stack.is_empty():
+				var owner_v := int(top.get("player", -1))
+				if owner_v >= 0:
+					_players[owner_v]["crypt"].append(top.get("card", {}))
+				_log("P%d's Void resolves with no target." % owner_v)
+				continue
+			var target: Dictionary = _pending_stack.pop_back() as Dictionary
+			var void_owner := int(top.get("player", -1))
+			var tgt_owner := int(target.get("player", -1))
+			if tgt_owner >= 0:
+				_players[tgt_owner]["crypt"].append(target.get("card", {}))
+			if void_owner >= 0:
+				_players[void_owner]["crypt"].append(top.get("card", {}))
+			_log("P%d's Void counters P%d's %s (moved to crypt, no effect)." % [void_owner, tgt_owner, str(target.get("label", ""))])
+			continue
+		_finalize_pending_play(top)
+	_void_deadline_ms = 0
+
+
+func _finalize_pending_play(frame: Dictionary) -> void:
+	var p := int(frame.get("player", -1))
+	if p < 0:
+		return
+	var card: Dictionary = frame.get("card", {}) as Dictionary
+	var payload: Dictionary = frame.get("payload", {}) as Dictionary
+	match str(frame.get("kind", "")):
+		"noble":
+			_finalize_play_noble(p, card, payload)
+		"bird":
+			_finalize_play_bird(p, card, payload)
+		"temple":
+			_finalize_play_temple(p, card, payload)
+		"incantation":
+			_finalize_play_incantation(p, card, payload)
+		"dethrone":
+			_finalize_play_dethrone(p, card, payload)
+
+
 func _queue_post_effect_scion_trigger(p: int, verb: String) -> void:
 	var v := verb.to_lower()
 	if v == "insight":
@@ -1091,6 +1317,61 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 			return "illegal"
 
 
+func can_submit_void(p: int) -> bool:
+	if phase == Phase.GAME_OVER:
+		return false
+	if _pending_stack.is_empty():
+		return false
+	return p == _pending_reactor()
+
+
+func submit_void_react(p: int, void_hand_idx: int, discard_hand_idx: int) -> String:
+	if not can_submit_void(p):
+		return "illegal"
+	var pl: Dictionary = _players[p]
+	var hand: Array = pl["hand"]
+	if void_hand_idx < 0 or void_hand_idx >= hand.size():
+		return "illegal"
+	if discard_hand_idx < 0 or discard_hand_idx >= hand.size():
+		return "illegal"
+	if void_hand_idx == discard_hand_idx:
+		return "illegal"
+	if not _is_void_card(hand[void_hand_idx]):
+		return "illegal"
+	var void_card: Dictionary
+	var disc_card: Dictionary
+	if void_hand_idx > discard_hand_idx:
+		void_card = hand[void_hand_idx] as Dictionary
+		hand.remove_at(void_hand_idx)
+		disc_card = hand[discard_hand_idx] as Dictionary
+		hand.remove_at(discard_hand_idx)
+	else:
+		disc_card = hand[discard_hand_idx] as Dictionary
+		hand.remove_at(discard_hand_idx)
+		void_card = hand[void_hand_idx] as Dictionary
+		hand.remove_at(void_hand_idx)
+	pl["crypt"].append(disc_card)
+	_log("P%d discards 1 card to pay for Void." % p)
+	var frame := {
+		"kind": "incantation",
+		"is_void": true,
+		"card": void_card,
+		"label": "Void",
+		"cost": 0,
+		"payload": {"verb": "void", "verb_raw": "Void", "value": 0}
+	}
+	_open_void_window_or_resolve(p, frame)
+	return "ok"
+
+
+func submit_void_skip(p: int) -> String:
+	if not can_submit_void(p):
+		return "illegal"
+	_void_deadline_ms = 0
+	_resolve_pending_stack_tail()
+	return "ok"
+
+
 func can_play_incantation(p: int, hand_idx: int) -> bool:
 	if phase != Phase.MAIN or _is_mulligan_active() or p != current:
 		return false
@@ -1099,6 +1380,8 @@ func can_play_incantation(p: int, hand_idx: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "incantation":
@@ -1119,6 +1402,8 @@ func can_play_dethrone(p: int, hand_idx: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or not CardTraits.is_dethrone(c as Dictionary):
@@ -1649,6 +1934,8 @@ func can_activate_temple(p: int, temple_mid: int) -> bool:
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
 		return false
+	if _pending_stack_blocks_action(p):
+		return false
 	var t := _find_temple_on_field(p, temple_mid)
 	if t.is_empty():
 		return false
@@ -1801,6 +2088,8 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 	var n: int = int(c["value"])
 	if n < 1:
 		return "illegal"
+	if str(c.get("verb", "")).to_lower() == "void":
+		return "illegal"
 	var need_sac := not has_active_incantation_lane(p, n)
 	var mids: Dictionary = {}
 	if need_sac:
@@ -1836,11 +2125,38 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 		_apply_sacrifice(p, ed)
 	var pl: Dictionary = _players[p]
 	pl["hand"].remove_at(hand_idx)
+	var label := "%s %d" % [verb_raw, n]
+	var frame := {
+		"kind": "incantation",
+		"card": c,
+		"label": label,
+		"cost": n,
+		"payload": {
+			"verb": verb,
+			"verb_raw": verb_raw,
+			"value": n,
+			"wrath_mids": wrath_mids.duplicate(),
+			"ctx": ctx_use,
+			"payment_text": payment_text
+		}
+	}
+	_open_void_window_or_resolve(p, frame)
+	return "ok"
+
+
+func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
+	var verb := str(payload.get("verb", "")).to_lower()
+	var verb_raw := str(payload.get("verb_raw", verb))
+	var n := int(payload.get("value", 0))
+	var wrath_mids: Array = payload.get("wrath_mids", []) as Array
+	var ctx_use: Dictionary = payload.get("ctx", {}) as Dictionary
+	var payment_text := str(payload.get("payment_text", ""))
 	if verb == "revive":
-		var rr := _run_revive_steps_after_payment(p, n, ctx_use, payment_text, c)
+		var rr := _run_revive_steps_after_payment(p, n, ctx_use, payment_text, card)
 		if rr == "ok":
 			_queue_post_effect_scion_trigger(p, "revive")
-		return rr
+		return
 	var wrath_resolved: Array = []
 	if verb == "wrath":
 		wrath_resolved = _wrath_resolve_mids(1 - p, n, wrath_mids, p)
@@ -1852,18 +2168,17 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 			_woe_pending_instigator = p
 			_woe_pending_victim = wt
 			_woe_pending_amount = need
-			_woe_pending_spell_card = c
+			_woe_pending_spell_card = card
 			_woe_pending_spell_to_abyss = false
 			_woe_pending_revive_wrapper = null
 			_woe_pending_noble_mid = -1
 			_log("P%d plays %s %d (%s); Woe pending on P%d." % [p, verb_raw, n, payment_text, wt])
-			return "ok"
+			return
 	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
 	_queue_post_effect_scion_trigger(p, verb)
-	pl["crypt"].append(c)
+	pl["crypt"].append(card)
 	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	_check_power_win(p)
-	return "ok"
 
 
 func play_dethrone(p: int, hand_idx: int, noble_mids: Array = [], sacrifice_mids: Array = []) -> String:
@@ -1889,10 +2204,26 @@ func play_dethrone(p: int, hand_idx: int, noble_mids: Array = [], sacrifice_mids
 				return "illegal_sacrifice"
 	_apply_sacrifice(p, mids)
 	hand.remove_at(hand_idx)
-	_destroy_nobles_by_mids(1 - p, destroyed)
-	pl["crypt"].append(c)
-	_log("P%d plays Dethrone %d." % [p, n])
+	var frame := {
+		"kind": "dethrone",
+		"card": c,
+		"label": "Dethrone %d" % n,
+		"cost": n,
+		"payload": {"noble_mids": destroyed.duplicate(), "value": n}
+	}
+	_open_void_window_or_resolve(p, frame)
 	return "ok"
+
+
+func _finalize_play_dethrone(p: int, card: Dictionary, payload: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
+	var n := int(payload.get("value", 4))
+	var noble_mids: Array = payload.get("noble_mids", []) as Array
+	var destroyed := _dethrone_resolve_mids(1 - p, noble_mids)
+	if not destroyed.is_empty():
+		_destroy_nobles_by_mids(1 - p, destroyed)
+	pl["crypt"].append(card)
+	_log("P%d plays Dethrone %d." % [p, n])
 
 
 func can_activate_noble(p: int, noble_mid: int) -> bool:
@@ -1903,6 +2234,8 @@ func can_activate_noble(p: int, noble_mid: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	var noble := _find_noble_on_field(p, noble_mid)
 	if noble.is_empty():
@@ -2273,6 +2606,8 @@ func resolve_bird_fight(p: int, attacker_mids: Array, defender_mid: int, attacke
 		return "illegal"
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
 		return "illegal"
+	if _pending_stack_blocks_action(p):
+		return "illegal"
 	if attacker_mids.is_empty():
 		return "illegal"
 	var opp := 1 - p
@@ -2358,6 +2693,8 @@ func can_discard_for_draw(p: int) -> bool:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return false
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return false
+	if _pending_stack_blocks_action(p):
 		return false
 	return true
 
@@ -2462,6 +2799,8 @@ func end_turn(p: int, discard_indices: Array) -> String:
 	if _scion_waiting_on_response() and p == int(_scion_pending.get("player", -1)):
 		return "illegal"
 	if _eyrie_waiting_on_response() and p == _eyrie_pending_player:
+		return "illegal"
+	if _pending_stack_blocks_action(p):
 		return "illegal"
 	var pl: Dictionary = _players[p]
 	var hand: Array = pl["hand"]

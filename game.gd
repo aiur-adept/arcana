@@ -180,6 +180,21 @@ var _sndrr_noble_mid: int = -1
 var _wndrr_picking: bool = false
 var _wndrr_noble_mid: int = -1
 
+var _void_overlay: Control
+var _void_backdrop: ColorRect
+var _void_title: Label
+var _void_card_slot: Control
+var _void_hint: Label
+var _void_countdown_label: Label
+var _void_btn: Button
+var _void_skip_btn: Button
+var _void_cancel_pick_btn: Button
+var _void_title_hover_card: Dictionary = {}
+var _void_pick_discard_mode: bool = false
+var _void_chosen_void_idx: int = -1
+var _last_void_prompt_id: int = -1
+var _last_void_timed_out_id: int = -1
+
 var _eyrie_overlay: Control
 var _eyrie_label: Label
 var _eyrie_candidate_row: VBoxContainer
@@ -298,6 +313,8 @@ func _ready() -> void:
 	_build_bird_assign_overlay()
 	_build_delpha_overlay()
 	_build_eyrie_overlay()
+	_build_void_overlay()
+	set_process(true)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	bird_fight_button.visible = false
 	discard_draw_button.pressed.connect(_on_discard_draw_pressed)
@@ -596,6 +613,78 @@ func _build_burn_woe_revive_overlays() -> void:
 	ae_cancel.pressed.connect(_on_aeoiu_cancel_pressed)
 
 
+func _build_void_overlay() -> void:
+	_void_overlay = Control.new()
+	_void_overlay.name = "VoidOverlay"
+	_void_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_void_overlay.visible = false
+	_void_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_void_overlay.z_index = 101
+	add_child(_void_overlay)
+	_void_backdrop = ColorRect.new()
+	_void_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_void_backdrop.color = Color(0, 0, 0, 0.45)
+	_void_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_void_overlay.add_child(_void_backdrop)
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_void_overlay.add_child(cc)
+	var panel := PanelContainer.new()
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = Color(0.06, 0.07, 0.11, 0.98)
+	psb.border_color = Color(0.55, 0.35, 0.8)
+	psb.set_border_width_all(2)
+	psb.set_corner_radius_all(10)
+	psb.content_margin_left = 18
+	psb.content_margin_right = 18
+	psb.content_margin_top = 14
+	psb.content_margin_bottom = 14
+	panel.add_theme_stylebox_override("panel", psb)
+	cc.add_child(panel)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	panel.add_child(inner)
+	_void_title = Label.new()
+	_void_title.text = "Opponent plays:"
+	_void_title.add_theme_font_size_override("font_size", 18)
+	_void_title.add_theme_color_override("font_color", Color(0.75, 0.9, 1.0))
+	_void_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inner.add_child(_void_title)
+	_void_card_slot = CenterContainer.new()
+	_void_card_slot.custom_minimum_size = Vector2(0, HAND_CARD_H + 8)
+	inner.add_child(_void_card_slot)
+	_void_hint = Label.new()
+	_void_hint.custom_minimum_size = Vector2(420, 0)
+	_void_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_void_hint.text = "Discard a card from your hand to nullify it."
+	inner.add_child(_void_hint)
+	_void_countdown_label = Label.new()
+	_void_countdown_label.text = "3.0s"
+	_void_countdown_label.add_theme_font_size_override("font_size", 16)
+	_void_countdown_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	inner.add_child(_void_countdown_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_void_btn = Button.new()
+	_void_btn.text = "Void (choose discard)"
+	_apply_ui_button_padding(_void_btn)
+	row.add_child(_void_btn)
+	_void_skip_btn = Button.new()
+	_void_skip_btn.text = "Skip"
+	_apply_ui_button_padding(_void_skip_btn)
+	row.add_child(_void_skip_btn)
+	_void_cancel_pick_btn = Button.new()
+	_void_cancel_pick_btn.text = "Cancel discard"
+	_void_cancel_pick_btn.visible = false
+	_apply_ui_button_padding(_void_cancel_pick_btn)
+	row.add_child(_void_cancel_pick_btn)
+	inner.add_child(row)
+	_void_btn.pressed.connect(_on_void_btn_pressed)
+	_void_skip_btn.pressed.connect(_on_void_skip_pressed)
+	_void_cancel_pick_btn.pressed.connect(_on_void_cancel_pick_pressed)
+
+
 func _build_delpha_overlay() -> void:
 	_delpha_overlay = Control.new()
 	_delpha_overlay.name = "DelphaOverlay"
@@ -669,7 +758,7 @@ func _build_eyrie_overlay() -> void:
 	inner.add_theme_constant_override("separation", 10)
 	pad.add_child(inner)
 	_eyrie_label = Label.new()
-	_eyrie_label.text = "Eyrie — choose up to 2 birds from your deck."
+	_eyrie_label.text = "Eyrie — choose a bird from your deck."
 	_eyrie_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(_eyrie_label)
 	var scroll := ScrollContainer.new()
@@ -727,7 +816,7 @@ func _show_eyrie_overlay_from_snap(snap: Dictionary) -> void:
 		b.toggled.connect(_on_eyrie_candidate_toggled.bind(di))
 		_eyrie_candidate_row.add_child(b)
 		_eyrie_candidate_buttons.append(b)
-	_eyrie_label.text = "Eyrie — choose up to %d bird(s) from your deck, then confirm." % max_pick
+	_eyrie_label.text = "Eyrie — choose a bird from your deck, then confirm."
 	_refresh_eyrie_controls(max_pick)
 	_eyrie_overlay.visible = true
 
@@ -1255,6 +1344,9 @@ func _after_sync_local_cpu() -> void:
 	var s1 := _match.snapshot(1)
 	if int(s0.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 		return
+	if bool(s1.get("void_pending_you_respond", false)):
+		call_deferred("_deferred_cpu_void_react")
+		return
 	if bool(s1.get("woe_pending_you_respond", false)):
 		call_deferred("_deferred_cpu_turn")
 		return
@@ -1272,6 +1364,17 @@ func _after_sync_local_cpu() -> void:
 
 func _deferred_cpu_turn() -> void:
 	await _cpu_opponent.run_turn(self)
+
+
+func _deferred_cpu_void_react() -> void:
+	if _match == null:
+		return
+	var snap := _match.snapshot(1)
+	if not bool(snap.get("void_pending_you_respond", false)):
+		return
+	if int(snap.get("current", 0)) == 1:
+		return
+	_cpu_opponent._cpu_decide_void_response(self, snap, true)
 
 
 func _deferred_cpu_mulligan() -> void:
@@ -1374,6 +1477,12 @@ func _apply_snap(snap: Dictionary) -> void:
 		_show_eyrie_overlay_from_snap(snap)
 	else:
 		_hide_eyrie_overlay()
+	if bool(snap.get("void_pending_you_respond", false)):
+		_show_void_prompt_ui(snap)
+	else:
+		_hide_void_prompt_ui()
+		_last_void_prompt_id = -1
+		_last_void_timed_out_id = -1
 	var yp: int = int(snap.get("your_power", 0))
 	var op: int = int(snap.get("opp_power", 0))
 	var your_hand: Array = snap.get("your_hand", []) as Array
@@ -1420,13 +1529,15 @@ func _apply_snap(snap: Dictionary) -> void:
 	var scion_respond := bool(snap.get("scion_pending_you_respond", false))
 	var eyrie_respond := bool(snap.get("eyrie_pending_you_respond", false))
 	var eyrie_waiting := bool(snap.get("eyrie_pending_waiting", false))
-	var ui_block := _sacrifice_selecting or _insight_open or _woe_self_picking or bool(snap.get("woe_pending_waiting", false)) or scion_waiting or scion_respond or eyrie_respond or eyrie_waiting
+	var void_respond := bool(snap.get("void_pending_you_respond", false))
+	var void_waiting := bool(snap.get("void_pending_waiting", false))
+	var ui_block := _sacrifice_selecting or _insight_open or _woe_self_picking or bool(snap.get("woe_pending_waiting", false)) or scion_waiting or scion_respond or eyrie_respond or eyrie_waiting or void_respond or void_waiting
 	if _delpha_overlay != null and _delpha_overlay.visible:
 		ui_block = true
 	if _gotha_picking:
 		ui_block = true
 	if eyrie_respond:
-		status_label.text = "Eyrie — choose up to %d bird(s) from your deck." % int(snap.get("eyrie_pending_remaining", 0))
+		status_label.text = "Eyrie — choose a bird from your deck."
 	if eyrie_waiting:
 		status_label.text = "Waiting for opponent to resolve Eyrie…"
 	if _burn_woe_overlay != null and _burn_woe_overlay.visible:
@@ -1441,6 +1552,10 @@ func _apply_snap(snap: Dictionary) -> void:
 		_woe_self_picked.clear()
 	if bool(snap.get("woe_pending_waiting", false)):
 		status_label.text = "Waiting for opponent to discard for Woe…"
+	if void_waiting:
+		status_label.text = "Waiting for opponent to respond to Void…"
+	if void_respond:
+		status_label.text = "Void: discard a card to nullify opponent's %s, or skip." % str(snap.get("void_pending_card_label", ""))
 	if scion_waiting:
 		status_label.text = "Waiting for opponent to resolve scion trigger…"
 	if scion_respond:
@@ -2266,6 +2381,159 @@ func _update_inc_modal_ui() -> void:
 		sacrifice_confirm_button.disabled = _bird_defender_mid < 0
 	elif _inc_pick_phase == INC_PICK_NEST_BIRD or _inc_pick_phase == INC_PICK_NEST_TEMPLE:
 		sacrifice_confirm_button.disabled = true
+
+
+func _show_void_prompt_ui(snap: Dictionary) -> void:
+	var vid := int(snap.get("void_pending_id", -1))
+	if vid != _last_void_prompt_id:
+		_last_void_prompt_id = vid
+		_void_pick_discard_mode = false
+		_void_chosen_void_idx = -1
+	var pending_card: Dictionary = snap.get("void_pending_card", {}) as Dictionary
+	_void_title_hover_card = pending_card.duplicate(true) if not pending_card.is_empty() else {}
+	_void_title.text = "Opponent plays:"
+	_populate_void_card_slot(pending_card)
+	if _void_pick_discard_mode:
+		_void_hint.text = "Pick any card to discard as payment (except the Void itself)."
+		_void_btn.visible = false
+		_void_skip_btn.visible = false
+		_void_cancel_pick_btn.visible = true
+		_void_countdown_label.visible = false
+		_void_backdrop.visible = false
+		_void_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		_void_hint.text = "Discard 1 other hand card to nullify this (moves it to opponent's crypt, no effect)."
+		_void_btn.visible = true
+		_void_skip_btn.visible = true
+		_void_cancel_pick_btn.visible = false
+		_void_countdown_label.visible = true
+		_void_backdrop.visible = true
+		_void_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_void_overlay.visible = true
+	_update_void_countdown_label(snap)
+
+
+func _hide_void_prompt_ui() -> void:
+	if _void_overlay != null:
+		_void_overlay.visible = false
+		if _void_backdrop != null:
+			_void_backdrop.visible = true
+		_void_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_void_pick_discard_mode = false
+	_void_chosen_void_idx = -1
+	_void_title_hover_card = {}
+	_hide_card_hover_preview()
+
+
+func _on_void_title_mouse_entered() -> void:
+	if _void_title_hover_card.is_empty():
+		return
+	_show_card_hover_preview(_void_title_hover_card)
+
+
+func _on_void_title_mouse_exited() -> void:
+	_hide_card_hover_preview()
+
+
+func _populate_void_card_slot(card: Dictionary) -> void:
+	if _void_card_slot == null:
+		return
+	for c in _void_card_slot.get_children():
+		c.queue_free()
+	if card.is_empty():
+		return
+	var widget := _make_hand_card_widget(card, false, false, 1)
+	widget.mouse_filter = Control.MOUSE_FILTER_PASS
+	var tap := widget.find_child("Tap", true, false)
+	if tap is Button:
+		var btn := tap as Button
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.mouse_entered.connect(_on_void_title_mouse_entered)
+		btn.mouse_exited.connect(_on_void_title_mouse_exited)
+	_void_card_slot.add_child(widget)
+
+
+func _update_void_countdown_label(snap: Dictionary) -> void:
+	var deadline := int(snap.get("void_pending_deadline_ms", 0))
+	if deadline <= 0:
+		_void_countdown_label.text = "—"
+		return
+	var remaining_ms := deadline - Time.get_ticks_msec()
+	if remaining_ms < 0:
+		remaining_ms = 0
+	_void_countdown_label.text = "%.1fs" % (float(remaining_ms) / 1000.0)
+
+
+func _process(_delta: float) -> void:
+	if _last_snap.is_empty():
+		return
+	if not bool(_last_snap.get("void_pending_you_respond", false)):
+		return
+	if _void_pick_discard_mode:
+		return
+	_update_void_countdown_label(_last_snap)
+	var deadline := int(_last_snap.get("void_pending_deadline_ms", 0))
+	if deadline <= 0:
+		return
+	if Time.get_ticks_msec() < deadline:
+		return
+	var vid := int(_last_snap.get("void_pending_id", -1))
+	if vid < 0 or vid == _last_void_timed_out_id:
+		return
+	_last_void_timed_out_id = vid
+	_submit_void_skip_rpc()
+
+
+func _submit_void_skip_rpc() -> void:
+	_hide_void_prompt_ui()
+	if _is_network_client():
+		submit_void_skip.rpc_id(1)
+		return
+	if _match == null:
+		return
+	if _match.submit_void_skip(_my_player_for_action()) == "ok":
+		_broadcast_sync(true)
+
+
+func _submit_void_react_rpc(void_hand_idx: int, discard_hand_idx: int) -> void:
+	_hide_void_prompt_ui()
+	if _is_network_client():
+		submit_void_react.rpc_id(1, void_hand_idx, discard_hand_idx)
+		return
+	if _match == null:
+		return
+	if _match.submit_void_react(_my_player_for_action(), void_hand_idx, discard_hand_idx) == "ok":
+		_broadcast_sync(true)
+
+
+func _on_void_btn_pressed() -> void:
+	var hand: Array = _last_snap.get("your_hand", []) as Array
+	var void_idx := -1
+	for i in hand.size():
+		var c: Dictionary = hand[i] as Dictionary
+		if _card_type(c) == "incantation" and str(c.get("verb", "")).to_lower() == "void":
+			void_idx = i
+			break
+	if void_idx < 0:
+		return
+	if hand.size() < 2:
+		return
+	_void_chosen_void_idx = void_idx
+	_void_pick_discard_mode = true
+	_show_void_prompt_ui(_last_snap)
+	_rebuild_hand(_last_snap.get("your_hand", []))
+
+
+func _on_void_skip_pressed() -> void:
+	_last_void_timed_out_id = int(_last_snap.get("void_pending_id", -1))
+	_submit_void_skip_rpc()
+
+
+func _on_void_cancel_pick_pressed() -> void:
+	_void_pick_discard_mode = false
+	_void_chosen_void_idx = -1
+	_show_void_prompt_ui(_last_snap)
+	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
 func _show_scion_prompt_ui(snap: Dictionary) -> void:
@@ -3452,7 +3720,10 @@ func _rebuild_hand(hand: Variant) -> void:
 	var rendered_keys: Dictionary = {}
 	var mine: bool = int(_last_snap.get("current", -1)) == int(_last_snap.get("you", -2))
 	var woe_you := bool(_last_snap.get("woe_pending_you_respond", false))
+	var void_pick: bool = _void_pick_discard_mode and bool(_last_snap.get("void_pending_you_respond", false))
 	var group_duplicates := true
+	if void_pick:
+		group_duplicates = false
 	var ritual_used := mine and bool(_last_snap.get("your_ritual_played", false))
 	var noble_used := mine and bool(_last_snap.get("your_noble_played", false))
 	var temple_used := mine and bool(_last_snap.get("your_temple_played", false))
@@ -3470,10 +3741,12 @@ func _rebuild_hand(hand: Variant) -> void:
 		var temple_blocked := temple_used and ctype == "temple"
 		var bird_blocked := bird_used and ctype == "bird"
 		var play_type_blocked := (ritual_blocked or noble_blocked or temple_blocked or bird_blocked) and not _mode_discard_draw and not _selecting_end_discard
-		var waiting_input_window := mine or woe_you
+		var waiting_input_window := mine or woe_you or void_pick
 		var gotha_pick := mine and _gotha_picking
 		var noble_cost_pick := mine and (_sndrr_picking or _wndrr_picking)
 		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick and not noble_cost_pick
+		if void_pick:
+			is_disabled = (idx == _void_chosen_void_idx)
 		var picked_count := 0
 		if woe_you:
 			picked_count = int(_woe_self_picked.get(stack_key, 0))
@@ -3482,7 +3755,7 @@ func _rebuild_hand(hand: Variant) -> void:
 		var picked := picked_count > 0
 		var stack_count := int(card_counts.get(stack_key, 0))
 		var widget := _make_hand_card_widget(card, is_disabled, picked, stack_count, picked_count)
-		if not mine:
+		if not mine and not void_pick and not woe_you:
 			widget.modulate = Color(0.55, 0.55, 0.58)
 		var capture := idx
 		var tap := widget.find_child("Tap", true, false)
@@ -3786,6 +4059,16 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		return
 	var snap: Dictionary = _last_snap
 	if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
+		return
+	if _void_pick_discard_mode and bool(snap.get("void_pending_you_respond", false)):
+		var hand_v: Array = snap.get("your_hand", []) as Array
+		if hand_idx < 0 or hand_idx >= hand_v.size():
+			return
+		if hand_idx == _void_chosen_void_idx:
+			status_label.text = "Cannot discard the Void you are playing; pick a different card."
+			return
+		_last_void_timed_out_id = int(snap.get("void_pending_id", -1))
+		_submit_void_react_rpc(_void_chosen_void_idx, hand_idx)
 		return
 	var woe_you := bool(snap.get("woe_pending_you_respond", false))
 	if bool(snap.get("mulligan_active", false)):
@@ -4502,6 +4785,28 @@ func submit_scion_trigger_response(action: String, ctx: Dictionary = {}) -> void
 		return
 	var pl := _peer_to_player(_sender_peer())
 	_try_submit_scion_trigger(pl, action, ctx)
+
+
+@rpc("any_peer", "reliable")
+func submit_void_react(void_hand_idx: int, discard_hand_idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.submit_void_react(pl, void_hand_idx, discard_hand_idx) == "ok":
+		_broadcast_sync(true)
+
+
+@rpc("any_peer", "reliable")
+func submit_void_skip() -> void:
+	if not multiplayer.is_server():
+		return
+	if _match == null:
+		return
+	var pl := _peer_to_player(_sender_peer())
+	if _match.submit_void_skip(pl) == "ok":
+		_broadcast_sync(true)
 
 
 @rpc("any_peer", "reliable")

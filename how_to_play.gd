@@ -525,7 +525,10 @@ func _card_label(card: Dictionary) -> String:
 		return _short_noble_name(str(card.get("name", "Noble")))
 	if t == "temple":
 		return _short_temple_name(str(card.get("name", "Temple")))
-	return "%s %d" % [str(card.get("verb", "")), int(card.get("value", 0))]
+	var verb := str(card.get("verb", ""))
+	if verb.to_lower() == "void":
+		return "Void"
+	return "%s %d" % [verb, int(card.get("value", 0))]
 
 
 func _short_noble_name(full_name: String) -> String:

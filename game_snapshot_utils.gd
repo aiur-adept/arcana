@@ -69,7 +69,10 @@ static func card_label(card: Variant) -> String:
 		return short_noble_name(str(card.get("name", "Noble")))
 	if t == "temple":
 		return short_noble_name(str(card.get("name", "Temple")))
-	return "%s %d" % [str(card.get("verb", "")), int(card.get("value", 0))]
+	var verb := str(card.get("verb", ""))
+	if verb.to_lower() == "void":
+		return "Void"
+	return "%s %d" % [verb, int(card.get("value", 0))]
 
 
 static func hand_card_stack_key(card: Variant) -> String:

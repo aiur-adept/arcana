@@ -60,6 +60,11 @@ func run_turn(host: Node) -> void:
 		snap = host._match.snapshot(1)
 		if int(snap.get("phase", -1)) == int(ArcanaMatchState.Phase.GAME_OVER):
 			return
+		if bool(snap.get("void_pending_you_respond", false)):
+			_cpu_decide_void_response(host, snap, false)
+			continue
+		if bool(snap.get("void_pending_waiting", false)):
+			continue
 		if bool(snap.get("woe_pending_you_respond", false)):
 			var hwo: Array = snap.get("your_hand", [])
 			var needw := int(snap.get("woe_pending_amount", 0))
@@ -382,6 +387,70 @@ func run_turn(host: Node) -> void:
 		return
 	var disc := ai_end_discards_from_snap(snap)
 	host._try_end_turn(1, disc, true)
+
+
+func _cpu_decide_void_response(host: Node, snap: Dictionary, trigger_cpu_check: bool = true) -> void:
+	var hand: Array = snap.get("your_hand", []) as Array
+	var void_idx := -1
+	for i in hand.size():
+		var c: Dictionary = hand[i] as Dictionary
+		if host._card_type(c) == "incantation" and str(c.get("verb", "")).to_lower() == "void":
+			void_idx = i
+			break
+	if void_idx < 0 or hand.size() < 2:
+		if host._match != null and host._match.submit_void_skip(1) == "ok":
+			host._broadcast_sync(trigger_cpu_check)
+		return
+	var cost := int(snap.get("void_pending_cost", 0))
+	var prob := clampf(float(cost) / 10.0, 0.0, 1.0)
+	if cost <= 0 or randf() >= prob:
+		if host._match.submit_void_skip(1) == "ok":
+			host._broadcast_sync(trigger_cpu_check)
+		return
+	var discard_idx := _cpu_pick_void_discard(host, hand, void_idx)
+	if discard_idx < 0:
+		if host._match.submit_void_skip(1) == "ok":
+			host._broadcast_sync(trigger_cpu_check)
+		return
+	if host._match.submit_void_react(1, void_idx, discard_idx) == "ok":
+		host._broadcast_sync(trigger_cpu_check)
+
+
+func _cpu_pick_void_discard(host: Node, hand: Array, void_idx: int) -> int:
+	var best_idx := -1
+	var best_score := 9999
+	for i in hand.size():
+		if i == void_idx:
+			continue
+		var c: Dictionary = hand[i] as Dictionary
+		var ctype: String = host._card_type(c)
+		var score := _cpu_discard_score(ctype, c)
+		if score < best_score:
+			best_score = score
+			best_idx = i
+	return best_idx
+
+
+func _cpu_discard_score(ctype: String, c: Dictionary) -> int:
+	match ctype:
+		"ritual":
+			return 100 + int(c.get("value", 0))
+		"bird":
+			return 40 + int(c.get("cost", 0)) + int(c.get("power", 0))
+		"noble":
+			return 80
+		"temple":
+			return 90
+		"incantation":
+			var verb := str(c.get("verb", "")).to_lower()
+			if verb == "void":
+				return 60
+			if verb == "seek":
+				return 10
+			if verb == "tears":
+				return 20
+			return 30 + int(c.get("value", 0))
+	return 25
 
 
 func run_mulligan_step(host: Node) -> void:

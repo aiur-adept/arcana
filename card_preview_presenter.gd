@@ -301,7 +301,10 @@ static func card_title(card: Dictionary) -> String:
 		return ts if not ts.is_empty() else "Temple"
 	if t == "bird":
 		return str(card.get("name", "Bird"))
-	return "%s %d" % [str(card.get("verb", "")).capitalize(), int(card.get("value", 0))]
+	var verb := str(card.get("verb", ""))
+	if verb.to_lower() == "void":
+		return "Void"
+	return "%s %d" % [verb.capitalize(), int(card.get("value", 0))]
 
 
 static func card_type_line(card: Dictionary) -> String:
@@ -350,6 +353,8 @@ static func card_rules_text(card: Dictionary) -> String:
 			return "Deluge %d: destroy all birds with power %d or less." % [n, n - 1]
 		"tears":
 			return "Tears %d: return a Bird from your crypt to your field." % n
+		"void":
+			return "Void: during the opponent's turn, discard one card from your hand to nullify a non-ritual card they just played (it goes to their crypt with no effect). Void can nullify another Void. 3-second response window."
 		_:
 			return "Incantation %d." % n
 
@@ -429,7 +434,7 @@ static func _temple_preview_text(temple_id: String) -> String:
 		"ytria_cycles":
 			return "Activate (once per turn): discard your hand, then draw that many cards."
 		"eyrie_feathers":
-			return "When this Temple enters, search your deck for up to 2 bird cards and put them onto your field, then shuffle your deck."
+			return "When this Temple enters, search your deck for a Bird card and put it onto your field, then shuffle your deck."
 		_:
 			return "Temple — sacrifice 7 to play from hand."
 

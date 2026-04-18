@@ -733,7 +733,7 @@ class MatchState:
     def _eyrie_etb(self, pid: int) -> None:
         p = self.players[pid]
         deck_bird_indices = [i for i, c in enumerate(p.deck) if c.kind is Kind.BIRD]
-        take = deck_bird_indices[:2]
+        take = deck_bird_indices[:1]
         if not take:
             self.rng.shuffle(p.deck)
             return

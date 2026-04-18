@@ -3,7 +3,7 @@ extends Control
 const IncludedDecks = preload("res://included_decks.gd")
 
 const RITUAL_VALUES: Array[int] = [1, 2, 3, 4]
-const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "deluge", "tears", "dethrone"]
+const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "deluge", "tears", "dethrone", "void"]
 const INCANTATION_VALUES: Array[int] = [1, 2, 3, 4]
 const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
@@ -218,6 +218,8 @@ func _incantation_values_for_verb(verb: String) -> Array[int]:
 		return [3, 4]
 	if verb == "seek":
 		return [1, 2]
+	if verb == "void":
+		return [0]
 	return INCANTATION_VALUES
 
 
@@ -257,7 +259,10 @@ func _entry_display_name(entry: Dictionary) -> String:
 		return str(entry.get("name", "Temple"))
 	if str(entry.get("kind", "")) == "bird":
 		return str(entry.get("name", "Bird"))
-	return "%s %d" % [str(entry.get("verb", "")).capitalize(), int(entry.get("value", 0))]
+	var verb := str(entry.get("verb", ""))
+	if verb == "void":
+		return "Void"
+	return "%s %d" % [verb.capitalize(), int(entry.get("value", 0))]
 
 
 func _entry_to_preview_card(entry: Dictionary) -> Dictionary:
