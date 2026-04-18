@@ -350,7 +350,7 @@ class MatchState:
         p.ritual_played_this_turn = True
         self._check_power_win()
 
-    def play_noble(self, pid: int, hand_idx: int) -> None:
+    def play_noble(self, pid: int, hand_idx: int, sac_mids: Optional[list[int]] = None) -> None:
         p = self.players[pid]
         if p.noble_played_this_turn or self.pending is not None:
             return
@@ -360,8 +360,11 @@ class MatchState:
         if c.kind is not Kind.NOBLE:
             return
         eff = self.effective_noble_cost(pid, c.cost)
-        if eff > 0 and eff not in self.active_lanes(pid):
-            return
+        need_sac = eff > 0 and (eff > 4 or eff not in self.active_lanes(pid))
+        if need_sac:
+            if not sac_mids or self._sac_total(pid, sac_mids) < eff:
+                return
+            self._sacrifice(pid, sac_mids)
         p.hand.pop(hand_idx)
         p.noble_field.append(Noble(mid=self.mid(), noble_id=c.noble_id, cost=c.cost))
         p.noble_played_this_turn = True

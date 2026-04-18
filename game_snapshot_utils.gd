@@ -102,8 +102,10 @@ static func noble_cost_for_id(nid: String) -> int:
 			return 3
 		"yrss_power":
 			return 4
-		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation", "aeoiu_rituals":
-			return 4
+		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation":
+			return 6
+		"aeoiu_rituals":
+			return 8
 		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
 			return 3
 		_:

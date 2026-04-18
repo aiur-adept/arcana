@@ -63,8 +63,9 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 
 	var title_sz := int(round(12.0 * ui))
 	var type_sz := int(round(10.4 * ui))
-	var body_sz := int(round(12.8 * ui))
+	var body_sz := int(round(12.8 * 0.9 * ui))
 	var big_sz := int(round(48.0 * ui))
+	var body_right_reserve := int(round(44.0 * ui))
 
 	var top_row := HBoxContainer.new()
 	top_row.set_anchors_preset(Control.PRESET_TOP_WIDE, false)
@@ -127,6 +128,13 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info.add_child(gap)
 
+	var body_wrap := MarginContainer.new()
+	body_wrap.add_theme_constant_override("margin_right", body_right_reserve)
+	body_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body_wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.add_child(body_wrap)
+
 	var body := RichTextLabel.new()
 	body.add_theme_font_override("normal_font", CARD_TEXT_FONT)
 	body.add_theme_font_size_override("normal_font_size", body_sz)
@@ -134,8 +142,9 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	body.scroll_active = false
 	body.bbcode_enabled = false
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	info.add_child(body)
+	body_wrap.add_child(body)
 
 	var footer_h := int(round(60.0 * ui))
 	var footer := HBoxContainer.new()
@@ -520,8 +529,10 @@ static func _noble_cost_for_id(nid: String) -> int:
 			return 3
 		"yrss_power":
 			return 4
-		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation", "aeoiu_rituals":
-			return 4
+		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation":
+			return 6
+		"aeoiu_rituals":
+			return 8
 		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
 			return 3
 		_:

@@ -152,7 +152,18 @@ class GreedyAI:
 
             elif c.kind is Kind.NOBLE and not p.noble_played_this_turn:
                 eff = state.effective_noble_cost(pid, c.cost)
-                if eff == 0 or eff in active:
+                sac: list[int] = []
+                playable = False
+                if eff == 0:
+                    playable = True
+                elif eff > 4:
+                    s = _ritual_combinations_for_value(p.field, eff)
+                    if s is not None:
+                        sac = s
+                        playable = True
+                elif eff in active:
+                    playable = True
+                if playable:
                     score = 60 + c.cost
                     info = NOBLE_DEFS.get(c.noble_id, {})
                     if info.get("grants_lane"):
@@ -160,7 +171,9 @@ class GreedyAI:
                             score += 40
                     if c.noble_id in ("xytzr_emanation", "yytzr_occultation", "zytzr_annihilation"):
                         score += 20
-                    actions.append((score, "noble", (i,)))
+                    if sac:
+                        score -= self._sac_penalty(sac)
+                    actions.append((score, "noble", (i, tuple(sac))))
 
             elif c.kind is Kind.BIRD and not p.bird_played_this_turn:
                 eff = state.effective_bird_cost(pid, c.cost)
@@ -466,7 +479,7 @@ class GreedyAI:
             if kind == "ritual":
                 state.play_ritual(pid, args[0])
             elif kind == "noble":
-                state.play_noble(pid, args[0])
+                state.play_noble(pid, args[0], list(args[1]) if len(args) > 1 and args[1] else None)
             elif kind == "bird":
                 state.play_bird(pid, args[0])
             elif kind == "temple":

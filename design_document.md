@@ -113,7 +113,8 @@ If sacrificed, those rituals leave your field and go to your crypt.
 
 ### 6.2 Nobles
 
-To play a Noble, you must have the Noble's cost lane active (no sacrifice payment for Noble play).
+To play a Noble, you must have the Noble's cost lane active or, for Nobles of cost 6 and higher, you must sacrifice Rituals in payment.
+
 Only one Noble may be played from hand per turn.
 
 ### 6.3 Temples
@@ -179,23 +180,30 @@ If empty-deck draw is attempted:
 
 All noble static abilities apply while that noble remains on the field.
 
-### 10.1 Cost 4
+### 10.1 Cost 8
 
-- **Yrss, Noble of Power**: Grants ritual lane 3 while on field (static).
+- **Aeoiu, Scion of Rituals** (activated, once per turn):
+  - Play one ritual from your crypt to your field.
+  - This is in addition to your normal one ritual-from-hand per turn.
+
+- **Zytzr, Noble of Annihilation** (static):
+  - Your Wrath destroys 1 extra ritual.
+  - Your Woe forces 1 additional discard.
+
+### 10.2 Cost 6
+
 - **Xytzr, Noble of Emanation** (static):
   - Your Seek effects draw +1 card.
   - Your Insight effects affect +1 card.
 - **Yytzr, Noble of Occultation** (static):
   - Your Burn effects mill an additional 3 cards.
   - When you play Revive, you may additionally sacrifice rituals totaling at least 2 to add one extra revive step.
-- **Zytzr, Noble of Annihilation** (static):
-  - Your Wrath destroys 1 extra ritual.
-  - Your Woe forces 1 additional discard.
-- **Aeoiu, Scion of Rituals** (activated, once per turn):
-  - Play one ritual from your crypt to your field.
-  - This is in addition to your normal one ritual-from-hand per turn.
 
-### 10.2 Cost 3
+### 10.3 Cost 4
+
+- **Yrss, Noble of Power**: Grants ritual lane 3 while on field (static).
+
+### 10.4 Cost 3
 
 - **Trss, Noble of Power**: Grants ritual lane 2 while on field (static).
 - **Bndrr, Noble of Incantation**: Once per turn, Burn 2.
@@ -204,7 +212,7 @@ All noble static abilities apply while that noble remains on the field.
 - **Sndrr, Noble of Incantation**: Once per turn, you may discard a card to Seek 1.
 - **Wndrr, Noble of Incantation**: Once per turn, you may discard a card to Woe 3.
 
-### 10.3 Cost 2
+### 10.5 Cost 2
 
 - **Rmrsk, Scion of Emanation** (triggered, optional):
   - After you resolve Insight, you may draw 1.
@@ -215,31 +223,31 @@ All noble static abilities apply while that noble remains on the field.
 
 - **Krss, Noble of Power**: Grants ritual lane 1 while on field (static).
 
-## 10A) Rings
+## 11) Rings
 
 Rings are cards that attach to a Noble or Bird you control. Their static effects remain active as long as they stay on the field.
 
-### 10A.1 Cost and Play
+### 11.1 Cost and Play
 
 - Every ring has cost **2**. To play a ring you must have the 2-lane active and choose a legal host.
 - A legal host is one of your Nobles or one of your Birds that is not nested in a Temple.
 - A ring enters play attached to its host. Multiple rings can be attached to the same host.
 
-### 10A.2 Attachment and Destruction
+### 11.2 Attachment and Destruction
 
 - When a host is destroyed or otherwise leaves the field (for example, Dethrone on a Noble, Deluge or bird combat on a Bird), its attached rings are put into their owner's crypt.
 
-### 10A.3 Restrictions
+### 11.3 Restrictions
 
 - A Bird wearing a ring cannot nest.
 - Nested Birds are not legal hosts for a ring.
 
-### 10A.4 Cost Reduction and Stacking
+### 11.4 Cost Reduction and Stacking
 
 - While a ring is on the field, it reduces the cost of the listed card types by 1 (to a minimum of 0).
 - If an Incantation, Noble, or Bird's effective cost is 0, it can be played with no active lane.
 
-### 10A.5 Set 1 Rings
+### 11.5 Set 1 Rings
 
 - **Sybiline, Ring of Emanation**: Your Seek and Insight cost 1 less to play.
 - **Cymbil, Ring of Occultation**: Your Burn and Revive cost 1 less to play.
@@ -247,16 +255,16 @@ Rings are cards that attach to a Noble or Bird you control. Their static effects
 - **Serraf, Ring of Nobles**: Your Nobles cost 1 less to play.
 - **Sinofia, Ring of Feathers**: Your Birds and your Tears cost 1 less to play.
 
-## 11) Temple Abilities (Set 1)
+## 12) Temple Abilities (Set 1)
 
 Temple activations are once per turn per temple.
 
-### 11.1 Cost 6 temples
+### 12.1 Cost 6 temples
 
 **Eyrie, Temple of Feathers**:
   - When this Temple enters, search your deck for a Bird card and put it onto your field, then shuffle your deck.
 
-### 11.2 Cost 7 temples
+### 12.2 Cost 7 temples
 
 - **Phaedra, Temple of Illusion**:
   - Insight 1, then draw 1.
@@ -266,12 +274,12 @@ Temple activations are once per turn per temple.
   - Static: Skip your turn-start draw.
   - Activated: Discard one non-temple card, then draw cards equal to that card's cost (or power if Ritual).
 
-### 11.3 Cost 9 temple
+### 12.3 Cost 9 temple
 
 - **Ytria, Temple of Cycles**:
   - Discard your hand, then draw that many cards.
 
-## 12) Clarifications and Edge Cases
+## 13) Clarifications and Edge Cases
 
 - **Lane grants are static**: If a Noble of Power is on field, its granted lane is available continuously.
 - **Woe with insufficient hand**: target discards as many as possible (up to required amount).
@@ -281,7 +289,7 @@ Temple activations are once per turn per temple.
 - **Revived cards to abyss**: an incantation cast via revive is placed in the abyss after resolution; if a revived noble is later destroyed, it goes to the abyss.
 - **Temples and nobles cannot be revived**: revive only works on incantations.
 
-## 13) Deck Construction Rules
+## 14) Deck Construction Rules
 
 For legal deck construction:
 

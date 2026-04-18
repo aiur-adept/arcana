@@ -734,10 +734,12 @@ func can_play_noble(p: int, hand_idx: int) -> bool:
 	var cost := effective_noble_cost(p, _noble_play_cost(nid))
 	if cost <= 0:
 		return true
+	if cost > 4:
+		return _can_sacrifice(p, cost)
 	return has_active_ritual_lane(p, cost)
 
 
-func play_noble(p: int, hand_idx: int) -> String:
+func play_noble(p: int, hand_idx: int, sacrifice_mids: Array = []) -> String:
 	if not can_play_noble(p, hand_idx):
 		return "illegal"
 	var pl: Dictionary = _players[p]
@@ -748,6 +750,19 @@ func play_noble(p: int, hand_idx: int) -> String:
 		return "illegal"
 	if not _noble_hooks.has(nid):
 		return "illegal_noble"
+	var cost := effective_noble_cost(p, _noble_play_cost(nid))
+	var need_sac := cost > 0 and (cost > 4 or not has_active_ritual_lane(p, cost))
+	var mids: Dictionary = {}
+	if need_sac:
+		for m in sacrifice_mids:
+			mids[int(m)] = true
+		if not _sacrifice_valid(p, cost, mids):
+			mids.clear()
+			for mid in _greedy_sacrifice_mids_for_player(p, cost):
+				mids[int(mid)] = true
+			if not _sacrifice_valid(p, cost, mids):
+				return "illegal_sacrifice"
+	_apply_sacrifice(p, mids)
 	hand.remove_at(hand_idx)
 	noble_played_this_turn = true
 	var frame := {

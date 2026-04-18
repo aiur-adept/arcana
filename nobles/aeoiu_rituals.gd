@@ -4,7 +4,7 @@ func build_definition() -> Dictionary:
 	return {
 		"id": "aeoiu_rituals",
 		"name": "Aeoiu, Scion of Rituals",
-		"cost": 4
+		"cost": 8
 	}
 
 
