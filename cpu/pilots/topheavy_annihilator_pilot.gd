@@ -55,7 +55,7 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 			var eff: Variant = _score_effect(host, snap, verb, val)
 			if eff == null:
 				return null
-			var score := float((eff as Dictionary)["score"]) + INC_BASE_BONUS - _sac_penalty(sac)
+			var score := float((eff as Dictionary)["score"]) + INC_BASE_BONUS - _sac_penalty(sac, snap)
 			var ctx: Dictionary = ((eff as Dictionary)["ctx"] as Dictionary).duplicate(true)
 			return {"score": score, "kind": "incantation", "hand_idx": hand_idx, "sac": sac, "ctx": ctx, "verb": verb, "value": val}
 		return null

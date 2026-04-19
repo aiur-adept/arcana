@@ -1844,13 +1844,40 @@ func _rebuild_log_cards(snap: Dictionary) -> void:
 	call_deferred("_log_scroll_to_bottom")
 
 
+func _log_bottommost_control() -> Control:
+	if log_list == null:
+		return null
+	var n: Node = log_list
+	while true:
+		var pick: Node = null
+		var i := n.get_child_count() - 1
+		while i >= 0:
+			var c := n.get_child(i)
+			if not c.is_queued_for_deletion():
+				pick = c
+				break
+			i -= 1
+		if pick == null:
+			break
+		n = pick
+	return n as Control
+
+
 func _log_scroll_to_bottom() -> void:
 	if log_scroll == null:
 		return
-	var bar := log_scroll.get_v_scroll_bar()
-	if bar == null:
+	await get_tree().process_frame
+	if not is_instance_valid(log_scroll):
 		return
-	log_scroll.scroll_vertical = int(bar.max_value)
+	await get_tree().process_frame
+	if not is_instance_valid(log_scroll):
+		return
+	var bottom := _log_bottommost_control()
+	if bottom != null and is_instance_valid(bottom):
+		log_scroll.ensure_control_visible(bottom)
+	var bar := log_scroll.get_v_scroll_bar()
+	if bar != null:
+		log_scroll.scroll_vertical = int(bar.max_value)
 
 
 func _end_game_ui(snap: Dictionary) -> void:
