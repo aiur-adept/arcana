@@ -35,7 +35,8 @@ var _bound_port: int = PORT_MIN
 var _deck_path: String = DEFAULT_DECK_PATH
 
 @onready var status_label: Label = %StatusLabel
-@onready var log_label: RichTextLabel = %LogLabel
+@onready var log_scroll: ScrollContainer = %LogScroll
+@onready var log_list: VBoxContainer = %LogList
 @onready var left_action_panel: PanelContainer = %LeftActionPanel
 @onready var left_action_collapsed_row: HBoxContainer = %LeftActionCollapsedRow
 @onready var left_action_hamburger_button: Button = %LeftActionHamburgerButton
@@ -80,6 +81,10 @@ var _host: bool = false
 var _my_player: int = 0
 var _goldfish: bool = false
 var _last_snap: Dictionary = {}
+var _log_style_round: StyleBoxFlat
+var _log_style_player: StyleBoxFlat
+var _log_style_event_past: StyleBoxFlat
+var _log_style_event_recent: StyleBoxFlat
 var _match: ArcanaMatchState
 var _mode_discard_draw: bool = false
 var _selecting_end_discard: bool = false
@@ -1612,11 +1617,7 @@ func _apply_snap(snap: Dictionary) -> void:
 	if _sacrifice_selecting:
 		_prune_sacrifice_picks_for_snap(snap)
 	_rebuild_field_strips_from_snap(snap)
-	var logs: Array = snap.get("log", [])
-	var tail := ""
-	for i in logs.size():
-		tail = str(logs[logs.size() - 1 - i]) + "\n" + tail
-	log_label.text = tail
+	_rebuild_log_cards(snap)
 	var cur: int = int(snap.get("current", 0))
 	var you: int = int(snap.get("you", 0))
 	var phase: int = int(snap.get("phase", 0))
@@ -1697,6 +1698,166 @@ func _apply_snap(snap: Dictionary) -> void:
 
 func _format_player_stats(player_name: String, power: int, hand_n: int, deck_n: int) -> String:
 	return "%s\nPower: [font_size=24]%d[/font_size]\nHand: %d\nDeck: %d" % [player_name, power, hand_n, deck_n]
+
+
+func _ensure_log_styles() -> void:
+	if _log_style_round != null:
+		return
+	var round_sb := StyleBoxFlat.new()
+	round_sb.bg_color = Color(0.10, 0.11, 0.14)
+	round_sb.border_color = Color(1, 1, 1, 0.08)
+	round_sb.set_border_width_all(1)
+	round_sb.set_corner_radius_all(8)
+	round_sb.content_margin_left = 10
+	round_sb.content_margin_right = 10
+	round_sb.content_margin_top = 10
+	round_sb.content_margin_bottom = 10
+	_log_style_round = round_sb
+	var player_sb := StyleBoxFlat.new()
+	player_sb.bg_color = Color(0.13, 0.14, 0.18)
+	player_sb.set_corner_radius_all(6)
+	player_sb.content_margin_left = 8
+	player_sb.content_margin_right = 8
+	player_sb.content_margin_top = 8
+	player_sb.content_margin_bottom = 8
+	_log_style_player = player_sb
+	var past_sb := StyleBoxFlat.new()
+	past_sb.bg_color = Color(0, 0, 0)
+	past_sb.set_corner_radius_all(4)
+	past_sb.content_margin_left = 6
+	past_sb.content_margin_right = 6
+	past_sb.content_margin_top = 4
+	past_sb.content_margin_bottom = 4
+	_log_style_event_past = past_sb
+	var recent_sb := StyleBoxFlat.new()
+	recent_sb.bg_color = Color(0.08, 0.18, 0.42)
+	recent_sb.set_corner_radius_all(4)
+	recent_sb.content_margin_left = 6
+	recent_sb.content_margin_right = 6
+	recent_sb.content_margin_top = 4
+	recent_sb.content_margin_bottom = 4
+	_log_style_event_recent = recent_sb
+
+
+func _log_entry_round(turn_num: int) -> int:
+	if turn_num <= 0:
+		return 0
+	@warning_ignore("integer_division")
+	return (turn_num + 1) / 2
+
+
+func _log_strip_player_prefix(text: String) -> String:
+	if text.begins_with("P0 ") or text.begins_with("P1 "):
+		return text.substr(3)
+	return text
+
+
+func _make_log_event_box(text: String, is_recent: bool) -> Control:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sb: StyleBoxFlat = _log_style_event_recent if is_recent else _log_style_event_past
+	panel.add_theme_stylebox_override("panel", sb)
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_color_override("font_color", Color(1, 1, 1))
+	label.add_theme_font_size_override("font_size", 12)
+	panel.add_child(label)
+	return panel
+
+
+func _make_log_player_card(header_text: String) -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel", _log_style_player)
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 6)
+	panel.add_child(vbox)
+	var header := Label.new()
+	header.text = header_text
+	header.add_theme_color_override("font_color", Color(0.82, 0.85, 0.95))
+	header.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(header)
+	var events := VBoxContainer.new()
+	events.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	events.add_theme_constant_override("separation", 4)
+	vbox.add_child(events)
+	return {"panel": panel, "events": events}
+
+
+func _make_log_round_card(header_text: String) -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel", _log_style_round)
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+	var header := Label.new()
+	header.text = header_text
+	header.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0))
+	header.add_theme_font_size_override("font_size", 15)
+	vbox.add_child(header)
+	var players := VBoxContainer.new()
+	players.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players.add_theme_constant_override("separation", 8)
+	vbox.add_child(players)
+	return {"panel": panel, "players": players}
+
+
+func _rebuild_log_cards(snap: Dictionary) -> void:
+	_ensure_log_styles()
+	for child in log_list.get_children():
+		child.queue_free()
+	var logs: Array = snap.get("log", []) as Array
+	if logs.is_empty():
+		return
+	var you_idx: int = int(snap.get("you", 0))
+	var last_idx := logs.size() - 1
+	var cur_round := -9999
+	var cur_player := -9999
+	var round_players: VBoxContainer = null
+	var player_events: VBoxContainer = null
+	for i in logs.size():
+		var raw: Variant = logs[i]
+		var entry: Dictionary = raw if raw is Dictionary else {"text": str(raw), "turn": 0, "player": 0}
+		var turn_num: int = int(entry.get("turn", 0))
+		var player_idx: int = int(entry.get("player", 0))
+		var round_num := _log_entry_round(turn_num)
+		if round_num != cur_round:
+			var header := "Setup" if round_num == 0 else "TURN %d" % round_num
+			var round_card := _make_log_round_card(header)
+			log_list.add_child(round_card["panel"])
+			round_players = round_card["players"]
+			cur_round = round_num
+			cur_player = -9999
+		if player_idx != cur_player:
+			var player_header := ""
+			if round_num == 0:
+				player_header = "Setup"
+			elif player_idx == you_idx:
+				player_header = "Your turn"
+			else:
+				player_header = "Opponent's turn"
+			var player_card := _make_log_player_card(player_header)
+			round_players.add_child(player_card["panel"])
+			player_events = player_card["events"]
+			cur_player = player_idx
+		var text := _log_strip_player_prefix(str(entry.get("text", "")))
+		var is_recent := i == last_idx
+		player_events.add_child(_make_log_event_box(text, is_recent))
+	call_deferred("_log_scroll_to_bottom")
+
+
+func _log_scroll_to_bottom() -> void:
+	if log_scroll == null:
+		return
+	var bar := log_scroll.get_v_scroll_bar()
+	if bar == null:
+		return
+	log_scroll.scroll_vertical = int(bar.max_value)
 
 
 func _end_game_ui(snap: Dictionary) -> void:

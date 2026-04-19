@@ -53,7 +53,7 @@ text = "goldfish (solo)"
 [node name="DeckEditorLink" type="Button" parent="CenterContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "edit deck"
+text = "deck editor"
 
 [node name="HowToPlayLink" type="Button" parent="CenterContainer/VBoxContainer"]
 unique_name_in_owner = true

@@ -43,7 +43,7 @@ var bird_fight_used_this_turn: bool = false
 var discard_draw_used: bool
 var winner: int = -1
 var empty_deck_end: bool = false
-var log_lines: PackedStringArray
+var log_lines: Array = []
 var turn_number: int = 0
 var goldfish: bool = false
 var _starting_player: int = 0
@@ -241,16 +241,16 @@ func _turn_start_draw() -> void:
 	turn_number += 1
 	if turn_number == 1 and current == _starting_player:
 		discard_draw_used = false
-		_log("Turn P%d draw step skipped (first turn)." % current)
+		_log("Draw step skipped (first turn).")
 		return
 	if _skip_draw_for_gotha(current):
 		discard_draw_used = false
-		_log("Turn P%d draw step skipped (Gotha)." % current)
+		_log("Draw step skipped (Gotha).")
 		return
 	if not _draw_one_attempt(current):
 		return
 	discard_draw_used = false
-	_log("Turn P%d draw step." % current)
+	_log("Draw step." % current)
 
 
 func _skip_draw_for_gotha(p: int) -> bool:
@@ -624,7 +624,7 @@ func snapshot(for_player: int) -> Dictionary:
 		"void_pending_cost": _void_pending_cost_view(),
 		"void_pending_deadline_ms": _void_deadline_ms,
 		"void_pending_id": _void_pending_id_view(),
-		"log": log_lines.duplicate(),
+		"log": log_lines.duplicate(true),
 		"goldfish": goldfish
 	}
 
@@ -1511,10 +1511,10 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 				return "illegal"
 			_scion_clear_pending()
 			_apply_sacrifice(p, {ritual_mid: true})
+			_log("P%d resolves Smrsk (sacrifice %d-power ritual; Burn self %d)." % [p, power, power])
 			var berr := execute_incantation_effect(p, "burn", power, [], {"mill_target": p})
 			if berr != "ok":
 				return berr
-			_log("P%d resolves Smrsk (sacrifice %d-power ritual; Burn self %d)." % [p, power, power])
 			return "ok"
 		"tmrsk_woe":
 			var wt := int(ctx.get("woe_target", -1))
@@ -1534,10 +1534,10 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 				_log("P%d resolves Tmrsk; Woe pending on P%d." % [p, wt])
 				return "ok"
 			_scion_clear_pending()
+			_log("P%d resolves Tmrsk (Woe 3)." % p)
 			var werr := execute_incantation_effect(p, "woe", 3, [], ctx)
 			if werr != "ok":
 				return werr
-			_log("P%d resolves Tmrsk (Woe 3)." % p)
 			return "ok"
 		_:
 			return "illegal"
@@ -1893,6 +1893,7 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 		_log("P%d plays Revive %d (%s) — skipped." % [p, value, payment_text])
 		_check_power_win(p)
 		return "ok"
+	_log("P%d plays Revive %d (%s)." % [p, value, payment_text])
 	for step in steps:
 		if typeof(step) != TYPE_DICTIONARY:
 			return "illegal"
@@ -1923,7 +1924,7 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 				_woe_pending_spell_to_abyss = true
 				_woe_pending_revive_wrapper = revive_wrapper
 				_woe_pending_noble_mid = -1
-				_log("P%d plays Revive %d (%s); Woe pending on P%d." % [p, value, payment_text, wt])
+				_log("P%d Revive %d: Woe pending on P%d." % [p, value, wt])
 				return "ok"
 		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
 		if err != "ok":
@@ -1932,7 +1933,6 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 		pl["inc_abyss"].append(crypt_card)
 		_log("P%d Revive casts %s %d from crypt (%s)." % [p, cv, cn, payment_text])
 	pl["crypt"].append(revive_wrapper)
-	_log("P%d plays Revive %d (%s)." % [p, value, payment_text])
 	_check_power_win(p)
 	return "ok"
 
@@ -2025,11 +2025,6 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 			_woe_pending_noble_mid = noble_mid
 			_log("P%d activates Wndrr; Woe pending on P%d." % [p, wt])
 			return "ok"
-	var err := execute_incantation_effect(p, v, value, wr_r, ctx)
-	if err != "ok":
-		return err
-	_queue_post_effect_scion_trigger(p, v)
-	_mark_noble_used_this_turn(p, noble_mid)
 	match nid:
 		"bndrr_incantation":
 			_log("P%d activates Bndrr (Burn 2)." % p)
@@ -2039,6 +2034,11 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 			_log("P%d activates Sndrr (Seek 1)." % p)
 		_:
 			pass
+	var err := execute_incantation_effect(p, v, value, wr_r, ctx)
+	if err != "ok":
+		return err
+	_queue_post_effect_scion_trigger(p, v)
+	_mark_noble_used_this_turn(p, noble_mid)
 	return "ok"
 
 
@@ -2068,6 +2068,7 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 		_mark_noble_used_this_turn(p, noble_mid)
 		_log("P%d activates Rndrr (Revive 1 skipped)." % p)
 		return "ok"
+	_log("P%d activates Rndrr (Revive from crypt)." % p)
 	var pl: Dictionary = _players[p]
 	for si in steps.size():
 		var d: Dictionary = steps[si]
@@ -2106,7 +2107,6 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 		_queue_post_effect_scion_trigger(p, cv)
 	_mark_noble_used_this_turn(p, noble_mid)
 	_queue_post_effect_scion_trigger(p, "revive")
-	_log("P%d activates Rndrr (Revive from crypt)." % p)
 	return "ok"
 
 
@@ -2190,13 +2190,13 @@ func apply_temple_phaedra_insight(p: int, temple_mid: int, insight_target: int, 
 	var ctx := {"insight_target": insight_target, "insight_top": insight_top, "insight_bottom": insight_bottom}
 	if _validate_play_ctx(p, "insight", 1, [], ctx) != "ok":
 		return "illegal"
+	_log("P%d activates Phaedra (Insight 1, draw 1)." % p)
 	var err := execute_incantation_effect(p, "insight", 1, [], ctx)
 	if err != "ok":
 		return err
 	_queue_post_effect_scion_trigger(p, "insight")
 	_draw_n(p, 1)
 	_mark_temple_used_this_turn(p, temple_mid)
-	_log("P%d activates Phaedra (Insight 1, draw 1)." % p)
 	return "ok"
 
 
@@ -2223,6 +2223,7 @@ func apply_temple_delpha(p: int, temple_mid: int, ritual_mid: int, crypt_idx: in
 	var abyss_ritual := {"mid": ritual_mid, "type": "ritual", "value": x}
 	pl["field"] = keep
 	pl["inc_abyss"].append(abyss_ritual)
+	_log("P%d activates Delpha (send ritual %d to abyss, Burn %d, ritual from crypt)." % [p, ritual_mid, x])
 	var berr := execute_incantation_effect(p, "burn", x, [], {"mill_target": p})
 	if berr != "ok":
 		pl["field"] = field
@@ -2243,7 +2244,6 @@ func apply_temple_delpha(p: int, temple_mid: int, ritual_mid: int, crypt_idx: in
 	var rmid := _next_mid(pl)
 	pl["field"].append({"mid": rmid, "value": int(c["value"])})
 	_mark_temple_used_this_turn(p, temple_mid)
-	_log("P%d activates Delpha (send ritual %d to abyss, Burn %d, ritual from crypt)." % [p, ritual_mid, x])
 	_check_power_win(p)
 	return "ok"
 
@@ -2400,10 +2400,10 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 			_woe_pending_noble_mid = -1
 			_log("P%d plays %s %d (%s); Woe pending on P%d." % [p, verb_raw, n, payment_text, wt])
 			return
+	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
 	_queue_post_effect_scion_trigger(p, verb)
 	pl["crypt"].append(card)
-	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
 	_check_power_win(p)
 
 
@@ -2446,10 +2446,10 @@ func _finalize_play_dethrone(p: int, card: Dictionary, payload: Dictionary) -> v
 	var n := int(payload.get("value", 4))
 	var noble_mids: Array = payload.get("noble_mids", []) as Array
 	var destroyed := _dethrone_resolve_mids(1 - p, noble_mids)
+	_log("P%d plays Dethrone %d." % [p, n])
 	if not destroyed.is_empty():
 		_destroy_nobles_by_mids(1 - p, destroyed)
 	pl["crypt"].append(card)
-	_log("P%d plays Dethrone %d." % [p, n])
 
 
 func can_activate_noble(p: int, noble_mid: int) -> bool:
@@ -2507,10 +2507,10 @@ func activate_noble_with_insight(p: int, noble_mid: int, insight_target: int, in
 		var ctx := {"insight_target": insight_target, "insight_top": insight_top, "insight_bottom": insight_bottom}
 		if _validate_play_ctx(p, "insight", 1, [], ctx) != "ok":
 			return "illegal"
+		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 1)])
 		execute_incantation_effect(p, "insight", 1, [], ctx)
 		_queue_post_effect_scion_trigger(p, "insight")
 		_mark_noble_used_this_turn(p, noble_mid)
-		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 1)])
 		return "ok"
 	var hook: Variant = _hook_for_noble(noble)
 	var result: Variant = hook.call("activate", self, p, noble)
@@ -3067,11 +3067,11 @@ func end_turn(p: int, discard_indices: Array) -> String:
 	for idx in remove_desc:
 		var i2 := int(idx)
 		_move_hand_card_to_discard(pl, hand, i2)
+	_log("P%d ends turn." % p)
 	if goldfish:
 		current = 0
 	else:
 		current = 1 - p
-	_log("P%d ends turn." % p)
 	if phase != Phase.GAME_OVER:
 		_turn_start_draw()
 	return "ok"
@@ -3089,7 +3089,12 @@ func _card_at_hand(p: int, idx: int) -> Variant:
 
 
 func _log(s: String) -> void:
-	log_lines.append(s)
+	log_lines.append({
+		"text": s,
+		"turn": turn_number,
+		"player": current,
+		"starter": _starting_player,
+	})
 	if log_lines.size() > 40:
 		log_lines.remove_at(0)
 
