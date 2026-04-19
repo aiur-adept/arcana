@@ -4863,7 +4863,7 @@ func _try_begin_ring_play(hand_idx: int, _card: Dictionary) -> void:
 		return
 	var targets := _ring_target_lists_for_self(snap)
 	if (targets["nobles"] as Array).is_empty() and (targets["birds"] as Array).is_empty():
-		status_label.text = "No legal target: rings attach to a Noble or un-nested Bird you control."
+		status_label.text = "No legal target: rings attach to a Noble or wild Bird you control."
 		return
 	_enter_ring_target_mode(hand_idx)
 
@@ -4875,8 +4875,8 @@ func _enter_ring_target_mode(hand_idx: int) -> void:
 	sacrifice_row.visible = true
 	sacrifice_confirm_button.visible = false
 	sacrifice_cancel_button.text = "Cancel"
-	sacrifice_hint.text = "Ring: click one of your Nobles or un-nested Birds to attach."
-	status_label.text = "Select a Noble or un-nested Bird you control to attach the ring."
+	sacrifice_hint.text = "Ring: click one of your Nobles or wild Birds to attach."
+	status_label.text = "Select a Noble or wild Bird you control to attach the ring."
 	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 

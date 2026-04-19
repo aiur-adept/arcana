@@ -47,7 +47,7 @@ All of Set 1 per `design_document.md` is implemented:
 - Birds with cost/power catalog, bird-lane activation from wild-bird power sum,
   simple bird combat, and nesting into temples.
 - All 5 rings (Sybiline/Cymbil/Celadon/Serraf/Sinofia): lane-2 cost, attach to a
-  noble or un-nested bird, additive cost reductions (floor 0) on spells/units
+  noble or wild bird, additive cost reductions (floor 0) on spells/units
   matching each ring's reductions, shed to crypt when the host is destroyed,
   and block nesting for any bird carrying a ring.
 - Pending-response FIFO for Woe (opponent target), Eyrie (bird pick), and the

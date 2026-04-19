@@ -44,7 +44,7 @@ func should_nest(bird: Dictionary, _temple: Dictionary) -> bool:
 
 func _pick_ring_host(card: Dictionary, hosts: Array, your_nobles: Array, your_birds: Array) -> Dictionary:
 	if str(card.get("ring_id", "")) == "sinofia_feathers":
-		# Prefer a raven that is un-nested
+		# Prefer a raven that is wild
 		for b in your_birds:
 			var bd := b as Dictionary
 			if str(bd.get("bird_id", "")) != "raven":

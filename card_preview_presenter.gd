@@ -541,17 +541,17 @@ static func _card_type(card: Dictionary) -> String:
 static func _ring_preview_text(ring_id: String) -> String:
 	match ring_id:
 		"sybiline_emanation":
-			return "Attach to a Noble or un-nested Bird. While on the field, your Seek and Insight cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Seek and Insight cost 1 less to play (minimum 0)."
 		"cymbil_occultation":
-			return "Attach to a Noble or un-nested Bird. While on the field, your Burn and Revive cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Burn and Revive cost 1 less to play (minimum 0)."
 		"celadon_annihilation":
-			return "Attach to a Noble or un-nested Bird. While on the field, your Woe and Wrath cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Woe and Wrath cost 1 less to play (minimum 0)."
 		"serraf_nobles":
-			return "Attach to a Noble or un-nested Bird. While on the field, your Nobles cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Nobles cost 1 less to play (minimum 0)."
 		"sinofia_feathers":
-			return "Attach to a Noble or un-nested Bird. While on the field, your Birds and your Tears cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Birds and your Tears cost 1 less to play (minimum 0)."
 		_:
-			return "Ring — attach to a Noble or un-nested Bird."
+			return "Ring — attach to a Noble or wild Bird."
 
 
 static func _temple_preview_text(temple_id: String) -> String:

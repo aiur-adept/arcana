@@ -91,8 +91,8 @@ text = "1. Draw — Draw 1 card from your deck (the player who goes first skips 
    - Up to 1 Temple from hand
    - Up to 1 Bird from hand
    - Any number of Rings
-3. Nest Birds — Move any of your un-nested Birds under your Temples (a Temple can hold up to cost-many Birds).
-4. Bird combat (optional, once per turn) — Send any set of your un-nested Birds against one opposing un-nested Bird; both sides deal damage equal to total Bird power and you assign damage among your own Birds.
+3. Nest Birds — Move any of your wild Birds under your Temples (a Temple can hold up to cost-many Birds).
+4. Bird combat (optional, once per turn) — Send any set of your wild Birds against one opposing wild Bird; both sides deal damage equal to total Bird power and you assign damage among your own Birds.
 5. Activate permanents — Each card on the field with an activated ability can activate once per turn.
 6. Loot (optional, once per turn) — Discard a card to draw a card.
 7. Discard down — At the end of your turn, discard until you have 7 cards in hand."
@@ -348,7 +348,7 @@ layout_mode = 2
 bbcode_enabled = false
 fit_content = true
 scroll_active = false
-text = "Rings are silver cards that attach to one of your Nobles or to an un-nested Bird you control.
+text = "Rings are silver cards that attach to one of your Nobles or to an wild Bird you control.
 - Each Ring reduces the cost of specific plays by 1 while it remains on the field.
 - A Noble or Bird may carry multiple Rings. A stack tab beside it shows how many are attached — click it to see the Rings.
 - When the host is destroyed, its attached Rings go to the crypt. A Bird with any attached Ring cannot nest.

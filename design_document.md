@@ -98,7 +98,7 @@ Bird lane example:
 
 - Birds have the ability nest. A temple on your field may nest X birds in it where X is its cost. 
 - Each bird nested in a temple adds an additional +1 to ritual power and cannot be involved in fighting.
-- An un-nested bird is "wild".
+- An wild bird is "wild".
 
 ## 6) Playing Cards and Paying Costs
 
