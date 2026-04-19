@@ -43,8 +43,8 @@ func mulligan(_host: Node, snap: Dictionary) -> bool:
 	return false
 
 
-func score_noble_play(card: Dictionary, eff_cost: int, sac: Array, active_lanes: Array) -> Variant:
-	var base: Variant = super(card, eff_cost, sac, active_lanes)
+func score_noble_play(card: Dictionary, eff_cost: int, sac: Array, active_lanes: Array, snap: Dictionary = {}) -> Variant:
+	var base: Variant = super(card, eff_cost, sac, active_lanes, snap)
 	if base == null:
 		return null
 	var score := float(base)

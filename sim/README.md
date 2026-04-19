@@ -12,6 +12,22 @@ meta plan rather than the generic greedy fallback.
 python -m sim.run --deck noble_test --runs 100000 [--seed 0] [--workers N]
 ```
 
+To use **trained weights** from the same JSON as Godot (`data/pilot_weights.json`), add `--use-saved-weights`. For each deck slug, if `weights_by_slug` contains that slug, the sim builds a weighted `GreedyAI` subclass; otherwise it uses the hand-tuned pilot class. Optional: `--weights path/to/pilot_weights.json`.
+
+### EA training (pilot weights)
+
+Evolves `GreedyAI` float weights for one P0 deck and **merges** the result into
+`data/pilot_weights.json` (same schema as [`ea_pilot_training_implementation_guide.md`](../ea_pilot_training_implementation_guide.md) §6). Godot loads this file at runtime via
+`ArcanaCpuPilotRegistry.create_for_slug`.
+
+```powershell
+python -m sim.train_ea --deck bird_test --generations 30 --population 24 --games 400 [--seed 0] [--workers N]
+```
+
+- `--out`: optional path; default is `data/pilot_weights.json` under the repo root.
+- Evaluation uses `sim.ea_eval.evaluate_genome` (same match loop as `sim.run`).
+- Worker entry points live in `sim/ea_eval.py` so multiprocessing works on Windows.
+
 - `--deck`: P0 deck slug. Must be listed in `included_decks/index.json`.
 - `--runs`: total simulated games (default 100k).
 - `--seed`: master RNG seed for reproducibility. Each worker seeds from this.

@@ -85,6 +85,8 @@ class GreedyAI:
     W_DETHRONE_PER_COST: float = 3.0
 
     SAC_PENALTY_PER_RITUAL: float = 2.0
+    SAC_W_FIELD_POWER: float = 0.0   # × sum of ritual values on our field (sac aversion scales with board mass)
+    SAC_W_HIGH_RITUAL: float = 0.0   # × max ritual value on our field
     INC_BASE_BONUS: float = 5.0
 
     W_NOBLE_ACTIVATION: float = 30.0
@@ -99,6 +101,8 @@ class GreedyAI:
     W_NEST_BASE: float = 8.0
     W_FIGHT_KILL_BASE: float = 4.0
     W_DISCARD_DRAW: float = 3.0
+    DD_W_FIELD_CONTRIB: float = 0.0  # × _card_discard_score(worst card): keep-affinity of the card we would bin
+    DD_W_CARD_COST: float = 0.0    # × mana/value cost of that card
 
     # verb effect scoring
     W_EFFECT_SEEK_BASE: float = 8.0
@@ -348,9 +352,10 @@ class GreedyAI:
                     actions.append((score, "fight", (atk_mid, def_mid)))
 
         if not p.discard_draw_used and p.hand:
-            score = self.W_DISCARD_DRAW
             scored = sorted(range(len(p.hand)), key=lambda i: self._card_discard_score(p.hand[i]))
             worst = scored[0]
+            worst_c = p.hand[worst]
+            score = self._discard_draw_action_score(worst_c)
             actions.append((score, "discard_draw", (worst,)))
 
         actions.sort(key=lambda t: t[0], reverse=True)
@@ -379,7 +384,7 @@ class GreedyAI:
         if card.noble_id in ("xytzr_emanation", "yytzr_occultation", "zytzr_annihilation"):
             score += self.W_NOBLE_BIG_TRIPLET
         if sac:
-            score -= self._sac_penalty(sac)
+            score -= self._sac_penalty(state, self.pid, sac)
         return score
 
     def score_bird_play(self, state: MatchState, card) -> float:
@@ -392,12 +397,14 @@ class GreedyAI:
         score = self.W_TEMPLE_BASE + card.cost * self.W_TEMPLE_COST_BONUS
         if card.temple_id == "eyrie_feathers" and any(cc.kind is Kind.BIRD for cc in p.deck):
             score += self.W_TEMPLE_EYRIE_BONUS
+        if sac:
+            score -= self._sac_penalty(state, self.pid, sac)
         return score
 
     def score_dethrone(self, state: MatchState, card, sac: list[int], target) -> Optional[float]:
         score = self.W_DETHRONE_BASE + target.cost * self.W_DETHRONE_PER_COST
         if sac:
-            score -= self._sac_penalty(sac)
+            score -= self._sac_penalty(state, self.pid, sac)
         return score
 
     def choose_dethrone_target(self, state: MatchState, pid: int):
@@ -427,8 +434,41 @@ class GreedyAI:
         p.field = saved
         return lanes
 
-    def _sac_penalty(self, sac_mids) -> float:
-        return self.SAC_PENALTY_PER_RITUAL * len(sac_mids)
+    def _sac_field_stats(self, state: MatchState, pid: int) -> tuple[float, float]:
+        p = state.players[pid]
+        field_power = sum(r.value for r in p.field)
+        highest = max((r.value for r in p.field), default=0)
+        return float(field_power), float(highest)
+
+    def _sac_penalty(self, state: MatchState, pid: int, sac_mids: list[int]) -> float:
+        if not sac_mids:
+            return 0.0
+        fp, hi = self._sac_field_stats(state, pid)
+        return (
+            self.SAC_PENALTY_PER_RITUAL * len(sac_mids)
+            + self.SAC_W_FIELD_POWER * fp
+            + self.SAC_W_HIGH_RITUAL * hi
+        )
+
+    def _card_dd_cost(self, c) -> float:
+        if c.kind is Kind.RITUAL:
+            return float(c.value)
+        if c.kind is Kind.INCANTATION:
+            return float(c.value)
+        if c.kind is Kind.NOBLE:
+            return float(c.cost)
+        if c.kind is Kind.TEMPLE:
+            return float(c.cost)
+        if c.kind is Kind.BIRD:
+            return float(c.cost)
+        if c.kind is Kind.RING:
+            return float(RING_COST)
+        return 0.0
+
+    def _discard_draw_action_score(self, worst_card) -> float:
+        contrib = self._card_discard_score(worst_card)
+        cost = self._card_dd_cost(worst_card)
+        return self.W_DISCARD_DRAW + self.DD_W_FIELD_CONTRIB * contrib + self.DD_W_CARD_COST * cost
 
     def _score_incantation(self, state: MatchState, pid: int, card) -> Optional[tuple[float, list[int]]]:
         p = state.players[pid]
@@ -449,7 +489,7 @@ class GreedyAI:
         score, ctx = eff
         score += self.INC_BASE_BONUS
         if sac:
-            score -= self._sac_penalty(sac)
+            score -= self._sac_penalty(state, pid, sac)
         score = self.adjust_incantation_score(state, pid, card, sac, score)
         if score is None:
             return None

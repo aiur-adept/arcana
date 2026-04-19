@@ -5,8 +5,13 @@ Each matrix cell ``M[row, col]`` is P(row beats col) = p0_wins / games,
 computed from the shard where ``row`` is P0 and ``col`` is a P1 opponent.
 
 Usage:
+    # Baseline pilots (class default GreedyAI weights; no JSON overrides)
     python -m sim.meta --runs 100000 --seed 42 [--out sim_meta_matrix.csv]
-        [--workers N] [--include-draws-as-half]
+
+    # Trained weights from data/pilot_weights.json (per slug when present)
+    python -m sim.meta --runs 100000 --seed 42 --use-saved-weights [--weights PATH]
+
+Common flags: ``--workers N``, ``--include-draws-as-half``, ``--games-out``.
 
 This reuses ``sim.run.run_shard`` (multiprocess shards per P0 slug) so the
 per-game pilot / mulligan / invariant plumbing is identical to the CLI
@@ -24,18 +29,19 @@ from pathlib import Path
 from typing import Any
 
 from .decks import included_deck_slugs
+from .pilot_weights import default_pilot_weights_path
 from .run import _empty_bucket, _merge_bucket, _validate_invariants, run_shard
 
 
 def _simulate_p0(p0_slug: str, total_runs: int, seed: int, seed_offset: int,
-                 workers: int) -> dict[str, dict[str, Any]]:
+                 workers: int, weights_path_str: str, use_saved_weights: bool) -> dict[str, dict[str, Any]]:
     per_shard = total_runs // workers
     remainder = total_runs - per_shard * workers
     shard_args = []
     for i in range(workers):
         runs_i = per_shard + (1 if i < remainder else 0)
         shard_seed = seed * 1_000_003 + seed_offset * 10_007 + i * 17 + 1
-        shard_args.append((p0_slug, runs_i, shard_seed))
+        shard_args.append((p0_slug, runs_i, shard_seed, weights_path_str, use_saved_weights))
     agg: dict[str, dict[str, Any]] = {}
     if workers == 1:
         shard = run_shard(shard_args[0])
@@ -64,15 +70,21 @@ def _cell_winrate(bucket: dict[str, Any], count_draws_as_half: bool) -> tuple[fl
 
 def run_meta(runs_per_deck: int, seed: int, workers: int,
              out_path: Path, count_draws_as_half: bool,
-             games_out_path: Path | None = None) -> None:
+             games_out_path: Path | None = None,
+             weights_path_str: str = "",
+             use_saved_weights: bool = False) -> None:
     slugs = included_deck_slugs()
     all_agg: dict[str, dict[str, dict[str, Any]]] = {}
     t0 = time.perf_counter()
     print(f"Meta-run: {len(slugs)} decks x {runs_per_deck} runs "
           f"(seed={seed}, workers={workers})")
+    if use_saved_weights:
+        print(f"Pilot weights: trained ({weights_path_str}; per-slug when present)")
+    else:
+        print("Pilot weights: baseline (class defaults; greedy, no JSON overrides)")
     for si, p0_slug in enumerate(slugs):
         t_deck = time.perf_counter()
-        agg = _simulate_p0(p0_slug, runs_per_deck, seed, si, workers)
+        agg = _simulate_p0(p0_slug, runs_per_deck, seed, si, workers, weights_path_str, use_saved_weights)
         all_agg[p0_slug] = agg
         dt = time.perf_counter() - t_deck
         print(f"  [{si + 1:2d}/{len(slugs):2d}] {p0_slug:22s}  {dt:6.2f}s")
@@ -147,14 +159,29 @@ def main() -> None:
                     help="optional: write a second CSV with per-cell sample sizes")
     ap.add_argument("--include-draws-as-half", action="store_true",
                     help="count each draw as 0.5 of a win (default: draws count as losses)")
+    ap.add_argument(
+        "--use-saved-weights",
+        action="store_true",
+        help="load trained weights per slug from pilot_weights.json (omit flag for baseline/greedy pilots)",
+    )
+    ap.add_argument("--weights", type=str, default="",
+                    help="pilot_weights.json path; only used with --use-saved-weights "
+                    "(default: <project>/data/pilot_weights.json)")
     args = ap.parse_args()
 
     workers = args.workers if args.workers > 0 else (os.cpu_count() or 1)
     workers = max(1, min(workers, args.runs))
     out_path = Path(args.out)
     games_out_path = Path(args.games_out) if args.games_out else None
-    run_meta(args.runs, args.seed, workers, out_path,
-             args.include_draws_as_half, games_out_path)
+    weights_path_str = ""
+    if args.use_saved_weights:
+        wp = Path(args.weights) if args.weights else default_pilot_weights_path()
+        weights_path_str = str(wp.resolve())
+    run_meta(
+        args.runs, args.seed, workers, out_path,
+        args.include_draws_as_half, games_out_path,
+        weights_path_str, args.use_saved_weights,
+    )
 
 
 if __name__ == "__main__":

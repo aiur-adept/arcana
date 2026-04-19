@@ -72,7 +72,7 @@ class TopheavyAnnihilatorPilot(GreedyAI):
                 if eff is None:
                     return None
                 score, _ctx = eff
-                score += self.INC_BASE_BONUS - self._sac_penalty(s)
+                score += self.INC_BASE_BONUS - self._sac_penalty(state, self.pid, s)
                 return score, s
             return None
         eff = self._score_effect(state, pid, card.verb, card.value)

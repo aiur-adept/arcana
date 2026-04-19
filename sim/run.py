@@ -15,12 +15,13 @@ import multiprocessing as mp
 import os
 import random
 import time
+from pathlib import Path
 from typing import Any
 
 from .ai import GreedyAI, simple_mulligan
 from .decks import included_deck_slugs, load_all_included_decks
 from .match import EndOfGame, MatchState
-from .pilots import get_pilot
+from .pilot_weights import default_pilot_weights_path, pilot_class_for_slug
 
 
 POWER_CURVE_MARKERS = [1, 3, 5, 10, 15, 20]
@@ -125,13 +126,17 @@ def _record_result(bucket: dict[str, Any], res: dict[str, Any]) -> None:
     bucket["end_reason_counts"][reason] += 1
 
 
-def run_shard(args: tuple) -> dict[str, dict[str, Any]]:
-    p0_slug, runs_in_shard, shard_seed = args
+def run_shard(args: tuple[Any, ...]) -> dict[str, dict[str, Any]]:
+    p0_slug, runs_in_shard, shard_seed = args[0], args[1], args[2]
+    weights_path_str = args[3] if len(args) > 3 else ""
+    use_saved_weights = args[4] if len(args) > 4 else False
+    wpath = Path(weights_path_str) if weights_path_str else None
+
     decks = load_all_included_decks()
     slugs = included_deck_slugs()
     rng = random.Random(shard_seed)
     p0_deck = decks[p0_slug]
-    p0_pilot_cls = get_pilot(p0_slug)
+    p0_pilot_cls = pilot_class_for_slug(p0_slug, wpath, use_saved_weights)
     pilot_cache: dict[str, type[GreedyAI]] = {p0_slug: p0_pilot_cls}
     stats: dict[str, dict[str, Any]] = {}
     for _ in range(runs_in_shard):
@@ -139,7 +144,7 @@ def run_shard(args: tuple) -> dict[str, dict[str, Any]]:
         p1_deck = decks[p1_slug]
         p1_pilot_cls = pilot_cache.get(p1_slug)
         if p1_pilot_cls is None:
-            p1_pilot_cls = get_pilot(p1_slug)
+            p1_pilot_cls = pilot_class_for_slug(p1_slug, wpath, use_saved_weights)
             pilot_cache[p1_slug] = p1_pilot_cls
         game_rng = random.Random(rng.getrandbits(64))
         res = _play_one_game(p0_deck, p1_deck, game_rng, p0_pilot_cls, p1_pilot_cls)
@@ -235,11 +240,27 @@ def main() -> None:
     ap.add_argument("--runs", type=int, default=100_000, help="total number of simulated games")
     ap.add_argument("--seed", type=int, default=0, help="master RNG seed for reproducibility")
     ap.add_argument("--workers", type=int, default=0, help="override worker count (default: os.cpu_count())")
+    ap.add_argument(
+        "--use-saved-weights",
+        action="store_true",
+        help="for each deck slug, use weights from data/pilot_weights.json when that slug has an entry (same file as Godot)",
+    )
+    ap.add_argument(
+        "--weights",
+        type=str,
+        default="",
+        help="path to pilot_weights.json (default: <project>/data/pilot_weights.json); only used with --use-saved-weights",
+    )
     args = ap.parse_args()
 
     slugs = included_deck_slugs()
     if args.deck not in slugs:
         raise SystemExit(f"--deck must be one of {slugs}; got {args.deck!r}")
+
+    weights_path_str = ""
+    if args.use_saved_weights:
+        wp = Path(args.weights) if args.weights else default_pilot_weights_path()
+        weights_path_str = str(wp.resolve())
 
     workers = args.workers if args.workers > 0 else (os.cpu_count() or 1)
     workers = max(1, min(workers, args.runs))
@@ -248,9 +269,13 @@ def main() -> None:
     shard_args = []
     for i in range(workers):
         runs_i = per_shard + (1 if i < remainder else 0)
-        shard_args.append((args.deck, runs_i, args.seed * 1_000_003 + i * 17 + 1))
+        shard_args.append(
+            (args.deck, runs_i, args.seed * 1_000_003 + i * 17 + 1, weights_path_str, args.use_saved_weights)
+        )
 
     print(f"Launching {workers} worker(s); total runs={args.runs} (per-shard ~={per_shard})")
+    if args.use_saved_weights:
+        print(f"Saved weights: {weights_path_str} (per-slug when present; else hand-tuned pilot class)")
     t0 = time.perf_counter()
     agg: dict[str, dict[str, Any]] = {}
     if workers == 1:

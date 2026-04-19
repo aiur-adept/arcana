@@ -79,6 +79,8 @@ var W_DETHRONE_BASE: float = 40.0
 var W_DETHRONE_PER_COST: float = 3.0
 
 var SAC_PENALTY_PER_RITUAL: float = 2.0
+var SAC_W_FIELD_POWER: float = 0.0
+var SAC_W_HIGH_RITUAL: float = 0.0
 var INC_BASE_BONUS: float = 5.0
 
 var W_NOBLE_ACTIVATION: float = 30.0
@@ -93,6 +95,8 @@ var W_TEMPLE_YTRIA_ACT_BASE: float = 25.0
 var W_NEST_BASE: float = 8.0
 var W_FIGHT_KILL_BASE: float = 4.0
 var W_DISCARD_DRAW: float = 3.0
+var DD_W_FIELD_CONTRIB: float = 0.0
+var DD_W_CARD_COST: float = 0.0
 
 var W_EFFECT_SEEK_BASE: float = 8.0
 var W_EFFECT_SEEK_VALUE: float = 3.0
@@ -345,7 +349,7 @@ func _enumerate_best(host: Node, snap: Dictionary) -> Variant:
 				sac = _greedy_sac_min(your_field, eff)
 				if sac.is_empty() and eff > 0:
 					continue
-			var nscore: Variant = score_noble_play(c, eff, sac, active_lanes)
+			var nscore: Variant = score_noble_play(c, eff, sac, active_lanes, snap)
 			if nscore == null:
 				continue
 			actions.append({"score": float(nscore), "kind": "noble", "hand_idx": i, "sac": sac})
@@ -388,7 +392,7 @@ func _enumerate_best(host: Node, snap: Dictionary) -> Variant:
 				var target := choose_dethrone_target(snap)
 				if target.is_empty():
 					continue
-				var dscore: Variant = score_dethrone(c, dsac, target)
+				var dscore: Variant = score_dethrone(c, dsac, target, snap)
 				if dscore == null:
 					continue
 				actions.append({"score": float(dscore), "kind": "dethrone", "hand_idx": i, "sac": dsac, "target_mid": int(target.get("mid", -1))})
@@ -477,7 +481,9 @@ func _enumerate_best(host: Node, snap: Dictionary) -> Variant:
 
 	if not bool(snap.get("discard_draw_used", true)) and not hand.is_empty():
 		var worst_dd := _pick_worst_hand_index(hand)
-		actions.append({"score": W_DISCARD_DRAW, "kind": "discard_draw", "hand_idx": worst_dd})
+		var worst_c: Dictionary = hand[worst_dd] as Dictionary
+		var dd_score := _discard_draw_action_score(worst_c)
+		actions.append({"score": dd_score, "kind": "discard_draw", "hand_idx": worst_dd})
 
 	if actions.is_empty():
 		return null
@@ -499,7 +505,7 @@ func score_ritual_play(card: Dictionary, before_lanes: Array, lanes_unlocked: in
 	return score
 
 
-func score_noble_play(card: Dictionary, _eff_cost: int, sac: Array, active_lanes: Array) -> Variant:
+func score_noble_play(card: Dictionary, _eff_cost: int, sac: Array, active_lanes: Array, snap: Dictionary = {}) -> Variant:
 	var score := W_NOBLE_BASE + float(_GameSnapshotUtils.noble_cost_for_id(str(card.get("noble_id", "")))) * W_NOBLE_COST_BONUS
 	var nid := str(card.get("noble_id", ""))
 	var info: Dictionary = NOBLE_DEFS.get(nid, {}) as Dictionary
@@ -509,7 +515,7 @@ func score_noble_play(card: Dictionary, _eff_cost: int, sac: Array, active_lanes
 	if BIG_TRIPLET.has(nid):
 		score += W_NOBLE_BIG_TRIPLET
 	if not sac.is_empty():
-		score -= _sac_penalty(sac)
+		score -= _sac_penalty(sac, snap)
 	return score
 
 
@@ -526,14 +532,14 @@ func score_temple_play(card: Dictionary, sac: Array, lanes_after_sac: Array, _sn
 		# Eyrie's own ETB-search is what makes this valuable; we unconditionally give the bonus.
 		score += W_TEMPLE_EYRIE_BONUS
 	if not sac.is_empty():
-		score -= _sac_penalty(sac)
+		score -= _sac_penalty(sac, _snap)
 	return score
 
 
-func score_dethrone(_card: Dictionary, sac: Array, target: Dictionary) -> Variant:
+func score_dethrone(_card: Dictionary, sac: Array, target: Dictionary, snap: Dictionary = {}) -> Variant:
 	var score := W_DETHRONE_BASE + float(target.get("cost", 0)) * W_DETHRONE_PER_COST
 	if not sac.is_empty():
-		score -= _sac_penalty(sac)
+		score -= _sac_penalty(sac, snap)
 	return score
 
 
@@ -661,7 +667,7 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 	var ctx: Dictionary = ((eff as Dictionary)["ctx"] as Dictionary).duplicate(true)
 	score += INC_BASE_BONUS
 	if not sac.is_empty():
-		score -= _sac_penalty(sac)
+		score -= _sac_penalty(sac, snap)
 	var adj: Variant = adjust_incantation_score(card, sac, score)
 	if adj == null:
 		return null
@@ -1155,8 +1161,46 @@ func _pick_worst_hand_index(hand: Array) -> int:
 	return best_i
 
 
-func _sac_penalty(sac: Array) -> float:
-	return SAC_PENALTY_PER_RITUAL * float(sac.size())
+func _sac_field_stats(snap: Dictionary) -> Vector2:
+	var your_field: Array = snap.get("your_field", []) as Array
+	var field_power := 0.0
+	var highest := 0.0
+	for r in your_field:
+		var v := float((r as Dictionary).get("value", 0))
+		field_power += v
+		if v > highest:
+			highest = v
+	return Vector2(field_power, highest)
+
+
+func _sac_penalty(sac: Array, snap: Dictionary) -> float:
+	if sac.is_empty():
+		return 0.0
+	var fs := _sac_field_stats(snap)
+	return SAC_PENALTY_PER_RITUAL * float(sac.size()) + SAC_W_FIELD_POWER * fs.x + SAC_W_HIGH_RITUAL * fs.y
+
+
+func _card_dd_cost(cd: Dictionary) -> float:
+	var k := _card_kind(cd)
+	if k == "ritual":
+		return float(cd.get("value", 0))
+	if k == "incantation":
+		return float(cd.get("value", 0))
+	if k == "noble":
+		return float(_GameSnapshotUtils.noble_cost_for_id(str(cd.get("noble_id", ""))))
+	if k == "temple":
+		return float(_GameSnapshotUtils.temple_cost_for_id(str(cd.get("temple_id", ""))))
+	if k == "bird":
+		return float(cd.get("cost", 0))
+	if k == "ring":
+		return float(RING_COST)
+	return 0.0
+
+
+func _discard_draw_action_score(card: Dictionary) -> float:
+	var contrib := _card_discard_score(card)
+	var cost := _card_dd_cost(card)
+	return W_DISCARD_DRAW + DD_W_FIELD_CONTRIB * contrib + DD_W_CARD_COST * cost
 
 
 func _active_lanes(your_field: Array, your_nobles: Array) -> Array:

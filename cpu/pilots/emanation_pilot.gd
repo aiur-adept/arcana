@@ -32,13 +32,13 @@ func adjust_ring_score(card: Dictionary, score: float) -> float:
 	return score
 
 
-func score_dethrone(card: Dictionary, sac: Array, target: Dictionary) -> Variant:
+func score_dethrone(card: Dictionary, sac: Array, target: Dictionary, snap: Dictionary = {}) -> Variant:
 	if target.is_empty():
 		return null
 	var tcost: int = _GameSnapshotUtils.noble_cost_for_id(str(target.get("noble_id", "")))
 	if tcost < 6:
 		return null
-	return super(card, sac, target)
+	return super(card, sac, target, snap)
 
 
 func scion_response(host: Node, snap: Dictionary) -> void:

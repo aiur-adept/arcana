@@ -15,35 +15,39 @@ const _Temples = preload("res://cpu/pilots/temples_pilot.gd")
 const _BirdTest = preload("res://cpu/pilots/bird_test_pilot.gd")
 const _VoidTemples = preload("res://cpu/pilots/void_temples_pilot.gd")
 const _Revive = preload("res://cpu/pilots/revive_pilot.gd")
+const _PilotWeights = preload("res://cpu/pilot_weights_loader.gd")
 
 
 static func create_for_slug(slug: String) -> ArcanaCpuBase:
+	var p: ArcanaCpuBase
 	match slug:
 		"incantations":
-			return _Incantations.new()
+			p = _Incantations.new()
 		"noble_test":
-			return _NobleTest.new()
+			p = _NobleTest.new()
 		"wrathseek-sac":
-			return _WrathseekSac.new()
+			p = _WrathseekSac.new()
 		"ritual_reanimator":
-			return _RitualReanimator.new()
+			p = _RitualReanimator.new()
 		"topheavy_annihilator":
-			return _Topheavy.new()
+			p = _Topheavy.new()
 		"occultation":
-			return _Occultation.new()
+			p = _Occultation.new()
 		"annihilation":
-			return _Annihilation.new()
+			p = _Annihilation.new()
 		"emanation":
-			return _Emanation.new()
+			p = _Emanation.new()
 		"scions":
-			return _Scions.new()
+			p = _Scions.new()
 		"temples":
-			return _Temples.new()
+			p = _Temples.new()
 		"bird_test":
-			return _BirdTest.new()
+			p = _BirdTest.new()
 		"void_temples":
-			return _VoidTemples.new()
+			p = _VoidTemples.new()
 		"revive":
-			return _Revive.new()
+			p = _Revive.new()
 		_:
-			return _CpuBase.new()
+			p = _CpuBase.new()
+	_PilotWeights.apply_saved_weights(p, slug)
+	return p
