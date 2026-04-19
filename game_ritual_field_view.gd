@@ -84,20 +84,13 @@ func rebuild_noble_field(row: HBoxContainer, nobles: Variant, ours: bool) -> voi
 		row.add_child(make_noble_card(noble as Dictionary, ours))
 
 
-func rebuild_bird_field(row: HBoxContainer, birds: Variant, ours: bool) -> void:
-	for c in row.get_children():
-		c.queue_free()
-	if typeof(birds) != TYPE_ARRAY:
+func _flush_bird_buffer(row: HBoxContainer, buffer: Array, ours: bool) -> void:
+	if buffer.is_empty():
 		return
 	var order: Array = []
 	var groups: Dictionary = {}
-	for bird in birds as Array:
-		if typeof(bird) != TYPE_DICTIONARY:
-			continue
-		var bd: Dictionary = bird as Dictionary
-		if int(bd.get("nest_temple_mid", -1)) >= 0:
-			continue
-		var key := str(bd.get("name", "Bird"))
+	for bd in buffer:
+		var key := str((bd as Dictionary).get("name", "Bird"))
 		if not groups.has(key):
 			groups[key] = []
 			order.append(key)
@@ -105,6 +98,28 @@ func rebuild_bird_field(row: HBoxContainer, birds: Variant, ours: bool) -> void:
 	for key in order:
 		var grp: Array = groups[key] as Array
 		row.add_child(make_bird_stack(grp, ours))
+	buffer.clear()
+
+
+func rebuild_bird_field(row: HBoxContainer, birds: Variant, ours: bool) -> void:
+	for c in row.get_children():
+		c.queue_free()
+	if typeof(birds) != TYPE_ARRAY:
+		return
+	var buffer: Array = []
+	for bird in birds as Array:
+		if typeof(bird) != TYPE_DICTIONARY:
+			continue
+		var bd: Dictionary = bird as Dictionary
+		if int(bd.get("nest_temple_mid", -1)) >= 0:
+			continue
+		var has_rings: bool = not (bd.get("rings", []) as Array).is_empty()
+		if has_rings:
+			_flush_bird_buffer(row, buffer, ours)
+			row.add_child(make_bird_stack([bd], ours))
+		else:
+			buffer.append(bd)
+	_flush_bird_buffer(row, buffer, ours)
 	if row.get_child_count() == 0:
 		var empty_b := Label.new()
 		empty_b.text = "—"
