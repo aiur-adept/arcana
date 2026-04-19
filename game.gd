@@ -1382,14 +1382,7 @@ func _load_cards_from_path(path: String) -> Array:
 		if typeof(c) != TYPE_DICTIONARY:
 			continue
 		var cd: Dictionary = (c as Dictionary).duplicate(true)
-		if CardTraits.is_dethrone(cd):
-			var dv := int(cd.get("value", 4))
-			if dv != 4:
-				continue
-			cd["type"] = "incantation"
-			cd["verb"] = "dethrone"
-			cd["value"] = 4
-		elif _card_type(cd) == "incantation" and str(cd.get("verb", "")).to_lower() == "wrath":
+		if _card_type(cd) == "incantation" and str(cd.get("verb", "")).to_lower() == "wrath":
 			cd["value"] = 4
 		out.append(cd)
 	return out

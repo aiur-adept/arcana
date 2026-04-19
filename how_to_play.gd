@@ -52,18 +52,18 @@ func _build_type_examples() -> void:
 	row.add_child(_caption("Ritual"))
 	row.add_child(_make_ritual_card(2, true))
 	row.add_child(_spacer(14.0))
-	row.add_child(_caption("Noble"))
-	row.add_child(_make_noble_card({
-		"type": "noble",
-		"name": "Trss, Noble of Power",
-		"noble_id": "trss_power"
-	}))
-	row.add_child(_spacer(14.0))
 	row.add_child(_caption("Incantation"))
 	row.add_child(_make_hand_card_widget({
 		"type": "incantation",
 		"verb": "Seek",
 		"value": 2
+	}))
+	row.add_child(_spacer(14.0))
+	row.add_child(_caption("Noble"))
+	row.add_child(_make_noble_card({
+		"type": "noble",
+		"name": "Trss, Noble of Power",
+		"noble_id": "trss_power"
 	}))
 	row.add_child(_spacer(14.0))
 	row.add_child(_caption("Temple"))

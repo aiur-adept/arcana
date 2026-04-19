@@ -16,6 +16,7 @@ from .cards import (
     RING_DEFS,
     VERB_BURN,
     VERB_DELUGE,
+    VERB_DETHRONE,
     VERB_INSIGHT,
     VERB_REVIVE,
     VERB_SEEK,
@@ -189,11 +190,11 @@ class GreedyAI:
         if c.kind is Kind.RITUAL:
             return 1.0 + c.value * 0.3
         if c.kind is Kind.INCANTATION:
+            if c.verb == VERB_DETHRONE:
+                return 5.0
             if c.verb == VERB_WRATH:
                 return 5.0
             return 2.0 + c.value * 0.4
-        if c.kind is Kind.DETHRONE:
-            return 5.0
         if c.kind is Kind.NOBLE:
             return 4.0 + c.cost * 0.5
         if c.kind is Kind.TEMPLE:
@@ -262,14 +263,7 @@ class GreedyAI:
                     if score is not None:
                         actions.append((score, "temple", (i, tuple(sac))))
 
-            elif c.kind is Kind.INCANTATION:
-                s = self._score_incantation(state, pid, c)
-                if s is None:
-                    continue
-                score, sac = s
-                actions.append((score, "incantation", (i, tuple(sac) if sac else ())))
-
-            elif c.kind is Kind.DETHRONE:
+            elif c.kind is Kind.INCANTATION and c.verb == VERB_DETHRONE:
                 if opp.noble_field:
                     if 4 in active:
                         sac_d: list[int] = []
@@ -285,6 +279,13 @@ class GreedyAI:
                     if score is None:
                         continue
                     actions.append((score, "dethrone", (i, tuple(sac_d), target.mid)))
+
+            elif c.kind is Kind.INCANTATION:
+                s = self._score_incantation(state, pid, c)
+                if s is None:
+                    continue
+                score, sac = s
+                actions.append((score, "incantation", (i, tuple(sac) if sac else ())))
 
         for n in p.noble_field:
             if n.used_turn == state.turn_number:
@@ -524,8 +525,6 @@ class GreedyAI:
                     draw_n = c.value
                 elif c.kind in (Kind.NOBLE, Kind.BIRD, Kind.RING):
                     draw_n = c.cost
-                elif c.kind is Kind.DETHRONE:
-                    draw_n = 4
                 if draw_n > best_draw:
                     best_draw = draw_n
                     best_i = i
@@ -575,7 +574,7 @@ class GreedyAI:
             base = self.W_EFFECT_WRATH_BASE + killed * self.W_EFFECT_WRATH_PER_KILLED
             return (self.wrath_score_adjust(state, pid, base), {})
         if verb == VERB_REVIVE:
-            elig = [c for c in me.crypt if c.kind is Kind.INCANTATION and c.verb not in (VERB_REVIVE, VERB_TEARS)]
+            elig = [c for c in me.crypt if c.kind is Kind.INCANTATION and c.verb not in (VERB_REVIVE, VERB_TEARS, VERB_DETHRONE)]
             if not elig:
                 return None
             return (self.W_EFFECT_REVIVE_BASE, {})
@@ -669,7 +668,7 @@ class GreedyAI:
                     ctx["wrath_targets"] = self.choose_wrath_targets(state, pid, killcount)
                 if c.verb == VERB_REVIVE:
                     me = state.players[pid]
-                    elig_idx = [i for i, cc in enumerate(me.crypt) if cc.kind is Kind.INCANTATION and cc.verb not in (VERB_REVIVE, VERB_TEARS)]
+                    elig_idx = [i for i, cc in enumerate(me.crypt) if cc.kind is Kind.INCANTATION and cc.verb not in (VERB_REVIVE, VERB_TEARS, VERB_DETHRONE)]
                     pick = self.choose_revive_target(state, pid, elig_idx)
                     if pick is not None:
                         ctx["revive_crypt_idx"] = pick

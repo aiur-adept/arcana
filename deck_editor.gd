@@ -441,13 +441,9 @@ func _ingest_deck_dictionary(parsed_dict: Dictionary) -> void:
 			var rv := int(card.get("value", 0))
 			if RITUAL_VALUES.has(rv):
 				_add_or_increment_entry(_entry_key_ritual(rv), {"kind": "ritual", "value": rv})
-		elif kind == "incantation" or kind == "dethrone":
+		elif kind == "incantation":
 			var verb := str(card.get("verb", "")).to_lower()
-			if kind == "dethrone":
-				verb = "dethrone"
 			var iv := int(card.get("value", 0))
-			if kind == "dethrone" and iv == 0:
-				iv = 4
 			if INCANTATION_VERBS.has(verb) and _incantation_values_for_verb(verb).has(iv):
 				_add_or_increment_entry(_entry_key_incantation(verb, iv), {"kind": "incantation", "verb": verb, "value": iv})
 		elif kind == "noble":

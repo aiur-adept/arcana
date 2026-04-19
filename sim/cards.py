@@ -14,7 +14,6 @@ from enum import Enum
 class Kind(Enum):
     RITUAL = "Ritual"
     INCANTATION = "Incantation"
-    DETHRONE = "Dethrone"
     NOBLE = "Noble"
     TEMPLE = "Temple"
     BIRD = "Bird"
@@ -29,13 +28,14 @@ VERB_WRATH = "wrath"
 VERB_REVIVE = "revive"
 VERB_DELUGE = "deluge"
 VERB_TEARS = "tears"
+VERB_DETHRONE = "dethrone"
 VERB_VOID = "void"  # reactive counterspell; not modeled in the MC simulator
 
 
 @dataclass(frozen=True)
 class Card:
     kind: Kind
-    value: int = 0           # ritual value / incantation value / dethrone 4
+    value: int = 0           # ritual / incantation value (dethrone is an incantation of value 4)
     verb: str = ""           # incantation verb
     noble_id: str = ""
     temple_id: str = ""
@@ -50,8 +50,6 @@ class Card:
             return f"Ritual {self.value}"
         if self.kind is Kind.INCANTATION:
             return f"{self.verb.capitalize()} {self.value}"
-        if self.kind is Kind.DETHRONE:
-            return "Dethrone 4"
         if self.kind is Kind.NOBLE:
             return self.name or self.noble_id
         if self.kind is Kind.TEMPLE:
@@ -125,7 +123,7 @@ def make_incantation(verb: str, value: int) -> Card:
 
 
 def make_dethrone() -> Card:
-    return Card(kind=Kind.DETHRONE, value=4)
+    return Card(kind=Kind.INCANTATION, verb=VERB_DETHRONE, value=4)
 
 
 def make_noble(noble_id: str) -> Card:

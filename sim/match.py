@@ -22,6 +22,7 @@ from .cards import (
     TEMPLE_DEFS,
     VERB_BURN,
     VERB_DELUGE,
+    VERB_DETHRONE,
     VERB_INSIGHT,
     VERB_REVIVE,
     VERB_SEEK,
@@ -514,7 +515,7 @@ class MatchState:
         if not (0 <= hand_idx < len(p.hand)):
             return
         c = p.hand[hand_idx]
-        if c.kind is not Kind.DETHRONE:
+        if not (c.kind is Kind.INCANTATION and c.verb == VERB_DETHRONE):
             return
         opp = self.players[self.opponent(pid)]
         if not opp.noble_field:
@@ -654,7 +655,7 @@ class MatchState:
     def _effect_revive(self, pid: int, n: int, ctx: dict) -> dict:
         p = self.players[pid]
         crypt_inc_indices = [i for i, c in enumerate(p.crypt)
-                             if c.kind is Kind.INCANTATION and c.verb not in (VERB_REVIVE, VERB_TEARS)]
+                             if c.kind is Kind.INCANTATION and c.verb not in (VERB_REVIVE, VERB_TEARS, VERB_DETHRONE)]
         if not crypt_inc_indices:
             return {}
         picked_idx: Optional[int] = ctx.get("revive_crypt_idx")
@@ -923,8 +924,6 @@ class MatchState:
                 draw_n = card.cost
             elif card.kind is Kind.RING:
                 draw_n = card.cost
-            elif card.kind is Kind.DETHRONE:
-                draw_n = 4
             p.hand.pop(hi)
             p.crypt.append(card)
             if draw_n > 0:

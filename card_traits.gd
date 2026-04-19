@@ -7,7 +7,7 @@ static func effective_kind(card: Dictionary) -> String:
 	if not raw.is_empty():
 		if raw == "bird":
 			return "bird"
-		if raw == "incantation" or raw == "dethrone":
+		if raw == "incantation":
 			return "incantation"
 		if raw == "ritual":
 			return "ritual"
@@ -36,6 +36,4 @@ static func effective_kind(card: Dictionary) -> String:
 static func is_dethrone(card: Dictionary) -> bool:
 	if effective_kind(card) != "incantation":
 		return false
-	if str(card.get("verb", "")).strip_edges().to_lower() == "dethrone":
-		return true
-	return str(card.get("type", card.get("kind", ""))).strip_edges().to_lower() == "dethrone"
+	return str(card.get("verb", "")).strip_edges().to_lower() == "dethrone"

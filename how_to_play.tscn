@@ -115,17 +115,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="RitualText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot/CardTypesCard/Inner"]
-layout_mode = 2
-bbcode_enabled = false
-fit_content = true
-scroll_active = false
-text = "Quick reminder on Rituals
-Ritual values are 1, 2, 3, and 4.
-- A 1-Ritual is always active.
-- A Ritual of value N (N > 1) is active only if you also control at least one active Ritual of every value from 1 to N-1.
-- Ritual power is the sum of your active Ritual values only."
-
 [node name="ActiveInactiveCard" type="PanelContainer" parent="Margin/VBox/Scroll/ContentRoot"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("SectionCard")
@@ -137,7 +126,18 @@ theme_override_constants/separation = 10
 [node name="ExampleComboTitle" type="Label" parent="Margin/VBox/Scroll/ContentRoot/ActiveInactiveCard/Inner"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "Active vs Inactive"
+text = "Active vs Inactive Rituals"
+
+[node name="RitualText" type="RichTextLabel" parent="Margin/VBox/Scroll/ContentRoot/ActiveInactiveCard/Inner"]
+layout_mode = 2
+bbcode_enabled = false
+fit_content = true
+scroll_active = false
+text = "Quick reminder on Rituals
+Ritual values are 1, 2, 3, and 4.
+- A 1-Ritual is always active.
+- A Ritual of value N (N > 1) is active only if you also control at least one active Ritual of every value from 1 to N-1.
+- Ritual power is the sum of your active Ritual values only."
 
 [node name="ExampleComboRow" type="HBoxContainer" parent="Margin/VBox/Scroll/ContentRoot/ActiveInactiveCard/Inner"]
 unique_name_in_owner = true
@@ -349,11 +349,9 @@ bbcode_enabled = false
 fit_content = true
 scroll_active = false
 text = "Rings are silver cards that attach to one of your Nobles or to an un-nested Bird you control.
-- All Rings cost 2: you need an active 2-Ritual (or a higher active lane), and a legal host on your field.
-- Each Ring reduces the cost of specific plays by 1 while it remains on the field. Multiple Rings stack additively; costs cannot go below 0.
+- Each Ring reduces the cost of specific plays by 1 while it remains on the field.
 - A Noble or Bird may carry multiple Rings. A stack tab beside it shows how many are attached — click it to see the Rings.
 - When the host is destroyed, its attached Rings go to the crypt. A Bird with any attached Ring cannot nest.
-- Deck-building: Rings are a new non-Ritual category (counting toward the 21 non-Rituals). At most 1 copy of any named Ring.
 
 Example Rings:
 - Sybiline, Ring of Emanation — Seek and Insight cost 1 less.

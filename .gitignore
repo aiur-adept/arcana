@@ -2,3 +2,4 @@
 .godot/
 /android/
 sim/__pycache__/
+sim/pilots/__pycache__/
