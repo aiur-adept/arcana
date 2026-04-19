@@ -628,23 +628,7 @@ func _make_temple_card(temple: Dictionary) -> Control:
 
 
 func _noble_cost_for_id(nid: String) -> int:
-	match nid:
-		"krss_power":
-			return 2
-		"rmrsk_emanation", "smrsk_occultation", "tmrsk_annihilation":
-			return 2
-		"trss_power":
-			return 3
-		"yrss_power":
-			return 4
-		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation":
-			return 6
-		"aeoiu_rituals":
-			return 8
-		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
-			return 3
-		_:
-			return 0
+	return GameSnapshotUtils.noble_cost_for_id(nid)
 
 
 func _temple_cost_for_id(tid: String) -> int:

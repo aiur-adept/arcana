@@ -1,6 +1,11 @@
 extends RefCounted
 class_name GameSnapshotUtils
 
+const _NOBLES_DIR := "res://nobles"
+static var _noble_cost_cache: Dictionary = {}
+static var _noble_cost_cache_built: bool = false
+
+
 static func your_crypt_cards_from_snap(snap: Dictionary) -> Array:
 	return (snap.get("your_crypt_cards", []) as Array).duplicate(true)
 
@@ -93,23 +98,58 @@ static func hand_card_stack_key(card: Variant) -> String:
 
 
 static func noble_cost_for_id(nid: String) -> int:
-	match nid:
-		"krss_power":
-			return 2
-		"rmrsk_emanation", "smrsk_occultation", "tmrsk_annihilation":
-			return 2
-		"trss_power":
-			return 3
-		"yrss_power":
-			return 4
-		"xytzr_emanation", "yytzr_occultation", "zytzr_annihilation":
-			return 6
-		"aeoiu_rituals":
-			return 8
-		"sndrr_incantation", "wndrr_incantation", "bndrr_incantation", "rndrr_incantation", "indrr_incantation":
-			return 3
-		_:
-			return 0
+	if not _noble_cost_cache_built:
+		_build_noble_cost_cache()
+	return int(_noble_cost_cache.get(nid, 0))
+
+
+static func refresh_noble_cost_cache() -> void:
+	_noble_cost_cache.clear()
+	_noble_cost_cache_built = false
+	_build_noble_cost_cache()
+
+
+static func _build_noble_cost_cache() -> void:
+	_noble_cost_cache_built = true
+	var fns: Array[String] = []
+	if ResourceLoader.has_method(&"list_directory"):
+		for fn in ResourceLoader.list_directory(_NOBLES_DIR):
+			var s := str(fn)
+			if s.ends_with("/") or not s.ends_with(".gd"):
+				continue
+			fns.append(s)
+	if fns.is_empty():
+		var dir := DirAccess.open(_NOBLES_DIR)
+		if dir == null:
+			return
+		dir.list_dir_begin()
+		while true:
+			var fn2 := dir.get_next()
+			if fn2 == "":
+				break
+			if dir.current_is_dir() or not fn2.ends_with(".gd"):
+				continue
+			fns.append(fn2)
+		dir.list_dir_end()
+	var seen: Dictionary = {}
+	for fn in fns:
+		if seen.has(fn):
+			continue
+		seen[fn] = true
+		var script := load("%s/%s" % [_NOBLES_DIR, fn])
+		if script == null:
+			continue
+		var hook: Variant = script.new()
+		if hook == null or not hook.has_method("build_definition"):
+			continue
+		var def: Variant = hook.call("build_definition")
+		if typeof(def) != TYPE_DICTIONARY:
+			continue
+		var d := def as Dictionary
+		var nid := str(d.get("id", ""))
+		if nid.is_empty():
+			continue
+		_noble_cost_cache[nid] = int(d.get("cost", 0))
 
 
 static func temple_cost_for_id(tid: String) -> int:

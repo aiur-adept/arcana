@@ -186,17 +186,17 @@ All noble static abilities apply while that noble remains on the field.
   - Play one ritual from your crypt to your field.
   - This is in addition to your normal one ritual-from-hand per turn.
 
-- **Zytzr, Noble of Annihilation** (static):
+- **Zytzr, Cthonarch of Annihilation** (static):
   - Your Wrath destroys 1 extra ritual.
   - Your Woe forces 1 additional discard.
 
 ### 10.2 Cost 6
 
-- **Xytzr, Noble of Emanation** (static):
+- **Xytzr, Avatar of Emanation** (static):
   - Your Seek effects draw +1 card.
   - Your Insight effects affect +1 card.
-- **Yytzr, Noble of Occultation** (static):
-  - Your Burn effects mill an additional 3 cards.
+- **Yytzr, Revenant of Occultation** (static):
+  - Your Burn effects discard an additional 3 cards.
   - When you play Revive, you may additionally sacrifice rituals totaling at least 2 to add one extra revive step.
 
 ### 10.3 Cost 4

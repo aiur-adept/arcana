@@ -455,6 +455,11 @@ func _start_match() -> void:
 			opponent_cards = cards.duplicate(true)
 		var p0_first := rng.randi_range(0, 1) == 0
 		_match = ArcanaMatchState.new(cards.duplicate(true), opponent_cards.duplicate(true), p0_first, rng, false)
+		var opp_path := _resolve_opponent_deck_path()
+		var opp_slug := ""
+		if IncludedDecks.is_token(opp_path):
+			opp_slug = IncludedDecks.slug_from_token(opp_path)
+		_cpu_opponent.configure_for_opponent_slug(opp_slug)
 	_broadcast_sync()
 
 
