@@ -250,7 +250,7 @@ func _turn_start_draw() -> void:
 	if not _draw_one_attempt(current):
 		return
 	discard_draw_used = false
-	_log("Draw step." % current)
+	_log("Draw step.")
 
 
 func _skip_draw_for_gotha(p: int) -> bool:
