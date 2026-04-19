@@ -4177,6 +4177,9 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		elif is_temple:
 			bsb.bg_color = Color(0.07, 0.11, 0.11)
 			bsb.border_color = Color(0.28, 0.55, 0.52)
+		elif is_ring:
+			bsb.bg_color = Color(0.78, 0.8, 0.84)
+			bsb.border_color = Color(0.22, 0.22, 0.24)
 		else:
 			bsb.bg_color = Color(0.11, 0.11, 0.14)
 			bsb.border_color = Color(0.46, 0.46, 0.52)
@@ -4284,22 +4287,23 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		tap.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.76))
 	tap.add_theme_font_size_override("font_size", HAND_CARD_FONT_SIZE)
 	if is_ring:
-		var ring_bg := Color(0.14, 0.16, 0.19)
-		var ring_border := Color(0.82, 0.85, 0.92)
-		var ring_border_strong := Color(0.96, 0.98, 1.0)
-		var ring_text := Color(0.94, 0.96, 1.0)
+		var ring_bg := Color(0.86, 0.88, 0.91)
+		var ring_border := Color(0.12, 0.12, 0.14)
+		var ring_border_strong := Color(0.05, 0.05, 0.05)
+		var ring_text := Color(0.05, 0.05, 0.05)
 		sb.bg_color = ring_bg
 		sb.border_color = ring_border_strong if picked else ring_border
 		sb_hover.bg_color = ring_bg
-		sb_hover.border_color = ring_border_strong
-		sb_pressed.bg_color = ring_bg
-		sb_dis.bg_color = Color(0.1, 0.11, 0.13)
-		sb_dis.border_color = Color(0.45, 0.48, 0.54)
+		sb_hover.border_color = ring_border_strong if picked else Color(0.2, 0.2, 0.22)
+		sb_pressed.bg_color = Color(0.78, 0.8, 0.84)
+		sb_pressed.border_color = ring_border_strong if picked else ring_border
+		sb_dis.bg_color = Color(0.72, 0.74, 0.77)
+		sb_dis.border_color = Color(0.35, 0.36, 0.38)
 		tap.add_theme_color_override("font_color", ring_text)
-		tap.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
+		tap.add_theme_color_override("font_hover_color", ring_text)
 		tap.add_theme_color_override("font_focus_color", ring_text)
-		tap.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0))
-		tap.add_theme_color_override("font_disabled_color", Color(0.62, 0.65, 0.72))
+		tap.add_theme_color_override("font_pressed_color", Color(0.0, 0.0, 0.0))
+		tap.add_theme_color_override("font_disabled_color", Color(0.35, 0.35, 0.38))
 	var hover_card: Dictionary = card.duplicate(true) if typeof(card) == TYPE_DICTIONARY else {}
 	shell.mouse_entered.connect(func() -> void:
 		_show_card_hover_preview(hover_card)
@@ -4316,7 +4320,7 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 	shell.add_child(tap)
 	var pip_spec := _card_corner_pip_spec(card)
 	if int(pip_spec.get("count", 0)) > 0:
-		var cost_color := Color(0.05, 0.05, 0.05, 0.98) if is_bird else Color(1, 1, 1, 0.98)
+		var cost_color := Color(0.05, 0.05, 0.05, 0.98) if (is_bird or is_ring) else Color(1, 1, 1, 0.98)
 		var pip_icon := _make_corner_pip_icon(int(pip_spec.get("count", 0)), bool(pip_spec.get("filled", false)), cost_color)
 		pip_icon.position = Vector2(depth * shift + w - pip_icon.custom_minimum_size.x - 4, h - pip_icon.custom_minimum_size.y - 4)
 		shell.add_child(pip_icon)
@@ -4336,7 +4340,7 @@ func _make_hand_card_widget(card: Variant, disabled: bool, picked: bool, stack_c
 		badge.custom_minimum_size = Vector2(44, 22)
 		badge.add_theme_font_override("font", CARD_TEXT_FONT)
 		badge.add_theme_font_size_override("font_size", HAND_CARD_BADGE_FONT_SIZE)
-		badge.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05) if is_bird else Color(0.95, 0.95, 0.99))
+		badge.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05) if (is_bird or is_ring) else Color(0.95, 0.95, 0.99))
 		shell.add_child(badge)
 	if _selecting_end_discard and picked_count > 0:
 		var pick_badge := Label.new()

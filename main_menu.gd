@@ -15,8 +15,10 @@ const _PICKER_STEP_OPPONENT := "opponent"
 @onready var play_button: Button = %PlayLink
 @onready var goldfish_button: Button = %GoldfishLink
 @onready var deck_editor_button: Button = %DeckEditorLink
+@onready var draft_deck_button: Button = %DraftDeckLink
 @onready var how_to_play_button: Button = %HowToPlayLink
 @onready var exit_button: Button = %ExitButton
+@onready var draft_session: Node = get_node("/root/DraftSession")
 @onready var deck_picker_overlay: Control = %DeckPickerOverlay
 @onready var deck_picker_title: Label = %DeckPickerTitle
 @onready var deck_picker_list: ItemList = %DeckPickerList
@@ -34,11 +36,13 @@ func _ready() -> void:
 	_double_button_padding(play_button)
 	_double_button_padding(goldfish_button)
 	_double_button_padding(deck_editor_button)
+	_double_button_padding(draft_deck_button)
 	_double_button_padding(how_to_play_button)
 	_double_button_padding(exit_button)
 	%PlayLink.pressed.connect(_on_play_pressed)
 	%GoldfishLink.pressed.connect(_on_goldfish_pressed)
 	%DeckEditorLink.pressed.connect(_on_deck_editor_pressed)
+	%DraftDeckLink.pressed.connect(_on_draft_deck_pressed)
 	%HowToPlayLink.pressed.connect(_on_how_to_play_pressed)
 	%ExitButton.pressed.connect(_on_exit_pressed)
 	deck_picker_list.item_selected.connect(_on_deck_picker_item_selected)
@@ -186,7 +190,12 @@ func _launch_match(your_path: String, opponent_path: String) -> void:
 	get_tree().change_scene_to_file("res://game.tscn")
 
 func _on_deck_editor_pressed() -> void:
+	draft_session.clear()
 	get_tree().change_scene_to_file("res://deck_editor.tscn")
+
+
+func _on_draft_deck_pressed() -> void:
+	get_tree().change_scene_to_file("res://draft_packs.tscn")
 
 
 func _on_how_to_play_pressed() -> void:

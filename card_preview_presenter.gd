@@ -13,8 +13,8 @@ const PREVIEW_TEMPLE_BORDER := Color(0.35, 0.82, 0.78)
 const PREVIEW_TEMPLE_TEXT := Color(0.88, 0.98, 0.95)
 const PREVIEW_BIRD_BORDER := Color(0.05, 0.05, 0.05)
 const PREVIEW_BIRD_TEXT := Color(0.05, 0.05, 0.05)
-const PREVIEW_RING_BORDER := Color(0.82, 0.85, 0.92)
-const PREVIEW_RING_TEXT := Color(0.94, 0.96, 1.0)
+const PREVIEW_RING_BORDER := Color(0.12, 0.12, 0.14)
+const PREVIEW_RING_TEXT := Color(0.05, 0.05, 0.05)
 const PREVIEW_NEUTRAL_BORDER := Color(0.8, 0.83, 0.9)
 const PREVIEW_NEUTRAL_TEXT := Color(0.92, 0.92, 0.96)
 
@@ -24,8 +24,19 @@ const COST_PIP_DARK := Color(0.05, 0.05, 0.05, 0.98)
 const COST_PIP_LIGHT := Color(1, 1, 1, 0.98)
 
 
+static func preview_pixel_size(config: Dictionary = {}) -> Vector2:
+	var card_scale := float(config.get("card_scale", PREVIEW_SCALE))
+	var card_aspect := float(config.get("card_aspect", 0.7))
+	var card_h := 210.0 * card_scale * 1.41421356
+	var card_w := card_h * card_aspect
+	return Vector2(card_w, card_h)
+
+
 static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dictionary:
 	var mode := str(config.get("mode", "corner"))
+	var slot_parent: Control = config.get("parent_slot", null) as Control
+	if slot_parent != null:
+		mode = "slot"
 	var root := Panel.new()
 	root.name = str(config.get("name", "CardHoverPreview"))
 	root.visible = false
@@ -38,10 +49,9 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	var corner := int(round(8.0 * ui))
 	var border_w := maxi(1, int(round(2.0 * ui)))
 	var edge := roundf(18.0 * ui)
-	var card_scale := float(config.get("card_scale", PREVIEW_SCALE))
-	var card_aspect := float(config.get("card_aspect", 0.7))
-	var card_h := 210.0 * card_scale * 1.41421356
-	var card_w := card_h * card_aspect
+	var sz := preview_pixel_size(config)
+	var card_w := sz.x
+	var card_h := sz.y
 	if mode == "corner":
 		root.anchor_left = 1.0
 		root.anchor_top = 1.0
@@ -51,6 +61,12 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 		root.offset_top = -edge - card_h
 		root.offset_right = -edge
 		root.offset_bottom = -edge
+	elif mode == "slot":
+		root.set_anchors_preset(Control.PRESET_FULL_RECT)
+		root.offset_left = 0
+		root.offset_top = 0
+		root.offset_right = 0
+		root.offset_bottom = 0
 	root.custom_minimum_size = Vector2(card_w, card_h)
 
 	var sb := StyleBoxFlat.new()
@@ -59,7 +75,8 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 	sb.bg_color = Color(0.03, 0.03, 0.05, 0.95)
 	sb.border_color = Color(0.8, 0.83, 0.9)
 	root.add_theme_stylebox_override("panel", sb)
-	host.add_child(root)
+	var attach_parent: Control = slot_parent if slot_parent != null else host
+	attach_parent.add_child(root)
 
 	var title_sz := int(round(12.0 * ui))
 	var type_sz := int(round(10.4 * ui))
@@ -189,6 +206,7 @@ static func build_preview_panel(host: Control, config: Dictionary = {}) -> Dicti
 
 	return {
 		"mode": mode,
+		"embed": slot_parent != null,
 		"root": root,
 		"panel_sb": sb,
 		"title": title,
@@ -225,6 +243,7 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 	var text_c: Color
 	var bg_c := Color(0.03, 0.03, 0.05, 0.95)
 	var is_bird := kind == "bird"
+	var is_ring := kind == "ring"
 	match kind:
 		"ritual":
 			border_c = PREVIEW_RITUAL_BORDER
@@ -242,6 +261,7 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 		"ring":
 			border_c = PREVIEW_RING_BORDER
 			text_c = PREVIEW_RING_TEXT
+			bg_c = Color(0.86, 0.88, 0.91, 0.98)
 		_:
 			border_c = PREVIEW_NEUTRAL_BORDER
 			text_c = PREVIEW_NEUTRAL_TEXT
@@ -281,7 +301,7 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 		"ring":
 			cost_count = 2
 	if cost_count > 0:
-		var pip_color: Color = COST_PIP_DARK if is_bird else COST_PIP_LIGHT
+		var pip_color: Color = COST_PIP_DARK if (is_bird or is_ring) else COST_PIP_LIGHT
 		cost_pips.add_child(_make_pip_icon(cost_count, false, pip_color, ui))
 	if cost_number != null:
 		if cost_count > 0:
@@ -291,8 +311,9 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 		else:
 			cost_number.visible = false
 
-	if str(preview.get("mode", "corner")) != "corner":
-		root.global_position = mouse_position + Vector2(18, 18)
+	if not preview.get("embed", false):
+		if str(preview.get("mode", "corner")) != "corner":
+			root.global_position = mouse_position + Vector2(18, 18)
 	root.visible = true
 	root.move_to_front()
 

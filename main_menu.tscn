@@ -55,6 +55,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "deck editor"
 
+[node name="DraftDeckLink" type="Button" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "draft deck"
+
 [node name="HowToPlayLink" type="Button" parent="CenterContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2

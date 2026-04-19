@@ -76,13 +76,18 @@ const MAX_RING_COPIES := 1
 @onready var status_label: Label = %StatusLabel
 @onready var save_button: Button = %SaveButton
 @onready var back_button: Button = %BackButton
+@onready var subtitle_label: Label = %Subtitle
+@onready var draft_session: Node = get_node("/root/DraftSession")
 
 var _deck_paths: Array[String] = []
 var _selected_deck_path := ""
 var _entries: Dictionary = {}
 var _hover_preview: Dictionary = {}
 var _gallery_entries: Array[Dictionary] = []
+var _draft_pool_limits: Dictionary = {}
 var _export_dialog: FileDialog = null
+
+const DEFAULT_DECK_SUBTITLE := "Select a deck, click cards to add copies, and tune counts with + / - / X."
 
 
 func _ready() -> void:
@@ -91,7 +96,12 @@ func _ready() -> void:
 		"name": "DeckCardHoverPreview",
 		"z_index": 4096
 	})
-	_gallery_entries = _build_gallery_entries()
+	if draft_session.active and not draft_session.pool_by_key.is_empty():
+		_draft_pool_limits = draft_session.pool_by_key.duplicate()
+		_gallery_entries = _filter_gallery_for_draft()
+	else:
+		_draft_pool_limits.clear()
+		_gallery_entries = _build_gallery_entries()
 	_render_gallery()
 	deck_list.item_selected.connect(_on_deck_selected)
 	reload_decks_button.pressed.connect(_refresh_deck_list)
@@ -103,10 +113,15 @@ func _ready() -> void:
 	save_button.pressed.connect(_on_save_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	_refresh_deck_list()
-	if _deck_paths.is_empty():
-		_start_new_deck("default_deck")
+	if draft_session.active and not draft_session.pool_by_key.is_empty():
+		_start_new_deck("draft_deck")
+		subtitle_label.text = "Draft: build a legal deck using only cards (and quantities) from your opened packs."
 	else:
-		_load_deck_path(_deck_paths[0])
+		subtitle_label.text = DEFAULT_DECK_SUBTITLE
+		if _deck_paths.is_empty():
+			_start_new_deck("default_deck")
+		else:
+			_load_deck_path(_deck_paths[0])
 	_update_validation()
 
 
@@ -136,6 +151,20 @@ func _build_gallery_entries() -> Array[Dictionary]:
 			"name": str(ring.get("name", "")),
 			"cost": RING_COST
 		})
+	return out
+
+
+func _filter_gallery_for_draft() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var full := _build_gallery_entries()
+	for e in full:
+		var kind := str(e.get("kind", ""))
+		if kind == "ritual":
+			out.append(e)
+			continue
+		var k := _entry_key(e)
+		if _draft_pool_limits.has(k) and int(_draft_pool_limits[k]) > 0:
+			out.append(e)
 	return out
 
 
@@ -313,6 +342,10 @@ func _entry_key(entry: Dictionary) -> String:
 	if kind == "ring":
 		return _entry_key_ring(str(entry.get("ring_id", "")))
 	return _entry_key_incantation(str(entry.get("verb", "")), int(entry.get("value", 0)))
+
+
+func catalog_entry_key(entry: Dictionary) -> String:
+	return _entry_key(entry)
 
 
 func _build_gallery_card(entry: Dictionary, readonly: bool) -> Control:
@@ -706,6 +739,11 @@ func _can_increase_entry(entry: Dictionary) -> bool:
 	var totals := _totals()
 	var kind := str(entry.get("kind", ""))
 	var count := int(entry.get("count", 0))
+	if not _draft_pool_limits.is_empty():
+		var pk := _entry_key(entry)
+		if _draft_pool_limits.has(pk):
+			if count >= int(_draft_pool_limits[pk]):
+				return false
 	if kind == "ritual":
 		if count >= MAX_RITUAL_COPIES:
 			return false
@@ -1148,9 +1186,17 @@ func _on_save_button_pressed() -> void:
 	status_label.modulate = Color(0.65, 1, 0.65)
 	_refresh_deck_list()
 	_select_deck_path(path)
+	if not _draft_pool_limits.is_empty():
+		draft_session.clear()
+		_draft_pool_limits.clear()
+		_gallery_entries = _build_gallery_entries()
+		subtitle_label.text = DEFAULT_DECK_SUBTITLE
+		_render_entries()
+		_update_validation()
 
 
 func _on_back_button_pressed() -> void:
+	draft_session.clear()
 	get_tree().change_scene_to_file("res://main_menu.tscn")
 
 
