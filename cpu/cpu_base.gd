@@ -689,7 +689,12 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 		return null
 	var eff_val: int = host._match.effective_incantation_cost(1, verb, val)
 	var sac: Array = []
-	if eff_val > 0 and not _lane_in_set(active_lanes, eff_val):
+	if verb == VERB_WRATH:
+		var w0 := choose_wrath_instigator_sac_from_snap(snap)
+		if w0 < 0:
+			return null
+		sac = [w0]
+	elif eff_val > 0 and not _lane_in_set(active_lanes, eff_val):
 		sac = _greedy_sac_min(your_field, eff_val)
 		if sac.is_empty():
 			return null
@@ -704,7 +709,7 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 	score += INC_BASE_BONUS
 	if not sac.is_empty():
 		score -= _sac_penalty(sac, snap)
-	var adj: Variant = adjust_incantation_score(card, sac, score)
+	var adj: Variant = adjust_incantation_score(snap, card, sac, score)
 	if adj == null:
 		return null
 	var fadj := float(adj)
@@ -715,7 +720,7 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 	return {"score": fadj, "kind": "incantation", "hand_idx": hand_idx, "sac": sac, "ctx": ctx, "verb": verb, "value": val}
 
 
-func adjust_incantation_score(_card: Dictionary, _sac: Array, score: float) -> Variant:
+func adjust_incantation_score(_snap: Dictionary, _card: Dictionary, _sac: Array, score: float) -> Variant:
 	return score
 
 
@@ -968,6 +973,24 @@ func choose_wrath_targets(snap: Dictionary, count: int) -> Array:
 	for i in mini(count, sorted_field.size()):
 		out.append(int((sorted_field[i] as Dictionary).get("mid", -1)))
 	return out
+
+
+func choose_wrath_instigator_sac_from_snap(snap: Dictionary) -> int:
+	var your_field: Array = snap.get("your_field", []) as Array
+	if your_field.is_empty():
+		return -1
+	var best_mid := -1
+	var best_val := 999999
+	for r in your_field:
+		var d := r as Dictionary
+		var mid := int(d.get("mid", -1))
+		if mid < 0:
+			continue
+		var vm := int(d.get("value", 0))
+		if vm < best_val or (vm == best_val and (best_mid < 0 or mid < best_mid)):
+			best_val = vm
+			best_mid = mid
+	return best_mid
 
 
 func _revive_verb_prio_bonus(verb: String) -> float:

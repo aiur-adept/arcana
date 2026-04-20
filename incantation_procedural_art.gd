@@ -106,7 +106,10 @@ static func _gen_renew(card: Dictionary, _ctx: Dictionary) -> String:
 
 
 static func _gen_wrath(card: Dictionary, _ctx: Dictionary) -> String:
-	var n := _n(card, 1, 4, 4)
+	var raw := int(card.get("value", 0))
+	var n := clampi(raw, 0, 4)
+	if n <= 0:
+		n = 1
 	var strike := _rep_unit("/|", n, "")
 	var veins := _rep_unit("╱╲", mini(n + 1, 6), "")
 	var shards := _rep_unit("▼", n + 3, "")

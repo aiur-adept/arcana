@@ -37,11 +37,6 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
-			"verb": "revive"
-		},
-		{
-			"type": "Incantation",
 			"value": 3.0,
 			"verb": "renew"
 		},
@@ -78,6 +73,11 @@
 		{
 			"name": "Yytzr, Revenant of Occultation",
 			"noble_id": "yytzr_occultation",
+			"type": "Noble"
+		},
+		{
+			"name": "Rndrr, Noble of Incantation",
+			"noble_id": "rndrr_incantation",
 			"type": "Noble"
 		},
 		{
@@ -196,21 +196,21 @@
 			"insight_2": 0.0,
 			"insight_3": 0.0,
 			"insight_4": 0.0,
-			"revive_2": 4.0,
+			"revive_2": 3.0,
 			"seek_1": 0.0,
 			"seek_2": 0.0,
 			"seek_3": 0.0,
 			"seek_4": 0.0,
 			"woe_3": 0.0,
 			"woe_4": 0.0,
-			"wrath_4": 0.0
+			"wrath_0": 0.0
 		},
 		"nobles": {
 			"aeoiu_rituals": 1.0,
 			"bndrr_incantation": 0.0,
 			"indrr_incantation": 0.0,
 			"krss_power": 0.0,
-			"rndrr_incantation": 0.0,
+			"rndrr_incantation": 1.0,
 			"sndrr_incantation": 0.0,
 			"trss_power": 0.0,
 			"wndrr_incantation": 0.0,

@@ -3,6 +3,10 @@ class_name ArcanaOccultationPilot
 
 # Port of sim/pilots/occultation.py — ramp via self-mill, Revive→Renew, Renew.
 
+var W_REVIVE_PLAY_BIAS_BURN: float = 16.0
+var W_REVIVE_PLAY_BIAS_CRYPT_RENEW_NO_HAND_RENEW: float = 18.0
+var W_REVIVE_PLAY_ELIG_MISC: float = 4.0
+
 func _init() -> void:
 	W_NOBLE_BIG_TRIPLET = 55.0
 	W_EFFECT_BURN_BASE = 4.0
@@ -83,16 +87,54 @@ func amend_revive_ctx(snap: Dictionary, your_crypt: Array, global_pick: int, ctx
 	ctx["revive_steps"] = steps
 
 
-func adjust_incantation_score(card: Dictionary, sac: Array, score: float) -> Variant:
-	var b: Variant = super.adjust_incantation_score(card, sac, score)
+func _hand_has_renew(snap: Dictionary) -> bool:
+	var hand: Array = snap.get("your_hand", []) as Array
+	for c in hand:
+		var d := c as Dictionary
+		if _card_kind(d) != "incantation":
+			continue
+		if str(d.get("verb", "")).to_lower() == VERB_RENEW:
+			return true
+	return false
+
+
+func _revive_play_crypt_bias(snap: Dictionary) -> float:
+	var crypt: Array = snap.get("your_crypt_cards", []) as Array
+	var elig: Array = []
+	for i in crypt.size():
+		var c := crypt[i] as Dictionary
+		if _card_kind(c) != "incantation":
+			continue
+		var pv := str(c.get("verb", "")).to_lower()
+		if pv == VERB_REVIVE or pv == VERB_TEARS or pv == VERB_DETHRONE:
+			continue
+		elig.append(i)
+	if elig.is_empty():
+		return 0.0
+	var pick := choose_revive_target(crypt, elig)
+	if pick < 0:
+		return 0.0
+	var cc := crypt[pick] as Dictionary
+	var vv := str(cc.get("verb", "")).to_lower()
+	if vv == VERB_RENEW:
+		if _hand_has_renew(snap):
+			return 0.0
+		return W_REVIVE_PLAY_BIAS_CRYPT_RENEW_NO_HAND_RENEW
+	if vv == VERB_BURN:
+		return W_REVIVE_PLAY_BIAS_BURN
+	return W_REVIVE_PLAY_ELIG_MISC
+
+
+func adjust_incantation_score(snap: Dictionary, card: Dictionary, sac: Array, score: float) -> Variant:
+	var b: Variant = super.adjust_incantation_score(snap, card, sac, score)
 	if b == null:
 		return null
 	var out := float(b)
 	var v := str(card.get("verb", "")).to_lower()
 	if v == VERB_REVIVE:
-		out += 6.0
+		out += 6.0 + _revive_play_crypt_bias(snap)
 	elif v == VERB_RENEW:
-		out += 10.0
+		out += 14.0
 	return out
 
 

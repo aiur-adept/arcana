@@ -165,9 +165,9 @@ If empty-deck draw is attempted:
 
 - **Seek X**: Draw X cards. [comes in Seek 1 and Seek 2]
 - **Insight X**: Look at top X cards of target player's deck; reorder any on top and/or move any number to bottom.
-- **Burn X**: Mill `2 * X` cards from target player's deck into that player's crypt.
+- **Burn X**: Discard `2 * X` cards from target player's deck into that player's crypt.
 - **Woe X**: Target player discards X-2 chosen cards from hand. [comes in Woe 3 and 4]
-- **Wrath 4**: Destroy 1 opponent ritual. That opponent draws a card.
+- **Wrath**: Destroy 1 opponent ritual. **Printed cost 0** — like Void, it does not use a lane or a numeric ritual total; to cast it from your hand you **sacrifice exactly one of your own rituals** as its cost. Wrath cast from Revive does not use this sacrifice rule.
 - **Revive 2**: Cast 1 eligible incantation from your crypt.
   - Revive itself cannot be revived.
   - Cards cast this way go to abyss (not crypt).

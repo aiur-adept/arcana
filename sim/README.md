@@ -87,7 +87,7 @@ All of Set 1 per `design_document.md` is implemented:
 
 - Rituals 1–4 with the standard active-lane chain (value N active iff all k<N have
   an active ritual or lane-granting noble).
-- Incantations: `seek`, `insight`, `burn`, `woe`, `wrath 4`, `revive 1`, `deluge
+- Incantations: `seek`, `insight`, `burn`, `woe`, `wrath`, `revive 1`, `deluge
   2–4`, `tears 3`.
 - `dethrone 4`.
 - All 15 nobles (Krss/Trss/Yrss/Xytzr/Yytzr/Zytzr/Aeoiu + 5 Incantation nobles +
@@ -122,15 +122,13 @@ overrides only the hooks (and selectively overrides weight defaults) that matter
 
 | Slug | Pilot class | Key behavior |
 |---|---|---|
-| `incantations` | `IncantationsPilot` | 1R+2R mulligan; save Wrath 4 vs weak boards; revive priorities via `W_REVIVE_PRIO_*` (Woe/Wrath/Burn biased). |
+| `incantations` | `IncantationsPilot` | 1R+2R mulligan; save Wrath vs weak boards; revive priorities via `W_REVIVE_PRIO_*` (Woe/Wrath/Burn biased). |
 | `noble_test` | `NobleTestPilot` | Serraf-first; Power-noble play priority; aggressive Dethrone targeting. |
-| `wrathseek-sac` | `WrathseekSacPilot` | Wrath gets +12 play bonus; revive prio favors Wrath; lowered sac penalty. |
 | `ritual_reanimator` | `RitualReanimatorPilot` | Aeoiu priority; self-Burn to seed crypt rituals; Phaedra-on-full-hand bonus. |
 | `topheavy_annihilator` | `TopheavyAnnihilatorPilot` | Refuses incantation sacs (preserves 1/2/3 ladder to keep lane 4 live); Zytzr-only Wrath sac exception. |
 | `occultation` | `OccultationPilot` | Yytzr/Cymbil priority; Burn-base weights doubled; revive prio favors Burn. |
 | `annihilation` | `AnnihilationPilot` | Celadon ring priority; Wrath and Woe base weights elevated; always accept Tmrsk. |
 | `emanation` | `EmanationPilot` | Sybiline priority; always accept Rmrsk; save Dethrone for cost-6+ targets. |
-| `scions` | `ScionsPilot` | Scion + Serraf priority; Smrsk always declined, Tmrsk always accepted. |
 | `temples` | `TemplesPilot` | Explicit Phaedra>Delpha>Gotha>Ytria play ordering; Ytria needs hand ≥ 5. |
 | `bird_test` | `BirdTestPilot` | Eyrie bonus boosted; Sinofia homes to a Raven; Ravens/Hawks never nest. |
 | `void_temples` | `VoidTemplesPilot` | Temple play ordering (see `temples`); Void discard-cost left at default (lowest among incantations). |

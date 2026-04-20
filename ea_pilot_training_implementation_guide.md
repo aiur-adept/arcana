@@ -93,16 +93,14 @@ These names are identical between [`sim/ai.py`](sim/ai.py) and [`cpu/cpu_base.gd
 | `bird_test` | `W_TEMPLE_EYRIE_BONUS=50`, `W_BIRD_POWER_BONUS=2` |
 | `emanation` | `W_EFFECT_SEEK_VALUE=4`, `W_EFFECT_INSIGHT_VALUE=2` |
 | `noble_test` | `W_NOBLE_BASE=75`, `W_NOBLE_GRANT_NEW_LANE=55`, `W_DETHRONE_PER_COST=5` |
-| `wrathseek-sac` | `SAC_PENALTY_PER_RITUAL=1` |
 | `ritual_reanimator` | `W_AEOIU_ACTIVATION_BASE=70`, `W_TEMPLE_BASE=65`, `W_NOBLE_BIG_TRIPLET=25` |
 | `topheavy_annihilator` | `W_NOBLE_BIG_TRIPLET=40` |
 | `occultation` | `W_NOBLE_BIG_TRIPLET=55`, `W_EFFECT_BURN_BASE=4`, `W_EFFECT_BURN_VALUE=2` |
 | `annihilation` | `W_NOBLE_BIG_TRIPLET=55`, `W_EFFECT_WOE_PER_DISCARD=4.5`, `W_EFFECT_WRATH_PER_KILLED=3.2` |
-| `scions` | `W_NOBLE_BASE=70` |
 | `temples` | `W_TEMPLE_BASE=55`, `W_TEMPLE_COST_BONUS=0` |
 | `void_temples` | `W_TEMPLE_COST_BONUS=0`, `W_TEMPLE_EYRIE_BONUS=35` |
 
-Pilots with **only** `REVIVE_VERB_PRIORITY` overrides (no float changes): `incantations`, `wrathseek-sac`, `revive` (custom dict).
+Pilots with **only** `REVIVE_VERB_PRIORITY` overrides (no float changes): `incantations`, `revive` (custom dict).
 
 ### 2.3 Hook literals and non-vector behavior (classification)
 
@@ -117,12 +115,10 @@ Pilots with **only** `REVIVE_VERB_PRIORITY` overrides (no float changes): `incan
 | `noble_test` | `+25` power nobles, `+25` Serraf ring | Parameterize later |
 | `occultation` | `+15` Cymbil ring, `+30` Aeoiu noble | Parameterize later |
 | `annihilation` | `+20` Celadon ring; `wrath_score_adjust` +10 if Zytzr | Parameterize later |
-| `wrathseek-sac` | `+12` on Wrath incantation score; `wrath_score_adjust` +6 | Parameterize later |
 | `incantations` | `wrath_score_adjust` −20 / +4 | Parameterize later |
-| `scions` | `+15` scion nobles, `+22` Serraf ring | Parameterize later |
 | `emanation` | `+25` Sybiline ring; `score_dethrone` gate `cost < 6` | Frozen / Parameterize later |
 | `temples` / `void_temples` | `TEMPLE_PLAY_PRIORITY` dict adds to `score_temple_play` | Parameterize later (separate dict genes) |
-| `topheavy_annihilator` | Custom `_score_incantation` (no sac except Wrath+Zytzr case) | Frozen (structural) |
+| `topheavy_annihilator` | Custom `_score_incantation` (Wrath ritual-sac pick; off-lane mana sac refused for other incants) | Frozen (structural) |
 
 **Extended genome (optional):** For a pilot that plateaus with base weights only, add **bonus slots** for that archetype’s literals (e.g. `BONUS_AEOIU_NOBLE`) rather than mixing all pilots into one global vector.
 

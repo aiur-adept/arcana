@@ -1,7 +1,7 @@
 """Pilot for the Incantations starter deck.
 
 A pure spell-slinger that wants its 1R+2R lanes online immediately. The
-one-of Wrath 4 is a precious answer that should only be fired when it
+one-of Wrath is a precious answer that should only be fired when it
 actually wipes meaningful opposing ritual power. Revive 2 targeting
 emphasizes high-impact verbs (Woe/Burn) over simple card draw."""
 

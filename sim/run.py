@@ -6,7 +6,9 @@ Usage:
 Splits runs across os.cpu_count() processes. Workers fold their shard into a
 per-P1-slug bucket dict keyed by opponent slug; the runner merges shards with
 elementwise sums. Reports per-opponent win/loss/draw plus global match-power
-progression and final-power histograms."""
+progression, final-power histograms, average P0 board size at end of game, and
+(for P0 wins by default) how often each non-ritual card was played from hand.
+Use --extra-non-ritual-plays to include the same counts over all P0 games."""
 
 from __future__ import annotations
 
@@ -44,6 +46,11 @@ def _empty_bucket() -> dict[str, Any]:
         "power_curve_p1_sum": [0] * len(POWER_CURVE_MARKERS),
         "power_curve_p1_count": [0] * len(POWER_CURVE_MARKERS),
         "end_reason_counts": {"power_20": 0, "deck_out": 0, "turn_cap": 0},
+        "p0_win_non_ritual_plays": {},
+        "p0_end_birds_sum": 0,
+        "p0_end_temples_sum": 0,
+        "p0_end_rituals_sum": 0,
+        "p0_non_ritual_plays_all_games": {},
     }
 
 
@@ -85,6 +92,8 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
     except EndOfGame:
         pass
     state._sample_power_curve(force=True)
+    p0_plays = state.non_ritual_plays_from_hand[0]
+    p0 = state.players[0]
     return {
         "winner": state.winner if state.winner in (-1, 0, 1) else -1,
         "turns": state.turn_number,
@@ -93,6 +102,11 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
         "p0_curve": state.power_curve_p0,
         "p1_curve": state.power_curve_p1,
         "end_reason": state.end_reason or "turn_cap",
+        "p0_win_non_ritual_plays": dict(p0_plays) if state.winner == 0 else {},
+        "p0_non_ritual_plays": dict(p0_plays),
+        "p0_end_birds": len(p0.bird_field),
+        "p0_end_temples": len(p0.temple_field),
+        "p0_end_rituals": len(p0.field),
     }
 
 
@@ -124,6 +138,16 @@ def _record_result(bucket: dict[str, Any], res: dict[str, Any]) -> None:
     if reason not in bucket["end_reason_counts"]:
         reason = "turn_cap"
     bucket["end_reason_counts"][reason] += 1
+    bucket["p0_end_birds_sum"] += res["p0_end_birds"]
+    bucket["p0_end_temples_sum"] += res["p0_end_temples"]
+    bucket["p0_end_rituals_sum"] += res["p0_end_rituals"]
+    if w == 0:
+        acc = bucket["p0_win_non_ritual_plays"]
+        for lab, n in (res.get("p0_win_non_ritual_plays") or {}).items():
+            acc[lab] = acc.get(lab, 0) + n
+    acc_all = bucket["p0_non_ritual_plays_all_games"]
+    for lab, n in (res.get("p0_non_ritual_plays") or {}).items():
+        acc_all[lab] = acc_all.get(lab, 0) + n
 
 
 def run_shard(args: tuple[Any, ...]) -> dict[str, dict[str, Any]]:
@@ -176,7 +200,14 @@ def _avg(s: int, c: int) -> float:
     return (s / c) if c > 0 else 0.0
 
 
-def _print_report(p0_slug: str, agg: dict[str, dict[str, Any]], total_runs: int, elapsed: float) -> None:
+def _print_report(
+    p0_slug: str,
+    agg: dict[str, dict[str, Any]],
+    total_runs: int,
+    elapsed: float,
+    *,
+    extra_non_ritual_plays: bool,
+) -> None:
     print()
     print(f"=== Arcana Monte Carlo: P0={p0_slug}  total_runs={total_runs}  elapsed={elapsed:.2f}s ===")
     print()
@@ -221,6 +252,56 @@ def _print_report(p0_slug: str, agg: dict[str, dict[str, Any]], total_runs: int,
     print()
     print("--- final match-power histogram (P1) ---")
     _print_hist(totals["final_power_hist_p1"])
+    print()
+    gtot = totals["games"]
+    if gtot > 0:
+        print("--- P0 end-of-game board (avg over all games) ---")
+        print(
+            f"  birds on field: {totals['p0_end_birds_sum'] / gtot:5.2f}   "
+            f"temples: {totals['p0_end_temples_sum'] / gtot:5.2f}   "
+            f"rituals on field: {totals['p0_end_rituals_sum'] / gtot:5.2f}"
+        )
+        print()
+    _print_p0_non_ritual_plays_section(
+        p0_slug,
+        totals,
+        scope_label="P0 wins only",
+        counts_key="p0_win_non_ritual_plays",
+        n_games=totals["p0_wins"],
+        rate_header="/win",
+    )
+    if extra_non_ritual_plays:
+        _print_p0_non_ritual_plays_section(
+            p0_slug,
+            totals,
+            scope_label="all P0 games (wins + losses)",
+            counts_key="p0_non_ritual_plays_all_games",
+            n_games=totals["games"],
+            rate_header="/game",
+        )
+
+
+def _print_p0_non_ritual_plays_section(
+    p0_slug: str,
+    totals: dict[str, Any],
+    *,
+    scope_label: str,
+    counts_key: str,
+    n_games: int,
+    rate_header: str,
+) -> None:
+    counts: dict[str, int] = totals.get(counts_key) or {}
+    print(f"--- non-ritual cards played from hand (P0={p0_slug}, {scope_label}, n={n_games}) ---")
+    if n_games <= 0 or not counts:
+        print("  (no games in scope or no tracked plays)")
+        print()
+        return
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    colw = max(22, max((len(lab) for lab, _ in ranked), default=0))
+    print(f"{'card':{colw}s}  {'plays':>8s}  {rate_header:>8s}")
+    for lab, n in ranked:
+        print(f"{lab:{colw}s}  {n:8d}  {n / n_games:8.2f}")
+    print()
 
 
 def _print_hist(hist: list[int]) -> None:
@@ -250,6 +331,11 @@ def main() -> None:
         type=str,
         default="",
         help="path to pilot_weights.json (default: <project>/data/pilot_weights.json); only used with --use-saved-weights",
+    )
+    ap.add_argument(
+        "--extra-non-ritual-plays",
+        action="store_true",
+        help="after the usual P0-wins-only play counts, print the same table aggregated over all P0 games (shows temples/Void discards etc. on losses)",
     )
     args = ap.parse_args()
 
@@ -291,7 +377,7 @@ def main() -> None:
                     _merge_bucket(dst, bucket)
     elapsed = time.perf_counter() - t0
     _validate_invariants(agg, args.runs)
-    _print_report(args.deck, agg, args.runs, elapsed)
+    _print_report(args.deck, agg, args.runs, elapsed, extra_non_ritual_plays=args.extra_non_ritual_plays)
 
 
 if __name__ == "__main__":

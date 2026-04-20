@@ -21,6 +21,7 @@ const INC_PICK_NEST_BIRD := 13
 const INC_PICK_NEST_TEMPLE := 14
 const INC_PICK_RING_TARGET := 15
 const INC_PICK_DELPHA := 16
+const INC_PICK_WRATH_TAX := 17
 
 var game: Control
 
@@ -66,7 +67,7 @@ func rebuild_ritual_field(row: HBoxContainer, field: Variant, ours: bool) -> voi
 		var pick_mode := 0
 		if ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_SAC:
 			pick_mode = 1
-		elif ours and game._sacrifice_selecting and (game._inc_pick_phase == INC_PICK_SMRSK or game._inc_pick_phase == INC_PICK_DELPHA):
+		elif ours and game._sacrifice_selecting and (game._inc_pick_phase == INC_PICK_SMRSK or game._inc_pick_phase == INC_PICK_DELPHA or game._inc_pick_phase == INC_PICK_WRATH_TAX):
 			pick_mode = 1
 		elif not ours and game._sacrifice_selecting and game._inc_pick_phase == INC_PICK_WRATH:
 			pick_mode = 2

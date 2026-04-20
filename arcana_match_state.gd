@@ -110,6 +110,14 @@ func effective_incantation_cost(p: int, verb: String, value: int) -> int:
 	return maxi(0, value - _sum_ring_reduction(p, v))
 
 
+func incantation_display_name(verb_lc: String, verb_raw: String, printed_value: int) -> String:
+	if verb_lc == "void":
+		return "Void"
+	if verb_lc == "wrath":
+		return "Wrath"
+	return "%s %d" % [verb_raw, printed_value]
+
+
 func effective_noble_cost(p: int, base_cost: int) -> int:
 	return maxi(0, base_cost - _sum_ring_reduction(p, "noble"))
 
@@ -1634,14 +1642,16 @@ func can_play_incantation(p: int, hand_idx: int) -> bool:
 	var c: Variant = _card_at_hand(p, hand_idx)
 	if c == null or _card_kind(c) != "incantation":
 		return false
-	var n: int = int(c["value"])
-	if n < 1:
-		return false
 	var verb := str(c.get("verb", ""))
 	var vl := verb.to_lower()
+	var n: int = int(c["value"])
+	if n < 1 and vl != "wrath":
+		return false
 	if vl == "renew" and _ritual_crypt_cards(_players[p]).is_empty():
 		return false
 	var n_eff := effective_incantation_cost(p, verb, n)
+	if vl == "wrath":
+		return not (_players[p]["field"] as Array).is_empty()
 	if n_eff <= 0:
 		return true
 	if has_active_incantation_lane(p, n_eff):
@@ -2416,19 +2426,29 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 		return "illegal"
 	var c: Dictionary = _card_at_hand(p, hand_idx)
 	var n: int = int(c["value"])
-	if n < 1:
+	if n < 1 and str(c.get("verb", "")).to_lower() != "wrath":
 		return "illegal"
 	if str(c.get("verb", "")).to_lower() == "void":
 		return "illegal"
 	var verb_raw: String = str(c.get("verb", ""))
 	var verb: String = verb_raw.to_lower()
 	var n_eff := effective_incantation_cost(p, verb, n)
-	var need_sac := n_eff > 0 and not has_active_incantation_lane(p, n_eff)
+	var wrath_one := verb == "wrath"
+	var need_sac := (n_eff > 0 and not has_active_incantation_lane(p, n_eff)) or wrath_one
 	var mids: Dictionary = {}
 	if need_sac:
 		for m in sacrifice_mids:
 			mids[int(m)] = true
-		if not _sacrifice_valid(p, n_eff, mids):
+		if wrath_one:
+			if mids.size() != 1:
+				return "illegal_sacrifice"
+			var ok_one := false
+			for mid in mids:
+				ok_one = _ritual_mid_on_player_field(p, int(mid))
+				break
+			if not ok_one:
+				return "illegal_sacrifice"
+		elif not _sacrifice_valid(p, n_eff, mids):
 			mids.clear()
 			for mid in _greedy_sacrifice_mids_for_player(p, n_eff):
 				mids[int(mid)] = true
@@ -2456,7 +2476,19 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 				pd_pri_r[int(m)] = true
 		if not _validate_yytzr_extra_sacrifice(p, pd_pri_r, yyt_extra):
 			return "illegal"
-	var payment_text := _incantation_payment_text(p, n_eff, need_sac, mids)
+	if verb == "wrath":
+		var werr := _validate_wrath_instigator_sacrifice(p, need_sac, mids, ctx_use)
+		if werr != "ok":
+			return werr
+		if not need_sac:
+			var wtx := int(ctx_use.get("wrath_instigator_sac_mid", -1))
+			if wtx >= 0:
+				mids[wtx] = true
+	var payment_text: String
+	if wrath_one:
+		payment_text = "0-cost Wrath — paid by sacrificing one ritual"
+	else:
+		payment_text = _incantation_payment_text(p, n_eff, need_sac, mids)
 	_apply_sacrifice(p, mids)
 	if verb == "revive" and not yyt_extra.is_empty():
 		var ed: Dictionary = {}
@@ -2470,7 +2502,7 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 		_apply_sacrifice(p, edr)
 	var pl: Dictionary = _players[p]
 	pl["hand"].remove_at(hand_idx)
-	var label := "%s %d" % [verb_raw, n]
+	var label := incantation_display_name(verb, verb_raw, n)
 	var frame := {
 		"kind": "incantation",
 		"card": c,
@@ -2497,6 +2529,7 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 	var wrath_mids: Array = payload.get("wrath_mids", []) as Array
 	var ctx_use: Dictionary = payload.get("ctx", {}) as Dictionary
 	var payment_text := str(payload.get("payment_text", ""))
+	var play_disp := incantation_display_name(verb, verb_raw, n)
 	if verb == "revive":
 		var rr := _run_revive_steps_after_payment(p, n, ctx_use, payment_text, card)
 		if rr == "ok":
@@ -2520,9 +2553,9 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 			_woe_pending_spell_to_abyss = false
 			_woe_pending_revive_wrapper = null
 			_woe_pending_noble_mid = -1
-			_log("P%d plays %s %d (%s); Woe pending on P%d." % [p, verb_raw, n, payment_text, wt])
+			_log("P%d plays %s (%s); Woe pending on P%d." % [p, play_disp, payment_text, wt])
 			return
-	_log("P%d plays %s %d (%s)." % [p, verb_raw, n, payment_text])
+	_log("P%d plays %s (%s)." % [p, play_disp, payment_text])
 	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
 	_queue_post_effect_scion_trigger(p, verb)
 	pl["crypt"].append(card)
@@ -2661,6 +2694,26 @@ func _sacrifice_valid(p: int, need: int, mids: Dictionary) -> bool:
 			seen[mid] = true
 			sum += int(field[i]["value"])
 	return sum >= need and seen.size() == mids.size()
+
+
+func _ritual_mid_on_player_field(p: int, mid: int) -> bool:
+	for x in (_players[p]["field"] as Array):
+		if int(x.get("mid", -1)) == mid:
+			return true
+	return false
+
+
+func _validate_wrath_instigator_sacrifice(p: int, need_sac: bool, payment_mids: Dictionary, ctx: Dictionary) -> String:
+	var tx := int(ctx.get("wrath_instigator_sac_mid", -1))
+	if need_sac:
+		if tx >= 0 and payment_mids.has(tx):
+			return "illegal_wrath_sac"
+		return "ok"
+	if tx < 0 or not _ritual_mid_on_player_field(p, tx):
+		return "illegal_wrath_sac"
+	if payment_mids.has(tx):
+		return "illegal_wrath_sac"
+	return "ok"
 
 
 func _apply_sacrifice(p: int, mids: Dictionary) -> void:
@@ -2813,7 +2866,8 @@ func _mill(target: int, x: int) -> void:
 
 
 func _wrath_destroy_count(value: int) -> int:
-	if value == 4:
+	# Printed cost 0 (normal); 4 is legacy deck data.
+	if value == 0 or value == 4:
 		return 1
 	return 0
 

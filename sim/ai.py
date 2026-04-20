@@ -103,7 +103,7 @@ class GreedyAI:
     W_FIGHT_KILL_BASE: float = 4.0
     W_DISCARD_DRAW: float = 3.0
     DD_W_FIELD_CONTRIB: float = 0.0  # × _card_discard_score(worst card): keep-affinity of the card we would bin
-    DD_W_CARD_COST: float = 0.0    # × mana/value cost of that card
+    DD_W_CARD_COST: float = 0.0    # × value/cost of that card
 
     DD_W_RITUAL_BASE: float = 1.0
     DD_W_RITUAL_PER_VALUE: float = 0.3
@@ -506,7 +506,12 @@ class GreedyAI:
         active = state.active_lanes(pid)
         eff_val = state.effective_incantation_cost(pid, card.verb, card.value)
         sac: list[int] = []
-        if eff_val > 0 and eff_val not in active:
+        if card.verb == VERB_WRATH:
+            if not p.field:
+                return None
+            r = min(p.field, key=lambda rr: (rr.value, rr.mid))
+            sac = [r.mid]
+        elif eff_val > 0 and eff_val not in active:
             s = _ritual_combinations_for_value(p.field, eff_val)
             if s is None:
                 return None
@@ -720,6 +725,13 @@ class GreedyAI:
         opp = state.players[state.opponent(pid)]
         ritvals = sorted(opp.field, key=lambda r: -r.value)
         return [r.mid for r in ritvals[:count]]
+
+    def choose_wrath_instigator_sac(self, state: MatchState, pid: int) -> Optional[int]:
+        p = state.players[pid]
+        if not p.field:
+            return None
+        r = min(p.field, key=lambda rr: (rr.value, rr.mid))
+        return r.mid
 
     def _revive_verb_prio_bonus(self, verb: str) -> float:
         v = verb.lower()

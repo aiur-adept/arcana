@@ -178,7 +178,7 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 4.0,
+			"value": 0.0,
 			"verb": "wrath"
 		}
 	],
@@ -202,7 +202,7 @@
 			"seek_4": 0.0,
 			"woe_3": 4.0,
 			"woe_4": 0.0,
-			"wrath_4": 1.0
+			"wrath_0": 1.0
 		},
 		"nobles": {
 			"bndrr_incantation": 0.0,

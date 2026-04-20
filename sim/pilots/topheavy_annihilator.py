@@ -1,33 +1,19 @@
 """Pilot for the Topheavy Annihilator deck.
 
-Eight 4-rituals means Wrath/Burn/Insight/Dethrone cast on-lane for
-free. The key edge this deck earns is dropping Zytzr before a Wrath so
-each Wrath destroys two rituals. We bias Zytzr aggressively via
-``W_NOBLE_BIG_TRIPLET`` and prefer sacrificing the *largest* available
-ritual (a spare 4R, of which the deck runs eight) when a sac is
-required — this protects the 1/2/3 ladder that keeps lane 4 active."""
+Wrath costs one ritual sacrifice (mana value 0). Other incantations still
+prefer on-lane payment so the 1/2/3 ladder keeps lane 4 live. The deck's
+edge is Zytzr before Wrath (two kills per cast); we bias Zytzr via
+``W_NOBLE_BIG_TRIPLET``. For Wrath payment we sack the largest ritual that
+still leaves at least one active lane when possible, else the smallest (same
+as base) so the play is always legal."""
 
 from __future__ import annotations
 
 from typing import Optional
 
-from ..ai import GreedyAI, _ritual_combinations_for_value
+from ..ai import GreedyAI
 from ..cards import Kind, VERB_WRATH
 from ..match import MatchState
-
-
-def _sac_prefer_high(p_field, target: int) -> Optional[list[int]]:
-    rituals = sorted(p_field, key=lambda r: -r.value)
-    chosen: list[int] = []
-    total = 0
-    for r in rituals:
-        if total >= target:
-            break
-        chosen.append(r.mid)
-        total += r.value
-    if total < target:
-        return None
-    return chosen
 
 
 class TopheavyAnnihilatorPilot(GreedyAI):
@@ -52,32 +38,46 @@ class TopheavyAnnihilatorPilot(GreedyAI):
             return True
         return False
 
-    def _score_incantation(self, state: MatchState, pid: int, card) -> Optional[tuple[float, list[int]]]:
+    def _pick_wrath_sacrifice(self, state: MatchState, pid: int) -> Optional[list[int]]:
         p = state.players[pid]
+        if not p.field:
+            return None
+        for r in sorted(p.field, key=lambda rr: (-rr.value, rr.mid)):
+            if len(self._lanes_after_sac(state, pid, [r.mid])) >= 1:
+                return [r.mid]
+        r0 = min(p.field, key=lambda rr: (rr.value, rr.mid))
+        return [r0.mid]
+
+    def _score_incantation(self, state: MatchState, pid: int, card) -> Optional[tuple[float, list[int]]]:
+        if card.verb == VERB_WRATH:
+            sac = self._pick_wrath_sacrifice(state, pid)
+            if sac is None:
+                return None
+            eff = self._score_effect(state, pid, card.verb, card.value)
+            if eff is None:
+                return None
+            score, _ctx = eff
+            score += self.INC_BASE_BONUS - self._sac_penalty(state, pid, sac)
+            score = self.adjust_incantation_score(state, pid, card, sac, score)
+            if score is None:
+                return None
+            opp_pid = state.opponent(pid)
+            gap = max(0, state.match_power(opp_pid) - state.match_power(pid))
+            score += self.W_SF_INC_BEHIND * gap * card.value * 0.1
+            return score, sac
         active = state.active_lanes(pid)
         eff_val = state.effective_incantation_cost(pid, card.verb, card.value)
         if eff_val > 0 and eff_val not in active:
-            # Topheavy refuses to sac for incantations: the whole deck relies
-            # on lane 4 staying active. Wait for on-lane casting instead.
-            if card.verb == VERB_WRATH and state.has_noble(pid, "zytzr_annihilation"):
-                # the one exception: Zytzr-boosted Wrath destroying 2 is
-                # often worth a single high-value sac
-                s = _sac_prefer_high(p.field, eff_val)
-                if s is None:
-                    return None
-                after = self._lanes_after_sac(state, pid, s)
-                if len(after) < 1:
-                    return None
-                eff = self._score_effect(state, pid, card.verb, card.value)
-                if eff is None:
-                    return None
-                score, _ctx = eff
-                score += self.INC_BASE_BONUS - self._sac_penalty(state, self.pid, s)
-                return score, s
             return None
         eff = self._score_effect(state, pid, card.verb, card.value)
         if eff is None:
             return None
         score, _ctx = eff
         score += self.INC_BASE_BONUS
+        score = self.adjust_incantation_score(state, pid, card, [], score)
+        if score is None:
+            return None
+        opp_pid = state.opponent(pid)
+        gap = max(0, state.match_power(opp_pid) - state.match_power(pid))
+        score += self.W_SF_INC_BEHIND * gap * card.value * 0.1
         return score, []

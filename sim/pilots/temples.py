@@ -1,4 +1,4 @@
-"""Pilot for the Temples (big-mana toolbox) deck.
+"""Pilot for the Temples (big-ritual toolbox) deck.
 
 All four temples are here as singletons. Correct sequencing is:
 

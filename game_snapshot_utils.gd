@@ -77,8 +77,11 @@ static func card_label(card: Variant) -> String:
 	if t == "ring":
 		return short_noble_name(str(card.get("name", "Ring")))
 	var verb := str(card.get("verb", ""))
-	if verb.to_lower() == "void":
+	var vl := verb.to_lower()
+	if vl == "void":
 		return "Void"
+	if vl == "wrath":
+		return "Wrath"
 	return "%s %d" % [verb, int(card.get("value", 0))]
 
 
@@ -171,6 +174,8 @@ static func card_corner_pip_spec(card: Variant) -> Dictionary:
 	if t == "bird":
 		return {"count": max(0, int(card.get("cost", 0))), "filled": false}
 	if t == "incantation":
+		if str(card.get("verb", "")).to_lower() == "wrath":
+			return {"count": 0, "filled": false}
 		return {"count": max(0, int(card.get("value", 0))), "filled": false}
 	if t == "noble":
 		return {"count": noble_cost_for_id(str(card.get("noble_id", ""))), "filled": false}

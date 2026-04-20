@@ -9,21 +9,21 @@ Unless otherwise noted, the win condition is reaching **20 match power** before 
 ## 1. Incantations
 
 **Ritual curve**: 7/6/3/3 (1s/2s/3s/4s)
-**Non-rituals**: 4x Seek 2, 4x Insight 2, 4x Burn 2, 4x Woe 3, 2x Revive 2, 2x Renew 3, 1x Wrath 4
+**Non-rituals**: 4x Seek 2, 4x Insight 2, 4x Burn 2, 4x Woe 3, 2x Revive 2, 2x Renew 3, 1x Wrath
 **Nobles / Temples / Rings**: none
 
 ### Game plan
-A pure spellslinger that commits almost nothing to the field beyond rituals. The curve is heavily weighted toward the 2-lane so most non-rituals are castable off a single active 2R. The deck aims to convert Seek/Insight into reliable draws, erode the opponent's hand with Woe 3, and mill with Burn 2 while using Revive 2 to replay any of those incantations from crypt for a second pass; Renew 3 wants a 3-lane, Wrath 4 wants a 4-lane.
+A pure spellslinger that commits almost nothing to the field beyond rituals. The curve is heavily weighted toward the 2-lane so most non-rituals are castable off a single active 2R. The deck aims to convert Seek/Insight into reliable draws, erode the opponent's hand with Woe 3, and mill with Burn 2 while using Revive 2 to replay any of those incantations from crypt for a second pass; Renew 3 wants a 3-lane, Wrath wants a 4-lane.
 
 ### Key synergies
 - Revive 2 effectively doubles the Woe/Burn/Seek/Insight payload once the crypt fills up (Renew 3 pulls rituals from crypt instead).
-- The single Wrath 4 is the only disruption against opposing ritual boards; save it for a lane the opponent actually needs (usually their 3-lane for Woe or their 4-lane for Wrath mirror).
-- A 1R + 2R open runs most of the deck; the 2-lane gates Revive 2; the 3-lane gates Woe 3 and Renew 3; the 4-lane gates Wrath 4.
+- The single Wrath is the only disruption against opposing ritual boards; save it for a lane the opponent actually needs (usually their 3-lane for Woe or their 4-lane for Wrath mirror).
+- A 1R + 2R open runs most of the deck; the 2-lane gates Revive 2; the 3-lane gates Woe 3 and Renew 3; the 4-lane gates Wrath.
 
 ### Weaknesses
 - No nobles, temples, or rings means no ceiling beyond raw ritual power. Reaching 20 match power depends entirely on resolving rituals.
 - No Dethrone, so opposing Power-Nobles or Yytzr/Zytzr are unanswerable.
-- Weak to Wrath 4 from opponents — losing the 2R lane turns the deck off entirely.
+- Weak to Wrath from opponents — losing the 2R lane turns the deck off entirely.
 
 ---
 
@@ -41,33 +41,13 @@ A tutor/toolbox deck designed to exercise every noble in Set 1. Play a Power-nob
 - **Dethrone 4 x4** is unusually heavy, reflecting that the mirror plan against opposing nobles is also the plan here: clear their board before they stack static value.
 
 ### Weaknesses
-- Extremely noble-dependent. Wrath 4 / Dethrone 4 exchanges against a disruption deck gut the strategy quickly.
+- Extremely noble-dependent. Wrath / Dethrone 4 exchanges against a disruption deck gut the strategy quickly.
 - Only 9 incantations total (8 Seek + 4 Dethrone); card velocity is driven almost entirely by noble activations, which require those nobles to survive a turn.
 - Cannot revive nobles, so each removed noble is permanently down.
 
 ---
 
-## 3. Wrathseek-Sac
-
-**Ritual curve**: 5/5/9/0 (no 4s — maxed-out 3-ritual stack)
-**Non-rituals**: 4x Seek 1, 4x Seek 2, 4x Insight 3, 4x Wrath 4, 4x Revive 2, 1x Sndrr
-
-### Game plan
-A sacrifice-based control/tempo deck. With zero 4-rituals in the list, Wrath 4 is never paid via lane — it is always paid by sacrificing 3-rituals (or a 1+2, etc.). Nine value-3 rituals guarantee a fat 3-lane that both fuels Wrath sacrifices and enables Insight 3 and Revive 2. Seek 1/2 cycle to find Wrath targets, Revive 2 recurs anything already used.
-
-### Key synergies
-- **3R glut + Wrath 4**: sacrificing one 3-ritual pays for a Wrath and still nets the opponent only 1 draw back; the user loses 3 ritual power but usually removes 3+ on the opposing side.
-- **Revive 2 + Wrath 4** is the key engine — recasting buried Wraths from crypt turns this into an almost infinite-removal deck as long as the 2-lane stays live for Revive 2 and there are 3-rituals to sacrifice.
-- **Sndrr** (discard-to-Seek 1) smooths draws late when the hand runs dry.
-
-### Weaknesses
-- No 4-lane means Wrath always costs a ritual — every removal shrinks the user's own board.
-- No Dethrone, Burn, or noble removal, so opposing nobles simply run the deck over.
-- Vulnerable to mirror Wrath; losing the 3-lane is catastrophic.
-
----
-
-## 4. Ritual Reanimator
+## 3. Ritual Reanimator
 
 **Ritual curve**: 6/4/4/5
 **Non-rituals**: 4x Burn 1, 4x Burn 2, 4x Burn 3, 1x Burn 4, 3x Insight 2, 3x Revive 2, 1x Aeoiu (Scion of Rituals), 1x Phaedra (Temple of Illusion)
@@ -87,17 +67,17 @@ A mill/reanimation hybrid. The curve is barbell-shaped (lots of 1s and 4s) to bo
 
 ---
 
-## 5. Topheavy Annihilator
+## 4. Topheavy Annihilator
 
 **Ritual curve**: 3/4/4/8 (almost maxed on 4-rituals)
-**Non-rituals**: 4x Wrath 4, 4x Burn 4, 4x Insight 4, 4x Dethrone 4, 4x Seek 2, 1x Zytzr (Noble of Annihilation)
+**Non-rituals**: 4x Wrath, 4x Burn 4, 4x Insight 4, 4x Dethrone 4, 4x Seek 2, 1x Zytzr (Noble of Annihilation)
 
 ### Game plan
 Aggressive high-lane removal/burst. With eight 4-rituals the deck almost always has lane 4 available, so every piece of removal and every Burn 4 can be fired off-lane without sacrifice. Seek 2 is the only cheap draw. Zytzr is the capstone: it grants +1 ritual destroyed on every Wrath (so Wrath hits 2) and +1 discard on Woe — but this deck carries no Woe, leveraging only the Wrath boost.
 
 ### Key synergies
-- **Zytzr + Wrath 4** — Wrath destroys **2** opposing rituals instead of 1 while Zytzr is on the field. Against a ritual-heavy opponent this is a runaway swing.
-- **4-lane saturation** — lanes 1-3 are deliberately thin; opponents relying on Wrath 4 still need to sacrifice to pay, while this deck plays Wrath/Burn/Dethrone on-lane for free.
+- **Zytzr + Wrath** — Wrath destroys **2** opposing rituals instead of 1 while Zytzr is on the field. Against a ritual-heavy opponent this is a runaway swing.
+- **4-lane saturation** — lanes 1-3 are deliberately thin; opponents relying on Wrath still need to sacrifice to pay, while this deck plays Wrath/Burn/Dethrone on-lane for free.
 - **Burn 4 + Insight 4** as a late alternate-win package: 11 mill per Burn 4 cast (or 14 with Yytzr, not run here) plus top-deck sculpting.
 
 ### Weaknesses
@@ -107,7 +87,7 @@ Aggressive high-lane removal/burst. With eight 4-rituals the deck almost always 
 
 ---
 
-## 6. Occultation
+## 5. Occultation
 
 **Ritual curve**: 5/5/5/4
 **Non-rituals**: 2x Burn 1, 2x Burn 2, 2x Burn 3, 2x Burn 4, 4x Revive 2, 4x Renew 3, 2x Dethrone 4, 1x Yytzr (Noble of Occultation), 1x Aeoiu (Scion of Rituals), 1x Cymbil (Ring of Occultation)
@@ -128,19 +108,19 @@ A mill-win deck built around Yytzr's static ability: "Your Burn mills +3". The c
 
 ---
 
-## 7. Annihilation
+## 6. Annihilation
 
 **Ritual curve**: 6/4/4/5
-**Non-rituals**: 4x Wrath 4, 4x Woe 3, 4x Woe 4, 4x Dethrone 4, 1x Seek 2, 1x Zytzr, 1x Wndrr, 1x Tmrsk (Scion of Annihilation), 1x Celadon (Ring of Annihilation)
+**Non-rituals**: 4x Wrath, 4x Woe 3, 4x Woe 4, 4x Dethrone 4, 1x Seek 2, 1x Zytzr, 1x Wndrr, 1x Tmrsk (Scion of Annihilation), 1x Celadon (Ring of Annihilation)
 
 ### Game plan
 A dedicated hand-and-board-disruption deck. Every non-ritual (except one Seek) attacks the opponent's hand, rituals, or nobles. Zytzr boosts every Wrath to hit 2 rituals and every Woe to force one extra discard. Wndrr offers a repeatable discard-for-Woe-3 engine each turn. Tmrsk chains a free Woe 3 after each Wrath.
 
 ### Key synergies
 - **Zytzr + Wrath + Woe** — flat static buff to the deck's entire non-ritual suite (12 of 21 spells).
-- **Tmrsk + Wrath 4** — cast Wrath, then automatically Woe 3; with Zytzr on field, Wrath destroys 2 rituals and Woe discards 2 cards. This is an absurd single-turn swing.
+- **Tmrsk + Wrath** — cast Wrath, then automatically Woe 3; with Zytzr on field, Wrath destroys 2 rituals and Woe discards 2 cards. This is an absurd single-turn swing.
 - **Wndrr** — repeatable discard -> Woe 3 each turn, self-fueling from the Woe 4 cards in hand the deck can't always cast yet.
-- **Celadon** drops Woe 3 to lane 2 and Wrath 4 to lane 3, easing the 4-lane requirement in the early game.
+- **Celadon** drops Woe 3 to lane 2 and Wrath to lane 3, easing the 4-lane requirement in the early game.
 
 ### Weaknesses
 - Only 1 Seek and no Insight/Revive means card velocity is poor; topdecks must matter.
@@ -149,7 +129,7 @@ A dedicated hand-and-board-disruption deck. Every non-ritual (except one Seek) a
 
 ---
 
-## 8. Emanation
+## 7. Emanation
 
 **Ritual curve**: 6/5/4/4
 **Non-rituals**: 3x Seek 1, 4x Seek 2, 3x Insight 1, 3x Insight 2, 4x Insight 3, 1x Dethrone 4, 1x Rmrsk (Scion of Emanation), 1x Sndrr (Noble of Incantation), 1x Sybiline (Ring of Emanation)
@@ -169,28 +149,7 @@ A card-velocity / draw-engine deck. Seek and Insight together are 17 cards of th
 
 ---
 
-## 9. Scions
-
-**Ritual curve**: 7/5/4/3
-**Non-rituals**: 4x Woe 3, 4x Burn 2, 4x Seek 2, 1x Insight 2, 4x Wrath 4, 1x Rmrsk, 1x Smrsk (Scion of Occultation), 1x Tmrsk (Scion of Annihilation), 1x Serraf (Ring of Nobles)
-
-### Game plan
-A cost-2 scion toolbox: every scion in the Set 1 lineup is a cost-2 noble with an optional trigger after resolving a specific verb. With Serraf, every scion drops to an effective cost of 1, so a single 1R turn enables all three. The spell mix is chosen so each scion has triggers to fire from the main deck's payload — Rmrsk off Insight, Smrsk off Burn/Revive (the deck runs Burn 2 x4), Tmrsk off Wrath 4 x4.
-
-### Key synergies
-- **Tmrsk + Wrath 4** — each Wrath optionally chains a Woe 3, compounding disruption.
-- **Smrsk + Burn 2** — after a Burn, optionally sacrifice a ritual of value X to Burn yourself X. This is niche self-mill for future Revive lines (though the deck runs no Revive — interpret as an optional Burn-mirror if drawing dead rituals).
-- **Rmrsk + Insight 2** — small but real, one extra draw from the single Insight.
-- **Serraf** discounts every scion, making a three-scion board realistic by mid-game.
-
-### Weaknesses
-- No temples, no Dethrone, no Revive. Scions are cost-2 and fragile.
-- Smrsk's self-Burn trigger is risky without a Revive plan; it's really here for the archetype completeness.
-- Reliant on Serraf staying in play; if the only ring is Dethroned (via host loss) or never drawn, tempo suffers.
-
----
-
-## 10. Temples
+## 8. Temples
 
 **Ritual curve**: 6/5/4/4
 **Non-rituals**: 5x Seek 1, 4x Seek 2, 4x Insight 1, 4x Insight 2, plus **all four Set 1 temples** — Phaedra (7), Delpha (7), Gotha (7), and Ytria (9).
@@ -211,7 +170,7 @@ A pure temple-toolbox deck: find a big ritual board, then slam every temple. Che
 
 ---
 
-## 11. Bird Test
+## 9. Bird Test
 
 **Ritual curve**: 7/5/4/3
 **Non-rituals**: 4x Sparrow (cost 2 / power 1), 4x Raven (cost 4 / power 3), 1x Hawk (4/3), 1x Gull (3/2), 4x Seek 2, 3x Insight 2, 1x Sndrr, 1x Phaedra, 1x Eyrie (Temple of Feathers), 1x Sinofia (Ring of Feathers)
@@ -232,7 +191,7 @@ A bird-tribal strategy leveraging both bird match-power (+1 per wild bird, +1 ex
 
 ---
 
-## 12. Void Temples
+## 10. Void Temples
 
 **Ritual curve**: 5/5/3/6
 **Non-rituals**: 4x Void, 4x Seek 2, 4x Sparrow, 4x Gull (3/2), and **every Set 1 temple** (Phaedra, Delpha, Gotha, Eyrie, Ytria).
@@ -254,7 +213,7 @@ A defensive temple/bird combo: use Void reactively to counter opposing game-endi
 
 ---
 
-## 13. Revive
+## 11. Revive
 
 **Ritual curve**: 7/5/4/3
 **Non-rituals**: 4x Seek 1, 4x Seek 2, 4x Insight 1, 4x Insight 2, 4x Revive 2, 1x Rndrr (Noble of Incantation)
@@ -280,14 +239,12 @@ An engine deck focused on recycling incantations from crypt. Most non-rituals ar
 |---|---|---|---|
 | Incantations | Midrange spells | Ritual power + disruption | Revive 2 loops |
 | Noble Test | Noble toolbox | Noble static/activated value | Serraf + Power-nobles |
-| Wrathseek-Sac | Control | Ritual power + opponent denial | 3R glut → Wrath 4 |
 | Ritual Reanimator | Mill/reanimate | Deck-out + lane grinding | Aeoiu + Burn |
 | Topheavy Annihilator | Aggro removal | Ritual power + board wipes | 4-lane saturation + Zytzr |
 | Occultation | Mill | Opponent decks out | Yytzr + Burn + Cymbil |
 | Annihilation | Prison/disruption | Opponent cannot function | Zytzr + Tmrsk + Wrath/Woe |
 | Emanation | Combo/draw | Ritual power via velocity | Rmrsk + Insight + Sybiline |
-| Scions | Cost-2 synergy | Mixed disruption + value | Each scion triggered once per turn |
-| Temples | Big-mana toolbox | Overwhelming temple value | Ytria refill + Delpha recursion |
+| Temples | Big-ritual toolbox | Overwhelming temple value | Ytria refill + Delpha recursion |
 | Bird Test | Bird tribal | Match-power via birds + nesting | Eyrie + Phaedra nesting |
 | Void Temples | Reactive control | Outlast, then temple finish | Void + Ytria reset |
 | Revive | Engine combo | Ritual power via incantation loops | Rndrr + Revive 2 |

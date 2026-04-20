@@ -121,6 +121,7 @@ class MatchState:
         self.power_curve_markers: list[int] = [1, 3, 5, 10, 15, 20]
         self.power_curve_p0: list[Optional[int]] = [None] * len(self.power_curve_markers)
         self.power_curve_p1: list[Optional[int]] = [None] * len(self.power_curve_markers)
+        self.non_ritual_plays_from_hand: list[dict[str, int]] = [{}, {}]
 
     def mid(self) -> int:
         m = self._next_mid
@@ -336,6 +337,13 @@ class MatchState:
                 self._finish(pid, "power_20")
                 return
 
+    def _note_non_ritual_play(self, pid: int, card: Card) -> None:
+        if card.kind is Kind.RITUAL:
+            return
+        lab = card.label()
+        d = self.non_ritual_plays_from_hand[pid]
+        d[lab] = d.get(lab, 0) + 1
+
     # --------------------------------------------------------------- plays
 
     def play_ritual(self, pid: int, hand_idx: int) -> None:
@@ -368,6 +376,7 @@ class MatchState:
                 return
             self._sacrifice(pid, sac_mids)
         p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, c)
         p.noble_field.append(Noble(mid=self.mid(), noble_id=c.noble_id, cost=c.cost))
         p.noble_played_this_turn = True
         self._check_power_win()
@@ -385,6 +394,7 @@ class MatchState:
         if eff > 0 and eff not in self.active_lanes(pid):
             return
         p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, c)
         p.bird_field.append(Bird(mid=self.mid(), bird_id=c.bird_id, cost=c.cost, power=c.power))
         p.bird_played_this_turn = True
         self._check_power_win()
@@ -403,6 +413,7 @@ class MatchState:
             return
         self._sacrifice(pid, sac_mids)
         p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, c)
         t = Temple(mid=self.mid(), temple_id=c.temple_id, cost=c.cost)
         p.temple_field.append(t)
         p.temple_played_this_turn = True
@@ -440,6 +451,7 @@ class MatchState:
         if host is None:
             return
         p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, c)
         host.rings.append(c.ring_id)
         self._check_power_win()
 
@@ -476,6 +488,30 @@ class MatchState:
 
     # --------------------------------------------------------------- incantation play
 
+    def _wrath_zero_sac_ok(self, pid: int, sac_mids: Optional[list[int]]) -> bool:
+        if not sac_mids or len(sac_mids) != 1:
+            return False
+        m = int(sac_mids[0])
+        return any(r.mid == m for r in self.players[pid].field)
+
+    def _wrath_instigator_sac_ok(
+        self, pid: int, need_payment_sac: bool, payment_mids: set[int], ctx: dict
+    ) -> bool:
+        tx = ctx.get("wrath_instigator_sac_mid")
+        if need_payment_sac:
+            if tx is not None and int(tx) in payment_mids:
+                return False
+            return True
+        if tx is None:
+            return False
+        txi = int(tx)
+        p = self.players[pid]
+        if not any(r.mid == txi for r in p.field):
+            return False
+        if txi in payment_mids:
+            return False
+        return True
+
     def play_incantation(self, pid: int, hand_idx: int, ctx: dict, sac_mids: Optional[list[int]] = None) -> None:
         p = self.players[pid]
         if self.pending is not None:
@@ -486,11 +522,22 @@ class MatchState:
         if c.kind is not Kind.INCANTATION:
             return
         eff_val = self.effective_incantation_cost(pid, c.verb, c.value)
-        if not self._can_pay_value(pid, eff_val, sac_mids):
-            return
+        if c.verb == VERB_WRATH:
+            if not self._wrath_zero_sac_ok(pid, sac_mids):
+                return
+            need_payment_sac = True
+        else:
+            if not self._can_pay_value(pid, eff_val, sac_mids):
+                return
+            need_payment_sac = eff_val > 0 and eff_val not in self.active_lanes(pid)
+        pay_set = set(sac_mids or [])
+        if c.verb == VERB_WRATH:
+            if not self._wrath_instigator_sac_ok(pid, need_payment_sac, pay_set, ctx):
+                return
         if sac_mids:
             self._sacrifice(pid, sac_mids)
         card = p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, card)
         resolved = self._resolve_incantation_effect(pid, card, ctx)
         if resolved.get("to_abyss"):
             p.inc_abyss.append(card)
@@ -526,6 +573,7 @@ class MatchState:
         if sac_mids:
             self._sacrifice(pid, sac_mids)
         p.hand.pop(hand_idx)
+        self._note_non_ritual_play(pid, c)
         self._destroy_noble(self.opponent(pid), target_mid)
         p.crypt.append(c)
         self._check_power_win()
@@ -628,7 +676,7 @@ class MatchState:
             self.pending = Pending(kind="woe", responder=target_pid, payload={"need": need, "instigator": pid})
 
     def _effect_wrath(self, pid: int, n: int, ctx: dict) -> None:
-        if n != 4:
+        if n not in (0, 4):
             return
         destroy_count = 1 + (1 if self.has_noble(pid, "zytzr_annihilation") else 0)
         opp_pid = self.opponent(pid)

@@ -254,7 +254,7 @@ func _incantation_values_for_verb(verb: String) -> Array[int]:
 	if verb == "renew":
 		return [3]
 	if verb == "wrath":
-		return [4]
+		return [0]
 	if verb == "deluge":
 		return [2, 3, 4]
 	if verb == "tears":
@@ -320,8 +320,11 @@ func _entry_display_name(entry: Dictionary) -> String:
 	if str(entry.get("kind", "")) == "ring":
 		return str(entry.get("name", "Ring"))
 	var verb := str(entry.get("verb", ""))
-	if verb == "void":
+	var vl := verb.to_lower()
+	if vl == "void":
 		return "Void"
+	if vl == "wrath":
+		return "Wrath"
 	return "%s %d" % [verb.capitalize(), int(entry.get("value", 0))]
 
 

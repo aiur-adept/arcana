@@ -50,6 +50,8 @@ class Card:
         if self.kind is Kind.RITUAL:
             return f"Ritual {self.value}"
         if self.kind is Kind.INCANTATION:
+            if self.verb == VERB_WRATH:
+                return "Wrath"
             return f"{self.verb.capitalize()} {self.value}"
         if self.kind is Kind.NOBLE:
             return self.name or self.noble_id

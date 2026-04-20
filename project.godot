@@ -15,15 +15,15 @@ run/main_scene="res://main_menu.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+DraftSession="*res://draft_session.gd"
+
 [display]
 
 window/size/viewport_width=1440
 window/size/viewport_height=900
 window/size/mode=3
-
-[autoload]
-
-DraftSession="*res://draft_session.gd"
 
 [gui]
 

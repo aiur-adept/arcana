@@ -373,7 +373,10 @@ static func show_preview(preview: Dictionary, card: Dictionary, mouse_position: 
 			if cost_count <= 0:
 				cost_count = _temple_cost_for_id(str(card.get("temple_id", "")))
 		"incantation":
-			cost_count = int(card.get("value", 0))
+			if str(card.get("verb", "")).to_lower() == "wrath":
+				cost_count = 0
+			else:
+				cost_count = int(card.get("value", 0))
 		"ring":
 			cost_count = 2
 	if cost_count > 0:
@@ -419,8 +422,11 @@ static func card_title(card: Dictionary) -> String:
 	if t == "ring":
 		return str(card.get("name", "Ring"))
 	var verb := str(card.get("verb", ""))
-	if verb.to_lower() == "void":
+	var vl := verb.to_lower()
+	if vl == "void":
 		return "Void"
+	if vl == "wrath":
+		return "Wrath"
 	return "%s %d" % [verb.capitalize(), int(card.get("value", 0))]
 
 
@@ -471,7 +477,7 @@ static func card_rules_text(card: Dictionary) -> String:
 		"renew":
 			return "Renew %d: play 1 Ritual from your crypt (in addition to your normal ritual play for the turn)." % n
 		"wrath":
-			return "Wrath 4: destroy 1 opponent ritual."
+			return "Wrath: destroy 1 opponent ritual."
 		"deluge":
 			return "Deluge %d: destroy all wild (non-nested) birds with power %d or less, then all nested birds become wild again." % [n, n - 1]
 		"tears":

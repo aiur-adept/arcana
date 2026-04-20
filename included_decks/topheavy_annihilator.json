@@ -78,22 +78,22 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 4,
+			"value": 0,
 			"verb": "wrath"
 		},
 		{
 			"type": "Incantation",
-			"value": 4,
+			"value": 0,
 			"verb": "wrath"
 		},
 		{
 			"type": "Incantation",
-			"value": 4,
+			"value": 0,
 			"verb": "wrath"
 		},
 		{
 			"type": "Incantation",
-			"value": 4,
+			"value": 0,
 			"verb": "wrath"
 		},
 		{
@@ -201,7 +201,7 @@
 			"seek_4": 0,
 			"woe_3": 0,
 			"woe_4": 0,
-			"wrath_4": 4
+			"wrath_0": 4
 		},
 		"nobles": {
 			"aeoiu_rituals": 0,

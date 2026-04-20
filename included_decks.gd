@@ -186,7 +186,7 @@ static func _log_data_issues_once() -> void:
 				elif verb == "renew":
 					ok_value = value == 3
 				elif verb == "wrath":
-					ok_value = value == 4
+					ok_value = value == 0 or value == 4
 				elif verb == "deluge":
 					ok_value = value >= 2 and value <= 4
 				elif verb == "tears":

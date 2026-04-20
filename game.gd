@@ -107,6 +107,7 @@ const INC_PICK_NEST_BIRD := 13
 const INC_PICK_NEST_TEMPLE := 14
 const INC_PICK_RING_TARGET := 15
 const INC_PICK_DELPHA := 16
+const INC_PICK_WRATH_TAX := 17
 var _sacrifice_selecting: bool = false
 var _nest_pick_bird_mid: int = -1
 var _crypt_nest_temple_mid: int = -1
@@ -115,6 +116,7 @@ var _inc_pick_phase: int = INC_PICK_NONE
 var _pending_inc_hand_idx: int = -1
 var _pending_inc_n: int = 0
 var _sacrifice_need: int = 0
+var _inc_sacrifice_exactly_one: bool = false
 var _pending_wrath_need: int = 0
 var _pending_dethrone_hand_idx: int = -1
 var _dethrone_selected_mid: int = -1
@@ -163,6 +165,8 @@ var _tears_pick_phase: bool = false
 var _nested_revive_crypt_idx: int = -1
 var _nested_revive_value: int = 0
 var _wrath_is_revive_nested: bool = false
+var _wrath_instigator_tax_lane_paid: bool = false
+var _wrath_tax_pending_wm: Array = []
 var _noble_spell_mid: int = -1
 var _pending_noble_woe_mid: int = -1
 var _revive_ui_for_noble_mid: int = -1
@@ -1243,7 +1247,7 @@ func _on_revive_crypt_chosen(crypt_idx: int) -> void:
 		if wneed == 0:
 			_finalize_revive_wrath_submit([])
 		else:
-			_enter_wrath_only_mode(_pending_inc_hand_idx, val, wneed, "Revive: Wrath %d" % val, true)
+			_enter_wrath_only_mode(_pending_inc_hand_idx, val, wneed, "Revive: Wrath", true)
 		return
 	if v == "seek":
 		var steps := [{"revive_skip": false, "revive_crypt_idx": crypt_idx, "nested": {}}]
@@ -1573,7 +1577,7 @@ func _should_abort_sacrifice_for_snap(snap: Dictionary) -> bool:
 	if int(snap.get("current", -1)) != you:
 		return true
 	if _pending_inc_hand_idx < 0:
-		if _inc_pick_phase != INC_PICK_BIRD_ATTACK and _inc_pick_phase != INC_PICK_BIRD_TARGET and _inc_pick_phase != INC_PICK_NEST_BIRD and _inc_pick_phase != INC_PICK_NEST_TEMPLE and _inc_pick_phase != INC_PICK_SMRSK and _inc_pick_phase != INC_PICK_DELPHA:
+		if _inc_pick_phase != INC_PICK_BIRD_ATTACK and _inc_pick_phase != INC_PICK_BIRD_TARGET and _inc_pick_phase != INC_PICK_NEST_BIRD and _inc_pick_phase != INC_PICK_NEST_TEMPLE and _inc_pick_phase != INC_PICK_SMRSK and _inc_pick_phase != INC_PICK_DELPHA and _inc_pick_phase != INC_PICK_WRATH_TAX:
 			return true
 	var h: Array = snap.get("your_hand", []) as Array
 	return _pending_inc_hand_idx >= h.size()
@@ -1594,6 +1598,8 @@ func _prune_sacrifice_picks_for_snap(snap: Dictionary) -> void:
 	for k2 in _wrath_selected_mids.keys().duplicate():
 		if not ook.has(int(k2)):
 			_wrath_selected_mids.erase(k2)
+	if _inc_pick_phase == INC_PICK_WRATH_TAX and _single_ritual_pick_mid >= 0 and not yok.has(_single_ritual_pick_mid):
+		_single_ritual_pick_mid = -1
 
 
 func _bird_unnested_on_field(b: Dictionary) -> bool:
@@ -2689,25 +2695,30 @@ func _sacrifice_selected_sum(snap: Dictionary) -> int:
 	return s
 
 
-func _enter_sacrifice_mode(hand_idx: int, need: int, card_label: String) -> void:
+func _enter_sacrifice_mode(hand_idx: int, need: int, card_label: String, exactly_one: bool = false) -> void:
 	_sacrifice_selecting = true
 	_inc_pick_phase = INC_PICK_SAC
 	_pending_inc_hand_idx = hand_idx
 	_pending_inc_n = need
 	_sacrifice_need = need
+	_inc_sacrifice_exactly_one = exactly_one
 	_sacrifice_selected_mids.clear()
 	_wrath_selected_mids.clear()
 	_locked_sacrifice_mids.clear()
 	sacrifice_row.visible = true
 	sacrifice_confirm_button.text = "Confirm sacrifice"
-	sacrifice_hint.text = "Sacrifice for %s (need sum ≥ %d). Click your rituals, then confirm." % [card_label, need]
+	if exactly_one:
+		sacrifice_hint.text = "%s — sacrifice exactly one of your rituals." % card_label
+	else:
+		sacrifice_hint.text = "Sacrifice for %s (need sum ≥ %d). Click your rituals, then confirm." % [card_label, need]
 	_update_inc_modal_ui()
 	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
 
 
-func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: String, for_revive: bool = false) -> void:
+func _enter_wrath_only_mode(hand_idx: int, n: int, wneed: int, card_label: String, for_revive: bool = false, lane_paid_instigator_tax: bool = false) -> void:
 	_wrath_is_revive_nested = for_revive
+	_wrath_instigator_tax_lane_paid = lane_paid_instigator_tax and not for_revive
 	_sacrifice_selecting = true
 	_inc_pick_phase = INC_PICK_WRATH
 	_pending_inc_hand_idx = hand_idx
@@ -2782,6 +2793,7 @@ func _clear_sacrifice_mode() -> void:
 	_pending_inc_hand_idx = -1
 	_pending_inc_n = 0
 	_sacrifice_need = 0
+	_inc_sacrifice_exactly_one = false
 	_pending_wrath_need = 0
 	_pending_dethrone_hand_idx = -1
 	_dethrone_selected_mid = -1
@@ -2790,6 +2802,8 @@ func _clear_sacrifice_mode() -> void:
 	_wrath_selected_mids.clear()
 	_locked_sacrifice_mids.clear()
 	_single_ritual_pick_mid = -1
+	_wrath_instigator_tax_lane_paid = false
+	_wrath_tax_pending_wm.clear()
 	_bird_attack_selected.clear()
 	_bird_defender_mid = -1
 	_nest_pick_bird_mid = -1
@@ -2810,13 +2824,16 @@ func _update_inc_modal_ui() -> void:
 		var sumy := _sacrifice_selected_sum(_last_snap)
 		sacrifice_confirm_button.disabled = sumy < 2
 	elif _inc_pick_phase == INC_PICK_SAC:
-		var sumv := _sacrifice_selected_sum(_last_snap)
-		sacrifice_confirm_button.disabled = sumv < _sacrifice_need
+		if _inc_sacrifice_exactly_one:
+			sacrifice_confirm_button.disabled = _sacrifice_selected_mids.size() != 1
+		else:
+			var sumv := _sacrifice_selected_sum(_last_snap)
+			sacrifice_confirm_button.disabled = sumv < _sacrifice_need
 	elif _inc_pick_phase == INC_PICK_WRATH:
 		sacrifice_confirm_button.disabled = _wrath_selected_mids.size() != _pending_wrath_need
 	elif _inc_pick_phase == INC_PICK_DETHRONE:
 		sacrifice_confirm_button.disabled = _dethrone_selected_mid < 0
-	elif _inc_pick_phase == INC_PICK_SMRSK or _inc_pick_phase == INC_PICK_DELPHA:
+	elif _inc_pick_phase == INC_PICK_SMRSK or _inc_pick_phase == INC_PICK_DELPHA or _inc_pick_phase == INC_PICK_WRATH_TAX:
 		sacrifice_confirm_button.disabled = _single_ritual_pick_mid < 0
 	elif _inc_pick_phase == INC_PICK_RMRSK:
 		sacrifice_confirm_button.disabled = false
@@ -3022,11 +3039,11 @@ func _on_sacrifice_field_clicked(mid: int) -> void:
 	if not _sacrifice_selecting:
 		return
 	if _inc_pick_phase != INC_PICK_SAC and _inc_pick_phase != INC_PICK_YTTR:
-		if _inc_pick_phase == INC_PICK_SMRSK or _inc_pick_phase == INC_PICK_DELPHA:
+		if _inc_pick_phase == INC_PICK_SMRSK or _inc_pick_phase == INC_PICK_DELPHA or _inc_pick_phase == INC_PICK_WRATH_TAX:
 			_single_ritual_pick_mid = -1 if _single_ritual_pick_mid == mid else mid
 			_update_inc_modal_ui()
 			_rebuild_field_strips_from_snap(_last_snap)
-		return
+			return
 	if _sacrifice_selected_mids.has(mid):
 		_sacrifice_selected_mids.erase(mid)
 	else:
@@ -3576,6 +3593,18 @@ func _on_bird_assign_cancel_pressed() -> void:
 func _on_sacrifice_confirm_pressed() -> void:
 	if not _sacrifice_selecting:
 		return
+	if _inc_pick_phase == INC_PICK_WRATH_TAX:
+		if _single_ritual_pick_mid < 0:
+			return
+		var ctxw := {"wrath_instigator_sac_mid": int(_single_ritual_pick_mid)}
+		var wm: Array = _wrath_tax_pending_wm.duplicate()
+		var hi := _pending_inc_hand_idx
+		_wrath_tax_pending_wm.clear()
+		_wrath_instigator_tax_lane_paid = false
+		_clear_sacrifice_mode()
+		_pending_inc_hand_idx = hi
+		_submit_inc_play_full([], wm, ctxw)
+		return
 	if _inc_pick_phase == INC_PICK_YTTR:
 		var sumy := _sacrifice_selected_sum(_last_snap)
 		if sumy < 2:
@@ -3650,9 +3679,13 @@ func _on_sacrifice_confirm_pressed() -> void:
 		_open_bird_assign_overlay()
 		return
 	if _inc_pick_phase == INC_PICK_SAC:
-		var sumv := _sacrifice_selected_sum(_last_snap)
-		if sumv < _sacrifice_need:
-			return
+		if _inc_sacrifice_exactly_one:
+			if _sacrifice_selected_mids.size() != 1:
+				return
+		else:
+			var sumv := _sacrifice_selected_sum(_last_snap)
+			if sumv < _sacrifice_need:
+				return
 		var sac: Array = []
 		for k in _sacrifice_selected_mids.keys():
 			sac.append(int(k))
@@ -3753,6 +3786,21 @@ func _on_sacrifice_confirm_pressed() -> void:
 			if _match != null:
 				_broadcast_sync(true)
 			return
+		if _wrath_instigator_tax_lane_paid:
+			var yf_t: Array = _last_snap.get("your_field", []) as Array
+			if yf_t.is_empty():
+				status_label.text = "Wrath: paying with an active lane requires sacrificing one of your rituals."
+				return
+			_wrath_tax_pending_wm = wm
+			_wrath_instigator_tax_lane_paid = false
+			_inc_pick_phase = INC_PICK_WRATH_TAX
+			_single_ritual_pick_mid = -1
+			sacrifice_confirm_button.text = "Confirm Wrath"
+			sacrifice_hint.text = "Wrath: sacrifice one of your rituals."
+			_wrath_selected_mids.clear()
+			_update_inc_modal_ui()
+			_rebuild_field_strips_from_snap(_last_snap)
+			return
 		_submit_inc_play_full(_locked_sacrifice_mids.duplicate(), wm, {})
 	elif _inc_pick_phase == INC_PICK_DETHRONE:
 		if _pending_dethrone_hand_idx < 0 or _dethrone_selected_mid < 0:
@@ -3762,6 +3810,13 @@ func _on_sacrifice_confirm_pressed() -> void:
 
 func _on_sacrifice_cancel_pressed() -> void:
 	if not _sacrifice_selecting:
+		return
+	if _inc_pick_phase == INC_PICK_WRATH_TAX:
+		_wrath_tax_pending_wm.clear()
+		_wrath_instigator_tax_lane_paid = false
+		_clear_sacrifice_mode()
+		if not _last_snap.is_empty():
+			_apply_snap(_last_snap)
 		return
 	if _inc_pick_phase == INC_PICK_YTTR:
 		var pend := _yytzr_pending_first_ctx.duplicate(true)
@@ -4939,18 +4994,13 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		var verb := str(c.get("verb", "")).to_lower()
 		var field: Array = snap.get("your_field", [])
 		var your_nobles_i: Array = snap.get("your_nobles", [])
-		if ArcanaMatchState.has_lane_for_field_and_nobles(field, your_nobles_i, n):
-			if verb == "wrath":
-				var opp_field: Array = snap.get("opp_field", [])
-				var wneed := mini(_wrath_effective_destroy_count(_last_snap, n), opp_field.size())
-				if wneed == 0:
-					if _is_network_client():
-						submit_play_inc.rpc_id(1, hand_idx, [], [], {})
-					else:
-						_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
-				else:
-					_enter_wrath_only_mode(hand_idx, n, wneed, "%s %d" % [verb, n])
+		if verb == "wrath" and _match != null:
+			if field.is_empty():
+				status_label.text = "Wrath (0-cost): sacrifice one of your rituals to cast."
 				return
+			_enter_sacrifice_mode(hand_idx, 0, "Wrath", true)
+			return
+		if ArcanaMatchState.has_lane_for_field_and_nobles(field, your_nobles_i, n):
 			if verb == "insight":
 				_begin_insight_ui(hand_idx, _insight_depth_for(_last_snap, n), [])
 				return
@@ -5001,7 +5051,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			if birds_t2.is_empty():
 				status_label.text = "No birds in your crypt to revive."
 				return
-		_enter_sacrifice_mode(hand_idx, n, "%s %d" % [verb, n])
+		var sac_lbl := "Wrath" if verb == "wrath" else ("%s %d" % [verb, n])
+		_enter_sacrifice_mode(hand_idx, n, sac_lbl)
 
 
 func _my_player_for_action() -> int:
@@ -5015,7 +5066,7 @@ func _my_player_for_action() -> int:
 
 
 func _wrath_destroy_count(value: int) -> int:
-	if value == 4:
+	if value == 0 or value == 4:
 		return 1
 	return 0
 

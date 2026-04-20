@@ -86,8 +86,8 @@ func amend_revive_ctx(snap: Dictionary, your_crypt: Array, global_pick: int, ctx
 	ctx["revive_steps"] = steps
 
 
-func adjust_incantation_score(card: Dictionary, sac: Array, score: float) -> Variant:
-	var b: Variant = super.adjust_incantation_score(card, sac, score)
+func adjust_incantation_score(snap: Dictionary, card: Dictionary, sac: Array, score: float) -> Variant:
+	var b: Variant = super.adjust_incantation_score(snap, card, sac, score)
 	if b == null:
 		return null
 	var out := float(b)
