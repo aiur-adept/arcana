@@ -24,7 +24,7 @@ const NOBLE_LANE_GRANTS := {
 const RING_COST := 2
 const RING_DEFS := {
 	"sybiline_emanation":     {"name": "Sybiline, Ring of Emanation",     "reductions": {"seek": 1, "insight": 1}},
-	"cymbil_occultation":     {"name": "Cymbil, Ring of Occultation",     "reductions": {"burn": 1, "revive": 1}},
+	"cymbil_occultation":     {"name": "Cymbil, Ring of Occultation",     "reductions": {"burn": 1, "revive": 1, "renew": 1}},
 	"celadon_annihilation":   {"name": "Celadon, Ring of Annihilation",   "reductions": {"woe": 1, "wrath": 1}},
 	"serraf_nobles":          {"name": "Serraf, Ring of Nobles",          "reductions": {"noble": 1}},
 	"sinofia_feathers":       {"name": "Sinofia, Ring of Feathers",       "reductions": {"bird": 1, "tears": 1}},
@@ -157,6 +157,28 @@ func _validate_yytzr_extra_sacrifice(p: int, primary_mids: Dictionary, extra: Ar
 		if not found:
 			return false
 	return esum >= 2
+
+
+func _validate_renew_ctx(p: int, ctx: Dictionary) -> String:
+	var ridx := int(ctx.get("renew_ritual_crypt_idx", -1))
+	var rg: Array = _ritual_crypt_cards(_players[p])
+	if ridx < 0 or ridx >= rg.size():
+		return "illegal_target"
+	var yyt: Array = ctx.get("yytzr_extra_sac_mids", []) as Array
+	var r2 := int(ctx.get("renew_second_ritual_crypt_idx", -1))
+	if yyt.is_empty():
+		if r2 >= 0:
+			return "illegal"
+		return "ok"
+	if not _noble_on_field(p, "yytzr_occultation"):
+		return "illegal"
+	if r2 < 0 or r2 >= rg.size() or r2 == ridx:
+		return "illegal"
+	var g0 := _ritual_crypt_index_to_crypt_index(_players[p], ridx)
+	var g1 := _ritual_crypt_index_to_crypt_index(_players[p], r2)
+	if g0 < 0 or g1 < 0 or g0 == g1:
+		return "illegal_target"
+	return "ok"
 
 
 func _init(p0_deck: Array, p1_deck: Array, p0_first: bool, p_rng: RandomNumberGenerator, p_goldfish: bool) -> void:
@@ -1457,7 +1479,7 @@ func _queue_post_effect_scion_trigger(p: int, verb: String) -> void:
 		if _noble_on_field(p, "rmrsk_emanation"):
 			_set_scion_pending(p, "rmrsk_draw")
 		return
-	if v == "burn" or v == "revive":
+	if v == "burn" or v == "revive" or v == "renew":
 		if _noble_on_field(p, "smrsk_occultation"):
 			_set_scion_pending(p, "smrsk_burn")
 		return
@@ -1616,6 +1638,9 @@ func can_play_incantation(p: int, hand_idx: int) -> bool:
 	if n < 1:
 		return false
 	var verb := str(c.get("verb", ""))
+	var vl := verb.to_lower()
+	if vl == "renew" and _ritual_crypt_cards(_players[p]).is_empty():
+		return false
 	var n_eff := effective_incantation_cost(p, verb, n)
 	if n_eff <= 0:
 		return true
@@ -1742,6 +1767,8 @@ func execute_incantation_effect(p: int, verb: String, value: int, wrath_resolved
 			return "ok"
 		"revive":
 			return "illegal"
+		"renew":
+			return "illegal"
 		"wrath":
 			if effective_wrath_destroy_count(p, value) == 0:
 				return "illegal"
@@ -1834,6 +1861,8 @@ func _validate_play_ctx(p: int, verb: String, value: int, wrath_mids: Array, ctx
 			return "ok"
 		"revive":
 			return _validate_revive_chain(p, value, ctx)
+		"renew":
+			return _validate_renew_ctx(p, ctx)
 		_:
 			return "ok"
 
@@ -1926,6 +1955,15 @@ func _run_revive_steps_after_payment(p: int, value: int, ctx: Dictionary, paymen
 				_woe_pending_noble_mid = -1
 				_log("P%d Revive %d: Woe pending on P%d." % [p, value, wt])
 				return "ok"
+		if cv == "renew":
+			var rerr := _renew_subcast_play_ritual_from_nested(p, nested, payment_text)
+			if rerr != "ok":
+				crypt.insert(crypt_idx, crypt_card)
+				return rerr
+			pl["inc_abyss"].append(crypt_card)
+			_queue_post_effect_scion_trigger(p, "renew")
+			_log("P%d Revive casts Renew %d from crypt (%s)." % [p, cn, payment_text])
+			continue
 		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
 		if err != "ok":
 			crypt.insert(crypt_idx, crypt_card)
@@ -2131,6 +2169,73 @@ func apply_aeoiu_ritual_from_crypt(p: int, noble_mid: int, crypt_idx: int) -> St
 	_log("P%d plays %d-Ritual from crypt (Aeoiu)." % [p, int(c["value"])])
 	_check_power_win(p)
 	return "ok"
+
+
+func _renew_subcast_play_ritual_from_nested(p: int, nested: Dictionary, payment_text: String) -> String:
+	var ridx := int(nested.get("renew_ritual_crypt_idx", -1))
+	var pl: Dictionary = _players[p]
+	var rg: Array = _ritual_crypt_cards(pl)
+	if ridx < 0 or ridx >= rg.size():
+		return "illegal_target"
+	var global_crypt_idx := _ritual_crypt_index_to_crypt_index(pl, ridx)
+	if global_crypt_idx < 0:
+		return "illegal_target"
+	var crypt: Array = pl["crypt"] as Array
+	var c: Dictionary = (crypt[global_crypt_idx] as Dictionary).duplicate(true)
+	crypt.remove_at(global_crypt_idx)
+	var mid := _next_mid(pl)
+	pl["field"].append({"mid": mid, "value": int(c["value"])})
+	_log("P%d Revive subcast: Renew plays %d-Ritual from crypt (%s)." % [p, int(c["value"]), payment_text])
+	return "ok"
+
+
+func _apply_renew_ritual_from_crypt(p: int, n: int, ctx: Dictionary, payment_text: String, renew_card: Dictionary) -> void:
+	var pl: Dictionary = _players[p]
+	var crypt_idx := int(ctx.get("renew_ritual_crypt_idx", -1))
+	var rg: Array = _ritual_crypt_cards(pl)
+	if crypt_idx < 0 or crypt_idx >= rg.size():
+		return
+	var r2 := int(ctx.get("renew_second_ritual_crypt_idx", -1))
+	if r2 < 0:
+		var global_crypt_idx := _ritual_crypt_index_to_crypt_index(pl, crypt_idx)
+		if global_crypt_idx < 0:
+			return
+		var c: Dictionary = ((pl["crypt"] as Array)[global_crypt_idx] as Dictionary).duplicate(true)
+		(pl["crypt"] as Array).remove_at(global_crypt_idx)
+		var mid := _next_mid(pl)
+		pl["field"].append({"mid": mid, "value": int(c["value"])})
+		_log("P%d plays Renew %d (%s)." % [p, n, payment_text])
+		_log("P%d plays %d-Ritual from crypt (Renew)." % [p, int(c["value"])])
+		_queue_post_effect_scion_trigger(p, "renew")
+		pl["crypt"].append(renew_card)
+		_check_power_win(p)
+		return
+	if r2 < 0 or r2 >= rg.size() or r2 == crypt_idx:
+		return
+	var g0 := _ritual_crypt_index_to_crypt_index(pl, crypt_idx)
+	var g1 := _ritual_crypt_index_to_crypt_index(pl, r2)
+	if g0 < 0 or g1 < 0 or g0 == g1:
+		return
+	var crypt: Array = pl["crypt"] as Array
+	var c0: Dictionary = (crypt[g0] as Dictionary).duplicate(true)
+	var c1: Dictionary = (crypt[g1] as Dictionary).duplicate(true)
+	if g0 > g1:
+		crypt.remove_at(g0)
+		crypt.remove_at(g1)
+	else:
+		crypt.remove_at(g1)
+		crypt.remove_at(g0)
+	var v0 := int(c0.get("value", 0))
+	var v1 := int(c1.get("value", 0))
+	var mid0 := _next_mid(pl)
+	pl["field"].append({"mid": mid0, "value": v0})
+	var mid1 := _next_mid(pl)
+	pl["field"].append({"mid": mid1, "value": v1})
+	_log("P%d plays Renew %d (%s) — two rituals from crypt (Yytzr)." % [p, n, payment_text])
+	_log("P%d plays %d-Ritual and %d-Ritual from crypt (Renew)." % [p, v0, v1])
+	_queue_post_effect_scion_trigger(p, "renew")
+	pl["crypt"].append(renew_card)
+	_check_power_win(p)
 
 
 func _find_temple_on_field(p: int, temple_mid: int) -> Dictionary:
@@ -2342,6 +2447,15 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 				pd_pri[int(m)] = true
 		if not _validate_yytzr_extra_sacrifice(p, pd_pri, yyt_extra):
 			return "illegal"
+	if verb == "renew" and not yyt_extra.is_empty():
+		if not _noble_on_field(p, "yytzr_occultation"):
+			return "illegal"
+		var pd_pri_r: Dictionary = {}
+		if need_sac:
+			for m in sacrifice_mids:
+				pd_pri_r[int(m)] = true
+		if not _validate_yytzr_extra_sacrifice(p, pd_pri_r, yyt_extra):
+			return "illegal"
 	var payment_text := _incantation_payment_text(p, n_eff, need_sac, mids)
 	_apply_sacrifice(p, mids)
 	if verb == "revive" and not yyt_extra.is_empty():
@@ -2349,6 +2463,11 @@ func play_incantation(p: int, hand_idx: int, sacrifice_mids: Array, wrath_mids: 
 		for m in yyt_extra:
 			ed[int(m)] = true
 		_apply_sacrifice(p, ed)
+	if verb == "renew" and not yyt_extra.is_empty():
+		var edr: Dictionary = {}
+		for m in yyt_extra:
+			edr[int(m)] = true
+		_apply_sacrifice(p, edr)
 	var pl: Dictionary = _players[p]
 	pl["hand"].remove_at(hand_idx)
 	var label := "%s %d" % [verb_raw, n]
@@ -2382,6 +2501,9 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 		var rr := _run_revive_steps_after_payment(p, n, ctx_use, payment_text, card)
 		if rr == "ok":
 			_queue_post_effect_scion_trigger(p, "revive")
+		return
+	if verb == "renew":
+		_apply_renew_ritual_from_crypt(p, n, ctx_use, payment_text, card)
 		return
 	var wrath_resolved: Array = []
 	if verb == "wrath":

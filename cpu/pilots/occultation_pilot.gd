@@ -32,8 +32,19 @@ func mulligan(_host: Node, snap: Dictionary) -> bool:
 	return false
 
 
-func choose_burn_target(_snap: Dictionary, _val: int) -> int:
-	return 0
+func choose_burn_target(snap: Dictionary, val: int) -> int:
+	var you := int(snap.get("you", 0))
+	var opp := 1 - you
+	var your_crypt: Array = snap.get("your_crypt_cards", []) as Array
+	var rit_count := 0
+	for c in your_crypt:
+		if _card_kind(c) == "ritual":
+			rit_count += 1
+	var has_aeoiu := _has_noble_on_field(snap.get("your_nobles", []) as Array, "aeoiu_rituals")
+	var deck_len := int(snap.get("your_deck", 0))
+	if has_aeoiu and rit_count < 3 and deck_len > 2 * val + 3:
+		return you
+	return opp
 
 
 func adjust_ring_score(card: Dictionary, score: float) -> float:

@@ -3,7 +3,7 @@ extends Control
 const IncludedDecks = preload("res://included_decks.gd")
 
 const RITUAL_VALUES: Array[int] = [1, 2, 3, 4]
-const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "wrath", "deluge", "tears", "dethrone", "void"]
+const INCANTATION_VERBS: Array[String] = ["seek", "insight", "burn", "woe", "revive", "renew", "wrath", "deluge", "tears", "dethrone", "void"]
 const INCANTATION_VALUES: Array[int] = [1, 2, 3, 4]
 const TARGET_RITUAL_COUNT := 19
 const TARGET_NON_RITUAL_COUNT := 21
@@ -23,9 +23,9 @@ const NOBLE_DEFS := [
 	{"id": "tmrsk_annihilation", "name": "Tmrsk, Scion of Annihilation"},
 	{"id": "trss_power", "name": "Trss, Noble of Power"},
 	{"id": "yrss_power", "name": "Yrss, Noble of Power"},
-	{"id": "xytzr_emanation", "name": "Xytzr, Noble of Emanation"},
-	{"id": "yytzr_occultation", "name": "Yytzr, Noble of Occultation"},
-	{"id": "zytzr_annihilation", "name": "Zytzr, Noble of Annihilation"},
+	{"id": "xytzr_emanation", "name": "Xytzr, Avatar of Emanation"},
+	{"id": "yytzr_occultation", "name": "Yytzr, Revenant of Occultation"},
+	{"id": "zytzr_annihilation", "name": "Zytzr, Cthonarch of Annihilation"},
 	{"id": "aeoiu_rituals", "name": "Aeoiu, Scion of Rituals"},
 	{"id": "sndrr_incantation", "name": "Sndrr, Noble of Incantation"},
 	{"id": "indrr_incantation", "name": "Indrr, Noble of Incantation"},
@@ -251,6 +251,8 @@ func _current_deck_path() -> String:
 func _incantation_values_for_verb(verb: String) -> Array[int]:
 	if verb == "revive":
 		return [1]
+	if verb == "renew":
+		return [2]
 	if verb == "wrath":
 		return [4]
 	if verb == "deluge":

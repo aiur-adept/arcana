@@ -27,6 +27,8 @@ const INC_BURN_A := Color(0.92, 0.64, 0.12)
 const INC_BURN_B := Color(0.98, 0.46, 0.10)
 const INC_REVIVE_A := Color(0.88, 0.70, 0.18)
 const INC_REVIVE_B := Color(0.98, 0.97, 0.93)
+const INC_RENEW_A := Color(0.98, 0.97, 0.93)
+const INC_RENEW_B := Color(0.88, 0.70, 0.18)
 const INC_WOE_A := Color(0.48, 0.20, 0.78)
 const INC_WOE_B := Color(0.50, 0.07, 0.54)
 const INC_WRATH_A := Color(0.24, 0.07, 0.36)
@@ -89,6 +91,8 @@ static func _incantation_endpoints(verb: String) -> PackedColorArray:
 			return PackedColorArray([INC_BURN_A, INC_BURN_B])
 		"revive":
 			return PackedColorArray([INC_REVIVE_A, INC_REVIVE_B])
+		"renew":
+			return PackedColorArray([INC_RENEW_A, INC_RENEW_B])
 		"woe":
 			return PackedColorArray([INC_WOE_A, INC_WOE_B])
 		"wrath":

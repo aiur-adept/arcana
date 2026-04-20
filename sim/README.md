@@ -59,8 +59,9 @@ python -m sim.train_ea --deck bird_test --generations 30 --population 24 --games
 
 - Default: P1 uses **baseline** `get_pilot(p1_slug)` (code defaults, no JSON).
 - `--p1-trained-weights`: P1 uses `pilot_class_for_slug` against a **snapshot** JSON that merges
-  `--out` with the **best-so-far** genome for the training slug after each generation (written next to
-  the output file as `data/.ea_p1_snapshot_<slug>.json`).
+  `--out` with the **best-so-far** genome for the training slug after each generation.
+- `--p1-snapshot`: path for that snapshot (default: `%TEMP%/arcana_ea_p1/<deck>.json`, i.e. outside
+  synced `data/`, which avoids OneDrive permission errors on hidden files under `data/`).
 
 Evaluation uses `sim.ea_eval.evaluate_genome` (same `_play_one_game` loop as `sim.run`). Fitness is
 `(p0_wins + 0.5 * draws) / games`. Worker entry points live in `sim/ea_eval.py` for Windows-friendly
@@ -144,7 +145,9 @@ The registry is exposed via `sim.pilots.get_pilot(slug)` and a shared
 - Bird combat uses single-attacker / single-defender pairings rather than the
   general "pick two sets" ruling — the greedy AI never benefits from complex
   multi-target combats.
-- Revive chain is single-cast (no Yytzr extra-sac step).
+- Revive chain is single-cast (no Yytzr extra-sac step). The **Yytzr Renew**
+  bonus (second ritual from crypt after sacrifice) is implemented in Godot only;
+  Renew in sim still plays a single ritual.
 - Insight reordering picks "send N to bottom" only; it does not attempt to
   permute the top stack. The AI uses this to bottom known-useless cards from
   the opponent.

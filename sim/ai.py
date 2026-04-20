@@ -19,6 +19,7 @@ from .cards import (
     VERB_DETHRONE,
     VERB_INSIGHT,
     VERB_REVIVE,
+    VERB_RENEW,
     VERB_SEEK,
     VERB_TEARS,
     VERB_WOE,
@@ -652,6 +653,18 @@ class GreedyAI:
             if not elig:
                 return None
             return (self.W_EFFECT_REVIVE_BASE, {})
+        if verb == VERB_RENEW:
+            ritual_idx = [i for i, c in enumerate(me.crypt) if c.kind is Kind.RITUAL]
+            if not ritual_idx:
+                return None
+            best_i = 0
+            best_v = -1
+            for j, ci in enumerate(ritual_idx):
+                v = me.crypt[ci].value
+                if v > best_v:
+                    best_v = v
+                    best_i = j
+            return (self.W_EFFECT_REVIVE_BASE, {"renew_ritual_crypt_idx": best_i})
         if verb == VERB_DELUGE:
             threshold = val - 1
             opp_hit = sum(1 for b in opp_p.bird_field if b.power <= threshold and b.nest_mid < 0)

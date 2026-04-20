@@ -9,6 +9,7 @@ static func register_generators() -> void:
 	CardProceduralArt.register_generator("incantation:burn", _gen_burn)
 	CardProceduralArt.register_generator("incantation:woe", _gen_woe)
 	CardProceduralArt.register_generator("incantation:revive", _gen_revive)
+	CardProceduralArt.register_generator("incantation:renew", _gen_renew)
 	CardProceduralArt.register_generator("incantation:wrath", _gen_wrath)
 	CardProceduralArt.register_generator("incantation:deluge", _gen_deluge)
 	CardProceduralArt.register_generator("incantation:tears", _gen_tears)
@@ -96,6 +97,12 @@ static func _gen_revive(card: Dictionary, _ctx: Dictionary) -> String:
 	var climb := _rep_unit("↑", n, "·")
 	var seeds := _rep_unit("◇", n, " ")
 	return "  %s  \n  ╭───╮  \n ╭┤ ↑ ├╮ \n │%s│ \n╭┴──┴──┴╮\n│░░ ◇ ░░│\n╰═══════╯\n %s" % [orbit, climb, seeds]
+
+
+static func _gen_renew(card: Dictionary, _ctx: Dictionary) -> String:
+	var n := _n(card, 1, 4, 2)
+	var pillars := _rep_unit("█", n, " ")
+	return "  ╭─────╮ \n ╭┤ ▲ ├╮\n │%s│\n╭┴──┴──┴╮\n│ ▣→◇ │\n╰═══════╯" % pillars
 
 
 static func _gen_wrath(card: Dictionary, _ctx: Dictionary) -> String:

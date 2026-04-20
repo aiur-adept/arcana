@@ -26,6 +26,7 @@ VERB_BURN = "burn"
 VERB_WOE = "woe"
 VERB_WRATH = "wrath"
 VERB_REVIVE = "revive"
+VERB_RENEW = "renew"
 VERB_DELUGE = "deluge"
 VERB_TEARS = "tears"
 VERB_DETHRONE = "dethrone"
@@ -94,7 +95,7 @@ RING_COST = 2
 # Reductions keyed by incantation verb, or by the pseudo-keys "noble" / "bird".
 RING_DEFS: dict[str, dict] = {
     "sybiline_emanation":   {"name": "Sybiline, Ring of Emanation",    "reductions": {VERB_SEEK: 1, VERB_INSIGHT: 1}},
-    "cymbil_occultation":   {"name": "Cymbil, Ring of Occultation",    "reductions": {VERB_BURN: 1, VERB_REVIVE: 1}},
+    "cymbil_occultation":   {"name": "Cymbil, Ring of Occultation",    "reductions": {VERB_BURN: 1, VERB_REVIVE: 1, VERB_RENEW: 1}},
     "celadon_annihilation": {"name": "Celadon, Ring of Annihilation",  "reductions": {VERB_WOE: 1, VERB_WRATH: 1}},
     "serraf_nobles":        {"name": "Serraf, Ring of Nobles",         "reductions": {"noble": 1}},
     "sinofia_feathers":     {"name": "Sinofia, Ring of Feathers",      "reductions": {"bird": 1, VERB_TEARS: 1}},

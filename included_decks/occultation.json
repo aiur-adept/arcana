@@ -12,48 +12,53 @@
 		},
 		{
 			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 3.0,
+			"verb": "burn"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
+			"value": 1.0,
+			"verb": "revive"
+		},
+		{
+			"type": "Incantation",
 			"value": 2.0,
-			"verb": "burn"
+			"verb": "renew"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "burn"
+			"value": 2.0,
+			"verb": "renew"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "burn"
+			"value": 2.0,
+			"verb": "renew"
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "burn"
-		},
-		{
-			"type": "Incantation",
-			"value": 1.0,
-			"verb": "revive"
-		},
-		{
-			"type": "Incantation",
-			"value": 1.0,
-			"verb": "revive"
-		},
-		{
-			"type": "Incantation",
-			"value": 1.0,
-			"verb": "revive"
-		},
-		{
-			"type": "Incantation",
-			"value": 1.0,
-			"verb": "revive"
-		},
-		{
-			"type": "Incantation",
-			"value": 4.0,
-			"verb": "burn"
+			"value": 2.0,
+			"verb": "renew"
 		},
 		{
 			"type": "Incantation",
@@ -71,7 +76,7 @@
 			"type": "Noble"
 		},
 		{
-			"name": "Yytzr, Noble of Occultation",
+			"name": "Yytzr, Revenant of Occultation",
 			"noble_id": "yytzr_occultation",
 			"type": "Noble"
 		},
@@ -176,20 +181,16 @@
 			"type": "Incantation",
 			"value": 1.0,
 			"verb": "burn"
-		},
-		{
-			"type": "Incantation",
-			"value": 1.0,
-			"verb": "burn"
 		}
 	],
 	"counts": {
 		"dethrones": 2.0,
 		"incantations": {
-			"burn_1": 3.0,
-			"burn_2": 3.0,
-			"burn_3": 3.0,
-			"burn_4": 3.0,
+			"burn_1": 2.0,
+			"burn_2": 2.0,
+			"burn_3": 2.0,
+			"burn_4": 2.0,
+			"renew_2": 4.0,
 			"dethrone_4": 0.0,
 			"insight_1": 0.0,
 			"insight_2": 0.0,

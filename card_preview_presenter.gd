@@ -468,6 +468,8 @@ static func card_rules_text(card: Dictionary) -> String:
 			return "Woe %d: a chosen player discards %d chosen card(s) from hand." % [n, maxi(n - 2, 0)]
 		"revive":
 			return "Revive %d: you may cast %d incantation from your crypt (chosen; no ritual cost)." % [n, n]
+		"renew":
+			return "Renew %d: play 1 Ritual from your crypt (in addition to your normal ritual play for the turn)." % n
 		"wrath":
 			return "Wrath 4: destroy 1 opponent ritual."
 		"deluge":
@@ -543,7 +545,7 @@ static func _ring_preview_text(ring_id: String) -> String:
 		"sybiline_emanation":
 			return "Attach to a Noble or wild Bird. While on the field, your Seek and Insight cost 1 less to play (minimum 0)."
 		"cymbil_occultation":
-			return "Attach to a Noble or wild Bird. While on the field, your Burn and Revive cost 1 less to play (minimum 0)."
+			return "Attach to a Noble or wild Bird. While on the field, your Burn, Revive, and Renew cost 1 less to play (minimum 0)."
 		"celadon_annihilation":
 			return "Attach to a Noble or wild Bird. While on the field, your Woe and Wrath cost 1 less to play (minimum 0)."
 		"serraf_nobles":
@@ -603,7 +605,7 @@ static func _noble_preview_text(noble_id: String) -> String:
 		"xytzr_emanation":
 			return "Whenever you Seek, draw an additional card. Whenever you Insight, look at one additional card."
 		"yytzr_occultation":
-			return "Whenever you Burn, 3 additional cards are discarded from the top of that deck. Whenever you Revive, you may sacrifice rituals totaling at least 2 to cast one additional incantation from your crypt."
+			return "Your Burn effects discard an additional 3 cards. When you play Revive or Renew, you may additionally sacrifice rituals totaling at least 2 to add one extra Revive/Renew step."
 		"zytzr_annihilation":
 			return "Whenever you Wrath, destroy one additional opponent ritual. Whenever you Woe, the victim discards one additional card."
 		"aeoiu_rituals":
@@ -611,7 +613,7 @@ static func _noble_preview_text(noble_id: String) -> String:
 		"rmrsk_emanation":
 			return "Whenever you Insight, you may then draw a card."
 		"smrsk_occultation":
-			return "Whenever you Burn or Revive, you may sacrifice a Ritual of power X, then discard the top 2X cards of your own deck."
+			return "After you resolve Burn, Revive, or Renew, you may sacrifice one ritual of value X, then Burn yourself X."
 		"tmrsk_annihilation":
 			return "Whenever you Wrath, the opponent discards a chosen card from hand."
 		_:

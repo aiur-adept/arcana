@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Optional
 
 from ..ai import GreedyAI
-from ..cards import Kind, VERB_BURN, VERB_INSIGHT, VERB_REVIVE, VERB_SEEK, VERB_WOE
+from ..cards import Kind
 from ..match import MatchState
 
 
@@ -37,6 +37,12 @@ class OccultationPilot(GreedyAI):
         return False
 
     def choose_burn_target(self, state: MatchState, pid: int, val: int) -> int:
+        me = state.players[pid]
+        crypt_rituals = sum(1 for c in me.crypt if c.kind is Kind.RITUAL)
+        has_aeoiu = state.has_noble(pid, "aeoiu_rituals")
+        deck_len = len(me.deck)
+        if has_aeoiu and crypt_rituals < 3 and deck_len > 2 * val + 3:
+            return pid
         return state.opponent(pid)
 
     def adjust_ring_score(self, state: MatchState, pid: int, card, score: float) -> float:

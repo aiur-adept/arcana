@@ -15,6 +15,7 @@ const VERB_BURN := "burn"
 const VERB_WOE := "woe"
 const VERB_WRATH := "wrath"
 const VERB_REVIVE := "revive"
+const VERB_RENEW := "renew"
 const VERB_DELUGE := "deluge"
 const VERB_TEARS := "tears"
 const VERB_VOID := "void"
@@ -46,7 +47,7 @@ const NOBLE_DEFS := {
 
 const RING_DEFS := {
 	"sybiline_emanation":   {"reductions": {"seek": 1, "insight": 1}},
-	"cymbil_occultation":   {"reductions": {"burn": 1, "revive": 1}},
+	"cymbil_occultation":   {"reductions": {"burn": 1, "revive": 1, "renew": 1}},
 	"celadon_annihilation": {"reductions": {"woe": 1, "wrath": 1}},
 	"serraf_nobles":        {"reductions": {"noble": 1}},
 	"sinofia_feathers":     {"reductions": {"bird": 1, "tears": 1}},
@@ -144,6 +145,7 @@ var W_EFFECT_WOE_PER_DISCARD: float = 3.0
 var W_EFFECT_WRATH_BASE: float = 10.0
 var W_EFFECT_WRATH_PER_KILLED: float = 2.5
 var W_EFFECT_REVIVE_BASE: float = 12.0
+var W_EFFECT_RENEW_BASE: float = 12.0
 var W_EFFECT_DELUGE_BASE: float = 5.0
 var W_EFFECT_DELUGE_PER_NET: float = 4.0
 var W_EFFECT_TEARS_BASE: float = 10.0
@@ -867,6 +869,18 @@ func _score_effect(host: Node, snap: Dictionary, verb: String, val: int) -> Vari
 		if elig.is_empty():
 			return null
 		return {"score": W_EFFECT_REVIVE_BASE, "ctx": {}}
+	if v == VERB_RENEW:
+		var r_crypt: Array = snap.get("your_ritual_crypt_cards", []) as Array
+		if r_crypt.is_empty():
+			return null
+		var best_rf := 0
+		var best_val := -1
+		for ri in r_crypt.size():
+			var rv := int((r_crypt[ri] as Dictionary).get("value", 0))
+			if rv > best_val:
+				best_val = rv
+				best_rf = ri
+		return {"score": W_EFFECT_RENEW_BASE, "ctx": {"renew_ritual_crypt_idx": best_rf}}
 	if v == VERB_DELUGE:
 		var threshold := val - 1
 		var opp_hit := 0

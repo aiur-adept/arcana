@@ -7,6 +7,11 @@ func _init() -> void:
 	W_AEOIU_ACTIVATION_BASE = 70.0
 	W_TEMPLE_BASE = 65.0
 	W_NOBLE_BIG_TRIPLET = 25.0
+	W_REVIVE_PRIO_BURN = 14.0
+	W_REVIVE_PRIO_INSIGHT = 11.0
+	W_REVIVE_PRIO_SEEK = 6.0
+	W_REVIVE_PRIO_WOE = 2.0
+	W_REVIVE_PRIO_WRATH = 0.0
 
 
 func mulligan(_host: Node, snap: Dictionary) -> bool:
@@ -34,6 +39,8 @@ func mulligan(_host: Node, snap: Dictionary) -> bool:
 
 
 func choose_burn_target(snap: Dictionary, val: int) -> int:
+	var you := int(snap.get("you", 0))
+	var opp := 1 - you
 	var your_crypt: Array = snap.get("your_crypt_cards", []) as Array
 	var rit_count := 0
 	for c in your_crypt:
@@ -42,8 +49,8 @@ func choose_burn_target(snap: Dictionary, val: int) -> int:
 	var has_aeoiu := _has_noble_on_field(snap.get("your_nobles", []) as Array, "aeoiu_rituals")
 	var deck_len := int(snap.get("your_deck", 0))
 	if has_aeoiu and rit_count < 3 and deck_len > 2 * val + 3:
-		return 1
-	return 0
+		return you
+	return opp
 
 
 func score_noble_play(card: Dictionary, eff_cost: int, sac: Array, active_lanes: Array, snap: Dictionary = {}) -> Variant:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +42,7 @@ def make_weighted_pilot(base_cls: type[GreedyAI], weights: dict[str, float]) -> 
 
 
 def pilot_class_for_slug(slug: str, weights_path: Path | None, use_saved: bool) -> type[GreedyAI]:
-    """Return get_pilot(slug), or a weighted subclass if use_saved and JSON has weights_for_slug."""
+    """Return get_pilot(slug), or a weighted subclass if use_saved and JSON has weights_by_slug[slug]."""
     base = get_pilot(slug)
     if not use_saved or weights_path is None or not weights_path.is_file():
         return base
@@ -99,6 +101,12 @@ def weights_for_slug_from_file(path: Path, slug: str) -> dict[str, float] | None
     return {str(k): float(v) for k, v in raw.items() if isinstance(v, (int, float))}
 
 
+def default_ea_p1_snapshot_path(slug: str) -> Path:
+    root = Path(tempfile.gettempdir()) / "arcana_ea_p1"
+    root.mkdir(parents=True, exist_ok=True)
+    return root / f"{slug}.json"
+
+
 def write_ea_opponent_snapshot(
     snapshot_path: Path, base_weights_path: Path, train_slug: str, train_weights: dict[str, float]
 ) -> None:
@@ -112,9 +120,11 @@ def write_ea_opponent_snapshot(
     wbs[train_slug] = {k: float(v) for k, v in sorted(train_weights.items())}
     out = {"genome_version": int(data.get("genome_version", 1)), "weights_by_slug": wbs}
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    with snapshot_path.open("w", encoding="utf-8") as f:
+    tmp_path = snapshot_path.with_name(snapshot_path.name + ".tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
         json.dump(out, f, indent=2, sort_keys=False)
         f.write("\n")
+    os.replace(tmp_path, snapshot_path)
 
 
 def merge_slug_into_weights_file(path: Path, slug: str, weights: dict[str, float], genome_version: int = 1) -> None:

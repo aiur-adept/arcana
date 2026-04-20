@@ -171,6 +171,8 @@ If empty-deck draw is attempted:
 - **Revive 1**: Cast 1 eligible incantation from your crypt.
   - Revive itself cannot be revived.
   - Cards cast this way go to abyss (not crypt).
+  **Renew 2**: Play 1 Ritual from your crypt.
+  - This is in addition to your regular Ritual play for turn.
 - **Dethrone 4**: Destroy one opposing noble.
 - **Deluge X**: Destroy all wild Birds of power X-1 or less, then all nested birds become wild again. [comes in Deluge 2, 3 and 4]
 - **Tears 3**: Return a Bird from your crypt to the field. 
@@ -202,7 +204,7 @@ Nobles of cost 4- (Lower Nobles) can only be played by having the active ritual 
   - Your Insight effects affect +1 card.
 - **Yytzr, Revenant of Occultation** (static):
   - Your Burn effects discard an additional 3 cards.
-  - When you play Revive, you may additionally sacrifice rituals totaling at least 2 to add one extra revive step.
+  - When you play Revive/Renew, you may additionally sacrifice rituals totaling at least 2 to add one extra Revive/Renew step.
 
 ### 10.3 Cost 4
 
@@ -222,7 +224,7 @@ Nobles of cost 4- (Lower Nobles) can only be played by having the active ritual 
 - **Rmrsk, Scion of Emanation** (triggered, optional):
   - After you resolve Insight, you may draw 1.
 - **Smrsk, Scion of Occultation** (triggered, optional):
-  - After you resolve Burn or Revive, you may sacrifice one ritual of value X, then Burn yourself X.
+  - After you resolve Burn, Revive or Renew, you may sacrifice one ritual of value X, then Burn yourself X.
 - **Tmrsk, Scion of Annihilation** (triggered, optional):
   - After you resolve Wrath, you may Woe 3.
 

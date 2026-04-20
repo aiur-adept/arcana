@@ -15,6 +15,11 @@ class RitualReanimatorPilot(GreedyAI):
     W_AEOIU_ACTIVATION_BASE = 70.0
     W_TEMPLE_BASE = 65.0
     W_NOBLE_BIG_TRIPLET = 25.0  # aeoiu not in the triplet set; leave alone
+    W_REVIVE_PRIO_BURN: float = 14.0
+    W_REVIVE_PRIO_INSIGHT: float = 11.0
+    W_REVIVE_PRIO_SEEK: float = 6.0
+    W_REVIVE_PRIO_WOE: float = 2.0
+    W_REVIVE_PRIO_WRATH: float = 0.0
 
     def mulligan(self, state: MatchState, pid: int) -> bool:
         hand = state.players[pid].hand

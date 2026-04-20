@@ -22,6 +22,7 @@ from .pilot_weights import (
     DEFAULT_PILOT_WEIGHTS_FILENAME,
     baseline_weights_for_slug,
     clamp_genome,
+    default_ea_p1_snapshot_path,
     default_pilot_weights_path,
     greedy_ai_float_weight_keys,
     merge_slug_into_weights_file,
@@ -91,6 +92,7 @@ def run_ea(
     init_uniform_fraction: float,
     init_uniform_delta: float,
     p1_use_saved_weights: bool,
+    p1_snapshot_path: Path | None,
 ) -> dict[str, float]:
     rng = random.Random(seed)
     baseline = baseline_weights_for_slug(slug)
@@ -108,9 +110,10 @@ def run_ea(
     best_ever: dict[str, float] = baseline.copy()
     best_fit = -1.0
 
-    p1_snapshot_path = weights_file_path.parent / f".ea_p1_snapshot_{slug}.json"
-    p1_snap_str = str(p1_snapshot_path.resolve())
     if p1_use_saved_weights:
+        if p1_snapshot_path is None:
+            raise ValueError("p1_snapshot_path required when p1_use_saved_weights")
+        p1_snap_str = str(p1_snapshot_path.resolve())
         snap0 = dict(baseline)
         disk_w = weights_for_slug_from_file(weights_file_path, slug)
         if disk_w:
@@ -118,7 +121,10 @@ def run_ea(
                 if k in disk_w:
                     snap0[k] = disk_w[k]
         write_ea_opponent_snapshot(p1_snapshot_path, weights_file_path, slug, snap0)
-        _log(f"P1 opponents: trained weights from snapshot (merged with {weights_file_path.name}).")
+        _log(
+            f"P1 opponents: trained weights from snapshot (merged with {weights_file_path.name}); "
+            f"snapshot file: {p1_snap_str}"
+        )
     else:
         p1_snap_str = ""
         _log("P1 opponents: baseline pilot classes (no JSON weights).")
@@ -259,6 +265,12 @@ def main() -> None:
         action="store_true",
         help="P1 uses weights from --out JSON merged with per-generation best for training slug",
     )
+    ap.add_argument(
+        "--p1-snapshot",
+        type=str,
+        default="",
+        help="EA P1 snapshot JSON path (default: %%TEMP%%/arcana_ea_p1/<deck>.json; avoids OneDrive dotfiles in data/)",
+    )
     args = ap.parse_args()
 
     slugs = included_deck_slugs()
@@ -288,6 +300,10 @@ def main() -> None:
         f"uniform_delta={udelta}"
     )
     _log(f"p1_trained_weights={bool(args.p1_trained_weights)}")
+    p1_snap: Path | None = None
+    if args.p1_trained_weights:
+        p1_snap = Path(args.p1_snapshot).resolve() if args.p1_snapshot else default_ea_p1_snapshot_path(args.deck)
+        _log(f"p1_snapshot: {p1_snap}")
     _log(f"~{est_games} total simulated games upper bound (gen x pop x games/eval)")
     _log("")
 
@@ -307,6 +323,7 @@ def main() -> None:
         init_uniform_fraction=args.init_uniform_fraction,
         init_uniform_delta=udelta,
         p1_use_saved_weights=args.p1_trained_weights,
+        p1_snapshot_path=p1_snap,
     )
 
     merge_slug_into_weights_file(out_path, args.deck, best, genome_version=1)

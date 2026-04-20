@@ -25,6 +25,7 @@ from .cards import (
     VERB_DETHRONE,
     VERB_INSIGHT,
     VERB_REVIVE,
+    VERB_RENEW,
     VERB_SEEK,
     VERB_TEARS,
     VERB_WOE,
@@ -568,6 +569,9 @@ class MatchState:
             self._effect_wrath(pid, val, ctx)
         elif verb == VERB_REVIVE:
             return self._effect_revive(pid, val, ctx)
+        elif verb == VERB_RENEW:
+            self._effect_renew(pid, ctx)
+            return {}
         elif verb == VERB_DELUGE:
             self._effect_deluge(pid, val)
         elif verb == VERB_TEARS:
@@ -697,6 +701,19 @@ class MatchState:
                 best = i
         return best
 
+    def _effect_renew(self, pid: int, ctx: dict) -> None:
+        p = self.players[pid]
+        ritual_indices = [i for i, c in enumerate(p.crypt) if c.kind is Kind.RITUAL]
+        if not ritual_indices:
+            return
+        rf = ctx.get("renew_ritual_crypt_idx")
+        if rf is not None and 0 <= int(rf) < len(ritual_indices):
+            gi = ritual_indices[int(rf)]
+        else:
+            gi = max(ritual_indices, key=lambda i: p.crypt[i].value)
+        c = p.crypt.pop(gi)
+        p.field.append(Ritual(mid=self.mid(), value=c.value))
+
     def _effect_deluge(self, pid: int, n: int) -> None:
         threshold = n - 1
         for q in (0, 1):
@@ -740,7 +757,7 @@ class MatchState:
             return
         if verb == VERB_INSIGHT and self.has_noble(pid, "rmrsk_emanation"):
             self.pending = Pending(kind="scion", responder=pid, payload={"scion": "rmrsk", "trigger_verb": verb})
-        elif verb in (VERB_BURN, VERB_REVIVE) and self.has_noble(pid, "smrsk_occultation"):
+        elif verb in (VERB_BURN, VERB_REVIVE, VERB_RENEW) and self.has_noble(pid, "smrsk_occultation"):
             if any(True for _ in self.players[pid].field):
                 self.pending = Pending(kind="scion", responder=pid, payload={"scion": "smrsk", "trigger_verb": verb})
         elif verb == VERB_WRATH and self.has_noble(pid, "tmrsk_annihilation"):

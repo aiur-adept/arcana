@@ -166,17 +166,22 @@ var _wrath_is_revive_nested: bool = false
 var _noble_spell_mid: int = -1
 var _pending_noble_woe_mid: int = -1
 var _revive_ui_for_noble_mid: int = -1
+var _revive_nested_renew_picking: bool = false
+var _revive_nested_renew_inc_idx: int = -1
 
 var _yytzr_pending_first_ctx: Dictionary = {}
 var _yytzr_first_step: Dictionary = {}
 var _yytzr_waits_second_crypt: bool = false
 var _yytzr_extra_sac_mids: Array = []
+var _yytzr_from_renew: bool = false
 var _single_ritual_pick_mid: int = -1
 var _last_scion_prompt_id: int = -1
 
 var _aeoiu_overlay: Control
 var _aeoiu_crypt_row: VBoxContainer
+var _aeoiu_header_label: Label
 var _aeoiu_noble_mid: int = -1
+var _renew_incantation_pick: bool = false
 
 var _delpha_overlay: Control
 var _delpha_label: Label
@@ -312,11 +317,23 @@ func _yytzr_should_offer_bonus(ctx: Dictionary) -> bool:
 	return not bool((st[0] as Dictionary).get("revive_skip", false))
 
 
+func _yytzr_should_offer_renew_bonus(ctx: Dictionary) -> bool:
+	if _yytzr_waits_second_crypt:
+		return false
+	if not _player_has_noble_id(_last_snap, "yytzr_occultation"):
+		return false
+	var rgx: Array = _last_snap.get("your_ritual_crypt_cards", []) as Array
+	if rgx.size() < 2:
+		return false
+	return ctx.has("renew_ritual_crypt_idx")
+
+
 func _yytzr_clear_bonus_state() -> void:
 	_yytzr_waits_second_crypt = false
 	_yytzr_first_step = {}
 	_yytzr_extra_sac_mids.clear()
 	_yytzr_pending_first_ctx = {}
+	_yytzr_from_renew = false
 
 
 func _ready() -> void:
@@ -633,9 +650,9 @@ func _build_burn_woe_revive_overlays() -> void:
 	_aeoiu_overlay.add_child(cca)
 	var inner_a := VBoxContainer.new()
 	cca.add_child(inner_a)
-	var lae := Label.new()
-	lae.text = "Aeoiu — choose a ritual from your crypt"
-	inner_a.add_child(lae)
+	_aeoiu_header_label = Label.new()
+	_aeoiu_header_label.text = "Aeoiu — choose a ritual from your crypt"
+	inner_a.add_child(_aeoiu_header_label)
 	_aeoiu_crypt_row = VBoxContainer.new()
 	inner_a.add_child(_aeoiu_crypt_row)
 	var ae_row := HBoxContainer.new()
@@ -1166,7 +1183,6 @@ func _begin_revive_hand_ui(hand_idx: int, n: int, sac_mids: Array, for_noble_mid
 	for c in _revive_crypt_row.get_children():
 		c.queue_free()
 	var crypt: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation"])
-	print(crypt)
 	var idx := 0
 	for card in crypt:
 		var b := Button.new()
@@ -1253,8 +1269,67 @@ func _on_revive_crypt_chosen(crypt_idx: int) -> void:
 		_inc_pick_phase = INC_PICK_WOE_TGT
 	elif v == "insight":
 		_begin_insight_ui(_pending_inc_hand_idx, _insight_depth_for(_last_snap, val), _effect_sac, -1, crypt_idx)
+	elif v == "renew":
+		_nested_revive_crypt_idx = crypt_idx
+		_nested_revive_value = val
+		_revive_nested_renew_inc_idx = crypt_idx
+		_begin_revive_nested_renew_ritual_pick()
 	else:
 		status_label.text = "Cannot revive that card type from UI."
+
+
+func _begin_revive_nested_renew_ritual_pick() -> void:
+	_revive_nested_renew_picking = true
+	_revive_pick_phase = true
+	for c in _revive_crypt_row.get_children():
+		c.queue_free()
+	var rg: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
+	if rg.is_empty():
+		status_label.text = "Renew needs a ritual in your crypt."
+		_revive_nested_renew_picking = false
+		_revive_nested_renew_inc_idx = -1
+		_clear_revive_overlay()
+		if not _last_snap.is_empty():
+			_apply_snap(_last_snap)
+		return
+	var idx := 0
+	for card in rg:
+		var cd: Dictionary = card as Dictionary
+		var vv := int(cd.get("value", 0))
+		var b := Button.new()
+		b.text = "Ritual %d (crypt #%d)" % [vv, idx]
+		var capture := idx
+		b.pressed.connect(func() -> void:
+			_on_revive_nested_renew_ritual_chosen(capture)
+		)
+		_revive_crypt_row.add_child(b)
+		idx += 1
+	if _revive_skip_btn != null:
+		_revive_skip_btn.visible = false
+	_revive_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_revive_nested_renew_ritual_chosen(ridx: int) -> void:
+	if not _revive_nested_renew_picking:
+		return
+	var idisc: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["incantation"])
+	if _revive_nested_renew_inc_idx < 0 or _revive_nested_renew_inc_idx >= idisc.size():
+		return
+	var rg: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
+	if ridx < 0 or ridx >= rg.size():
+		return
+	_revive_nested_renew_picking = false
+	_clear_revive_overlay()
+	var inc_idx := _revive_nested_renew_inc_idx
+	_revive_nested_renew_inc_idx = -1
+	var steps := [{
+		"revive_skip": false,
+		"revive_crypt_idx": inc_idx,
+		"nested": {"renew_ritual_crypt_idx": ridx}
+	}]
+	_finalize_revive_cast({"revive_steps": steps})
 
 
 func _begin_tears_hand_ui(hand_idx: int, n: int, sac_mids: Array) -> void:
@@ -2668,6 +2743,20 @@ func _enter_single_ritual_sacrifice_mode(phase: int, hint: String, confirm_text:
 
 
 func _start_yytzr_bonus_sacrifice_ui() -> void:
+	if _yytzr_from_renew:
+		_sacrifice_selecting = true
+		_inc_pick_phase = INC_PICK_YTTR
+		_sacrifice_need = 2
+		_sacrifice_selected_mids.clear()
+		sacrifice_row.visible = true
+		sacrifice_confirm_button.text = "Confirm sacrifice"
+		sacrifice_hint.text = "Yytzr: sacrifice rituals totaling at least 2 for a second crypt ritual (Renew)."
+		_update_inc_modal_ui()
+		_rebuild_field_strips_from_snap(_last_snap)
+		_rebuild_hand(_last_snap.get("your_hand", []))
+		end_turn_button.disabled = true
+		discard_draw_button.disabled = true
+		return
 	var st: Array = _yytzr_pending_first_ctx.get("revive_steps", []) as Array
 	if st.is_empty():
 		return
@@ -2678,7 +2767,7 @@ func _start_yytzr_bonus_sacrifice_ui() -> void:
 	_sacrifice_selected_mids.clear()
 	sacrifice_row.visible = true
 	sacrifice_confirm_button.text = "Confirm sacrifice"
-	sacrifice_hint.text = "Yytzr: sacrifice rituals totaling at least 2 for a second crypt cast."
+	sacrifice_hint.text = "Yytzr: sacrifice rituals totaling at least 2 for a second crypt cast (Revive)."
 	_update_inc_modal_ui()
 	_rebuild_field_strips_from_snap(_last_snap)
 	_rebuild_hand(_last_snap.get("your_hand", []))
@@ -2913,7 +3002,7 @@ func _show_scion_prompt_ui(snap: Dictionary) -> void:
 	if st == "smrsk_burn":
 		_enter_single_ritual_sacrifice_mode(
 			INC_PICK_SMRSK,
-			"Smrsk: choose one ritual to sacrifice; then Burn yourself by its power.",
+			"Smrsk: after Burn, Revive, or Renew — sacrifice one ritual, then Burn yourself by its power.",
 			"Sacrifice and Burn self",
 			"Skip"
 		)
@@ -3030,6 +3119,8 @@ func _clear_incantation_flow_ui() -> void:
 	_clear_insight_ui()
 	_clear_burn_woe_overlay()
 	_clear_woe_self_pick()
+	_revive_nested_renew_picking = false
+	_revive_nested_renew_inc_idx = -1
 	_clear_revive_overlay()
 	_pending_noble_woe_mid = -1
 	_noble_spell_mid = -1
@@ -3500,6 +3591,11 @@ func _on_sacrifice_confirm_pressed() -> void:
 		_yytzr_extra_sac_mids = sac_y
 		_yytzr_waits_second_crypt = true
 		_clear_sacrifice_mode()
+		if _yytzr_from_renew:
+			if _aeoiu_header_label:
+				_aeoiu_header_label.text = "Renew — choose a second ritual (Yytzr)"
+			_begin_renew_hand_ui(hi_y, nn_y, esac_y)
+			return
 		_begin_revive_hand_ui(hi_y, nn_y, esac_y)
 		return
 	if _inc_pick_phase == INC_PICK_SMRSK:
@@ -3625,6 +3721,12 @@ func _on_sacrifice_confirm_pressed() -> void:
 			var nn_r := _pending_inc_n
 			_clear_sacrifice_mode()
 			_begin_revive_hand_ui(hi_r, nn_r, sac)
+			return
+		if verb == "renew":
+			var hi_rn := _pending_inc_hand_idx
+			var nn_rn := _pending_inc_n
+			_clear_sacrifice_mode()
+			_begin_renew_hand_ui(hi_rn, nn_rn, sac)
 			return
 		if verb == "tears":
 			var hi_t := _pending_inc_hand_idx
@@ -3901,6 +4003,9 @@ func _start_aeoiu_ritual_pick(noble_mid: int) -> void:
 	if _match != null and not _is_network_client() and not _match.can_activate_noble(_my_player_for_action(), noble_mid):
 		status_label.text = "Cannot use Aeoiu right now."
 		return
+	_renew_incantation_pick = false
+	if _aeoiu_header_label:
+		_aeoiu_header_label.text = "Aeoiu — choose a ritual from your crypt"
 	_aeoiu_noble_mid = noble_mid
 	for c in _aeoiu_crypt_row.get_children():
 		c.queue_free()
@@ -3941,11 +4046,92 @@ func _on_aeoiu_crypt_chosen(crypt_idx: int) -> void:
 		_broadcast_sync(true)
 
 
-func _on_aeoiu_cancel_pressed() -> void:
+func _begin_renew_hand_ui(hand_idx: int, n: int, sac_mids: Array) -> void:
+	if (_last_snap.get("your_ritual_crypt_cards", []) as Array).is_empty():
+		status_label.text = "No rituals in your crypt."
+		return
+	_renew_incantation_pick = true
+	_pending_inc_hand_idx = hand_idx
+	_pending_inc_n = n
+	_effect_sac = sac_mids.duplicate()
+	if _aeoiu_header_label:
+		_aeoiu_header_label.text = "Renew — choose a ritual from your crypt"
+	for c in _aeoiu_crypt_row.get_children():
+		c.queue_free()
+	var rg: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["ritual"])
+	var idx := 0
+	for card in rg:
+		var cd: Dictionary = card as Dictionary
+		var vv := int(cd.get("value", 0))
+		var b := Button.new()
+		b.text = "Ritual %d (crypt #%d)" % [vv, idx]
+		var capture := idx
+		b.pressed.connect(func() -> void:
+			_on_renew_crypt_chosen(capture)
+		)
+		_aeoiu_crypt_row.add_child(b)
+		idx += 1
+	if _aeoiu_crypt_row.get_child_count() == 0:
+		status_label.text = "No rituals in your crypt."
+		_renew_incantation_pick = false
+		return
+	_aeoiu_overlay.visible = true
+	end_turn_button.disabled = true
+	discard_draw_button.disabled = true
+
+
+func _on_renew_crypt_chosen(crypt_idx: int) -> void:
+	if not _renew_incantation_pick:
+		return
+	_renew_incantation_pick = false
 	_aeoiu_overlay.visible = false
-	_aeoiu_noble_mid = -1
+	if _aeoiu_header_label:
+		_aeoiu_header_label.text = "Aeoiu — choose a ritual from your crypt"
+	var hi := _pending_inc_hand_idx
+	var sac: Array = _effect_sac.duplicate()
+	if _yytzr_waits_second_crypt and _yytzr_from_renew:
+		end_turn_button.disabled = false
+		discard_draw_button.disabled = false
+		var first := int(_yytzr_pending_first_ctx.get("renew_ritual_crypt_idx", -1))
+		var extras: Array = _yytzr_extra_sac_mids.duplicate()
+		var ctx_full := {
+			"renew_ritual_crypt_idx": first,
+			"renew_second_ritual_crypt_idx": crypt_idx,
+			"yytzr_extra_sac_mids": extras
+		}
+		_yytzr_clear_bonus_state()
+		if _is_network_client():
+			submit_play_inc.rpc_id(1, hi, sac, [], ctx_full)
+		else:
+			_try_play_inc(_my_player_for_action(), hi, sac, [], ctx_full)
+		_broadcast_sync(true)
+		return
+	var ctx_partial := {"renew_ritual_crypt_idx": crypt_idx}
+	if _yytzr_should_offer_renew_bonus(ctx_partial):
+		_yytzr_pending_first_ctx = ctx_partial.duplicate(true)
+		_yytzr_from_renew = true
+		_start_yytzr_bonus_sacrifice_ui()
+		return
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
+	if _is_network_client():
+		submit_play_inc.rpc_id(1, hi, sac, [], ctx_partial)
+	else:
+		_try_play_inc(_my_player_for_action(), hi, sac, [], ctx_partial)
+	_broadcast_sync(true)
+
+
+func _on_aeoiu_cancel_pressed() -> void:
+	var was_renew := _renew_incantation_pick
+	_renew_incantation_pick = false
+	_aeoiu_overlay.visible = false
+	_aeoiu_noble_mid = -1
+	if _aeoiu_header_label:
+		_aeoiu_header_label.text = "Aeoiu — choose a ritual from your crypt"
+	end_turn_button.disabled = false
+	discard_draw_button.disabled = false
+	if was_renew and not _last_snap.is_empty():
+		_apply_snap(_last_snap)
 
 
 func _temple_field_input_ok() -> bool:
@@ -4784,6 +4970,12 @@ func _on_hand_pressed(hand_idx: int) -> void:
 				return
 			if verb == "revive":
 				_begin_revive_hand_ui(hand_idx, n, [])
+				return
+			if verb == "renew":
+				if (_last_snap.get("your_ritual_crypt_cards", []) as Array).is_empty():
+					status_label.text = "No rituals in your crypt."
+					return
+				_begin_renew_hand_ui(hand_idx, n, [])
 				return
 			if verb == "tears":
 				var birds_t: Array = _filtered_crypt_cards(_your_crypt_cards_from_snap(_last_snap), ["bird"])
