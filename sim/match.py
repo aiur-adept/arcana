@@ -2,7 +2,7 @@
 
 Mirrors arcana_match_state.gd. Deck `top` is the end of the `deck` list:
 draw = deck.pop(), burn = deck.pop(), insight-to-bottom = deck.insert(0, ...).
-Match power is ritual-power (sum of active ritual values + nested birds) plus
+Match power is ritual-power (sum of active ritual values) plus
 one per bird in play. Win at >=20 or on an empty-deck draw attempt.
 """
 
@@ -255,7 +255,6 @@ class MatchState:
         for r in p.field:
             if r.value in active:
                 total += r.value
-        total += sum(1 for b in p.bird_field if b.nest_mid >= 0)
         return total
 
     def match_power(self, pid: int) -> int:

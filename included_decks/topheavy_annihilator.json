@@ -77,24 +77,32 @@
 			"value": 1
 		},
 		{
-			"type": "Incantation",
-			"value": 0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
 			"type": "Incantation",
@@ -201,7 +209,7 @@
 			"seek_4": 0,
 			"woe_3": 0,
 			"woe_4": 0,
-			"wrath_0": 4
+			"wrath_0": 0
 		},
 		"nobles": {
 			"aeoiu_rituals": 0,
@@ -222,6 +230,17 @@
 			"2": 4,
 			"3": 4,
 			"4": 8
+		},
+		"birds": {
+			"eagle": 0,
+			"finch": 0,
+			"gull": 0,
+			"hawk": 0,
+			"kestrel": 0,
+			"raven": 0,
+			"shrike": 0,
+			"sparrow": 4,
+			"wren": 0
 		}
 	},
 	"deck_name": "Topheavy Annihilator",

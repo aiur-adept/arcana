@@ -92,24 +92,32 @@
 			"type": "Noble"
 		},
 		{
-			"type": "Incantation",
-			"value": 0.0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0.0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0.0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 0.0,
-			"verb": "wrath"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
 			"type": "Incantation",
@@ -226,6 +234,17 @@
 			"2": 4.0,
 			"3": 4.0,
 			"4": 5.0
+		},
+		"birds": {
+			"eagle": 0,
+			"finch": 0,
+			"gull": 0,
+			"hawk": 0,
+			"kestrel": 0,
+			"raven": 0,
+			"shrike": 0,
+			"sparrow": 4,
+			"wren": 0
 		}
 	},
 	"deck_name": "Annihilation",

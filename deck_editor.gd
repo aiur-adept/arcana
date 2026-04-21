@@ -16,6 +16,7 @@ const DECK_DIR := "user://decks"
 const DECK_EXT := ".json"
 const DECK_EXPORT_PREFIX := "decks_export_"
 const EXPORT_DIALOG_CONFIG_PATH := "user://deck_export_dir.txt"
+const INCLUDED_DECKS_RES_DIR := "res://included_decks"
 const NOBLE_DEFS := [
 	{"id": "krss_power", "name": "Krss, Noble of Power"},
 	{"id": "rmrsk_emanation", "name": "Rmrsk, Scion of Emanation"},
@@ -243,7 +244,7 @@ func _current_deck_path() -> String:
 	if deck_name.is_empty():
 		deck_name = "deck"
 		deck_name_edit.text = deck_name
-	if _selected_deck_path.is_empty():
+	if _selected_deck_path.is_empty() or IncludedDecks.is_token(_selected_deck_path):
 		_selected_deck_path = "%s/%s%s" % [DECK_DIR, deck_name, DECK_EXT]
 	return _selected_deck_path
 
@@ -588,7 +589,7 @@ func _render_entries() -> void:
 
 
 func _deck_readonly() -> bool:
-	return IncludedDecks.is_token(_selected_deck_path)
+	return false
 
 
 func _apply_readonly_ui() -> void:
@@ -926,14 +927,8 @@ func _update_validation() -> void:
 	var bird_ok := _bird_copy_limit_ok()
 	var ring_ok := _ring_copy_limit_ok()
 	var is_valid: bool = totals["rituals"] == TARGET_RITUAL_COUNT and totals["non_ritual"] == TARGET_NON_RITUAL_COUNT and total_cards == DECK_SIZE and copies_ok and noble_ok and bird_ok and ring_ok
-	var ro := _deck_readonly()
-	if ro:
-		is_valid = true
-	save_button.disabled = not is_valid or ro
-	if ro:
-		status_label.text = "Included deck (read-only; cannot delete or overwrite)."
-		status_label.modulate = Color(0.72, 0.88, 1.0)
-	elif is_valid:
+	save_button.disabled = not is_valid
+	if is_valid:
 		status_label.text = "Deck is legal. Save is enabled."
 		status_label.modulate = Color(0.65, 1, 0.65)
 	elif not copies_ok:
@@ -1069,13 +1064,13 @@ func _export_filename_for_current_deck(payload: Dictionary) -> String:
 
 func _load_last_export_dir() -> String:
 	if not FileAccess.file_exists(EXPORT_DIALOG_CONFIG_PATH):
-		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+		return _default_export_dir()
 	var f := FileAccess.open(EXPORT_DIALOG_CONFIG_PATH, FileAccess.READ)
 	if f == null:
-		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+		return _default_export_dir()
 	var dir := f.get_as_text().strip_edges()
 	if dir.is_empty() or not DirAccess.dir_exists_absolute(dir):
-		return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+		return _default_export_dir()
 	return dir
 
 
@@ -1087,6 +1082,17 @@ func _save_last_export_dir(path: String) -> void:
 	if f == null:
 		return
 	f.store_string(dir)
+
+
+func _repo_included_decks_dir() -> String:
+	return ProjectSettings.globalize_path(INCLUDED_DECKS_RES_DIR)
+
+
+func _default_export_dir() -> String:
+	var repo_dir := _repo_included_decks_dir()
+	if DirAccess.dir_exists_absolute(repo_dir):
+		return repo_dir
+	return OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
 
 
 func _ensure_export_dialog() -> FileDialog:
@@ -1115,7 +1121,11 @@ func _on_export_decks_button_pressed() -> void:
 		status_label.modulate = Color(1, 0.95, 0.6)
 		return
 	var dialog := _ensure_export_dialog()
-	dialog.current_dir = _load_last_export_dir()
+	var repo_dir := _repo_included_decks_dir()
+	if IncludedDecks.is_token(_selected_deck_path) and DirAccess.dir_exists_absolute(repo_dir):
+		dialog.current_dir = repo_dir
+	else:
+		dialog.current_dir = _load_last_export_dir()
 	dialog.current_file = _export_filename_for_current_deck(payload)
 	dialog.popup_centered_ratio(0.6)
 
@@ -1159,10 +1169,6 @@ func _on_copy_deck_json_button_pressed() -> void:
 
 
 func _on_save_button_pressed() -> void:
-	if _deck_readonly():
-		status_label.text = "Cannot save over an included deck."
-		status_label.modulate = Color(1, 0.95, 0.6)
-		return
 	var totals := _totals()
 	if not _incantation_copy_limit_ok():
 		status_label.text = "Deck is invalid. You may only have %d copies of each incantation variant." % MAX_INCANTATION_COPIES

@@ -453,7 +453,7 @@ static func card_rules_text(card: Dictionary) -> String:
 	if t == "noble":
 		return _noble_preview_text(str(card.get("noble_id", "")))
 	if t == "bird":
-		return "Each bird adds +1 to match power. Nest: place a bird under your temple (at most temple-cost birds per temple); nested birds add an additional +1 match power and cannot be involved in combat."
+		return "Each bird adds +1 to match power. Nest: place a bird under your temple (at most temple-cost birds per temple); nested birds cannot be involved in combat."
 	if t == "temple":
 		return _temple_preview_text(str(card.get("temple_id", "")))
 	if t == "ring":

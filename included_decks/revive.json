@@ -137,24 +137,32 @@
 			"verb": "insight"
 		},
 		{
-			"type": "Incantation",
-			"value": 1,
-			"verb": "insight"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 1,
-			"verb": "insight"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 1,
-			"verb": "insight"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
-			"type": "Incantation",
-			"value": 1,
-			"verb": "insight"
+			"bird_id": "sparrow",
+			"cost": 2,
+			"name": "Sparrow",
+			"power": 1,
+			"type": "Bird"
 		},
 		{
 			"type": "Incantation",
@@ -191,7 +199,7 @@
 			"kestrel": 0,
 			"raven": 0,
 			"shrike": 0,
-			"sparrow": 0,
+			"sparrow": 4,
 			"wren": 0
 		},
 		"dethrones": 0,
@@ -204,7 +212,7 @@
 			"deluge_3": 0,
 			"deluge_4": 0,
 			"dethrone_4": 0,
-			"insight_1": 4,
+			"insight_1": 0,
 			"insight_2": 4,
 			"insight_3": 0,
 			"insight_4": 0,

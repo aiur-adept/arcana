@@ -74,10 +74,6 @@ Example:
 
 All are active, so ritual power is `1 + 2 + 2 + 3 + 4 + 4 = 16`.
 
-Bird lane example:
-
-- If you control 1 x Bird 1, 1 x Bird 2, and 1 x Bird 3, the summed Bird power is 6, so your 6-lane is active from birds.
-
 ## 6A) Birds
 
 ### 6A.1 Cost and Power
@@ -97,8 +93,8 @@ Bird lane example:
 ### 6A.3 Bird Nesting
 
 - Birds have the ability nest. A temple on your field may nest X birds in it where X is its cost. 
-- Each bird nested in a temple adds an additional +1 to ritual power and cannot be involved in fighting.
-- An wild bird is "wild".
+- Each bird nested in a temple cannot be involved in fighting.
+- An un-nested bird is "wild".
 
 ## 6) Playing Cards and Paying Costs
 

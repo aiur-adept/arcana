@@ -461,17 +461,7 @@ func ritual_power(p: int) -> int:
 	for i in field.size():
 		if bool(act[i]):
 			s += int(field[i]["value"])
-	s += _nested_bird_count(p)
 	return s
-
-
-func _nested_bird_count(p: int) -> int:
-	var birds: Array = _players[p]["bird_field"]
-	var n := 0
-	for b in birds:
-		if _bird_nest_temple_mid(b as Dictionary) >= 0:
-			n += 1
-	return n
 
 
 func match_power(p: int) -> int:
