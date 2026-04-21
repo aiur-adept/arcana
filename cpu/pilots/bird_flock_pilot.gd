@@ -1,7 +1,7 @@
 extends ArcanaCpuBase
 class_name ArcanaBirdTestPilot
 
-# Port of sim/pilots/bird_test.py
+# Port of sim/pilots/bird_flock.py
 
 const UNNEST_BIRDS := ["raven", "hawk", "eagle"]
 

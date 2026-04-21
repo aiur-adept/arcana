@@ -40,7 +40,7 @@ for one P0 deck and **merges** the best genome into `data/pilot_weights.json` (s
 Godot loads the same file via `ArcanaCpuPilotRegistry.create_for_slug`.
 
 ```powershell
-python -m sim.train_ea --deck bird_test --generations 30 --population 24 --games 400 [--seed 0] [--workers N]
+python -m sim.train_ea --deck bird_flock --generations 30 --population 24 --games 400 [--seed 0] [--workers N]
 ```
 
 **Core flags**
@@ -130,7 +130,7 @@ overrides only the hooks (and selectively overrides weight defaults) that matter
 | `annihilation` | `AnnihilationPilot` | Celadon ring priority; Wrath and Woe base weights elevated; always accept Tmrsk. |
 | `emanation` | `EmanationPilot` | Sybiline priority; always accept Rmrsk; save Dethrone for cost-6+ targets. |
 | `temples` | `TemplesPilot` | Explicit Phaedra>Delpha>Gotha>Ytria play ordering; Ytria needs hand ≥ 5. |
-| `bird_test` | `BirdTestPilot` | Eyrie bonus boosted; Sinofia homes to a Raven; Ravens/Hawks never nest. |
+| `bird_flock` | `BirdTestPilot` | Eyrie bonus boosted; Sinofia homes to a Raven; Ravens/Hawks never nest. |
 | `void_temples` | `VoidTemplesPilot` | Temple play ordering (see `temples`); Void discard-cost left at default (lowest among incantations). |
 | `revive` | `RevivePilot` | Rndrr priority; revive prio favors Seek/Insight over other verbs. |
 

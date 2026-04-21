@@ -3,7 +3,7 @@
 Mirrors arcana_match_state.gd. Deck `top` is the end of the `deck` list:
 draw = deck.pop(), burn = deck.pop(), insight-to-bottom = deck.insert(0, ...).
 Match power is ritual-power (sum of active ritual values) plus
-one per bird in play. Win at >=20 or on an empty-deck draw attempt.
+one per bird in play. Win at >=20 or having higher match power than the opponent on an empty-deck draw attempt.
 """
 
 from __future__ import annotations
@@ -679,7 +679,7 @@ class MatchState:
 
     def _effect_woe(self, pid: int, n: int, target_pid: int, ctx: dict) -> None:
         extra = 1 if self.has_noble(pid, "zytzr_annihilation") else 0
-        base = max(n - 2, 0)
+        base = max(n - 1, 0)
         need = base + extra
         victim = self.players[target_pid]
         need = min(need, len(victim.hand))

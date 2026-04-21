@@ -16,7 +16,7 @@ from ..cards import Kind
 from ..match import MatchState
 
 
-class BirdTestPilot(GreedyAI):
+class BirdFlockPilot(GreedyAI):
     W_TEMPLE_EYRIE_BONUS = 50.0
     W_BIRD_POWER_BONUS = 2.0
 

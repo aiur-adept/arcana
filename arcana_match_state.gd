@@ -132,7 +132,7 @@ func insight_effective_n(p: int, base: int) -> int:
 
 func _woe_discard_need(instigator: int, value: int, victim: int) -> int:
 	var hs: int = _players[victim]["hand"].size()
-	var base := maxi(value - 2, 0)
+	var base := maxi(value - 1, 0)
 	var extra := 1 if _noble_on_field(instigator, "zytzr_annihilation") else 0
 	return mini(base + extra, hs)
 

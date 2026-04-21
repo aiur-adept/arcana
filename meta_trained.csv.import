@@ -6,10 +6,10 @@ uid="uid://bbvnbh7xlf5dg"
 
 [deps]
 
-files=["res://meta_trained.incantations.translation", "res://meta_trained.noble.translation", "res://meta_trained.ritual.translation", "res://meta_trained.topheavy.translation", "res://meta_trained.occultation.translation", "res://meta_trained.annihilation.translation", "res://meta_trained.emanation.translation", "res://meta_trained.temples.translation", "res://meta_trained.bird.translation", "res://meta_trained.void.translation", "res://meta_trained.revive.translation"]
+files=["res://meta_trained.ritual.translation", "res://meta_trained.topheavy.translation", "res://meta_trained.occultation.translation", "res://meta_trained.annihilation.translation", "res://meta_trained.emanation.translation", "res://meta_trained.temples.translation", "res://meta_trained.bird.translation", "res://meta_trained.void.translation", "res://meta_trained.revive.translation"]
 
 source_file="res://meta_trained.csv"
-dest_files=["res://meta_trained.incantations.translation", "res://meta_trained.noble.translation", "res://meta_trained.ritual.translation", "res://meta_trained.topheavy.translation", "res://meta_trained.occultation.translation", "res://meta_trained.annihilation.translation", "res://meta_trained.emanation.translation", "res://meta_trained.temples.translation", "res://meta_trained.bird.translation", "res://meta_trained.void.translation", "res://meta_trained.revive.translation"]
+dest_files=["res://meta_trained.ritual.translation", "res://meta_trained.topheavy.translation", "res://meta_trained.occultation.translation", "res://meta_trained.annihilation.translation", "res://meta_trained.emanation.translation", "res://meta_trained.temples.translation", "res://meta_trained.bird.translation", "res://meta_trained.void.translation", "res://meta_trained.revive.translation"]
 
 [params]
 

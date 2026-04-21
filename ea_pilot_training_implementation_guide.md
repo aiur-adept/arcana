@@ -90,7 +90,7 @@ These names are identical between [`sim/ai.py`](sim/ai.py) and [`cpu/cpu_base.gd
 
 | Slug | Weight overrides |
 |------|------------------|
-| `bird_test` | `W_TEMPLE_EYRIE_BONUS=50`, `W_BIRD_POWER_BONUS=2` |
+| `bird_flock` | `W_TEMPLE_EYRIE_BONUS=50`, `W_BIRD_POWER_BONUS=2` |
 | `emanation` | `W_EFFECT_SEEK_VALUE=4`, `W_EFFECT_INSIGHT_VALUE=2` |
 | `noble_test` | `W_NOBLE_BASE=75`, `W_NOBLE_GRANT_NEW_LANE=55`, `W_DETHRONE_PER_COST=5` |
 | `ritual_reanimator` | `W_AEOIU_ACTIVATION_BASE=70`, `W_TEMPLE_BASE=65`, `W_NOBLE_BIG_TRIPLET=25` |
@@ -267,7 +267,7 @@ Instantiate with `WeightedPilot(pid)` as today. Creating a fresh `type(...)` per
 
 ```json
 {
-  "slug": "bird_test",
+  "slug": "bird_flock",
   "genome_version": 1,
   "weights": {
     "W_TEMPLE_EYRIE_BONUS": 50.0,

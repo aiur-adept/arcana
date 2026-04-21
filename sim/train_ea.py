@@ -3,7 +3,7 @@
 Writes JSON consumed by Godot: data/pilot_weights.json
 
 Usage:
-    python -m sim.train_ea --deck bird_test --generations 30 --population 24 --games 400 [--seed 0]
+    python -m sim.train_ea --deck bird_flock --generations 30 --population 24 --games 400 [--seed 0]
 """
 
 from __future__ import annotations

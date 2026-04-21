@@ -16,8 +16,14 @@ from typing import Optional
 from ..ai import GreedyAI
 from ..cards import Kind
 from ..match import MatchState
-from .temples import TEMPLE_PLAY_PRIORITY
 
+TEMPLE_PLAY_PRIORITY = {
+    "phaedra_illusion": 30.0,
+    "delpha_oracles":   25.0,
+    "gotha_illness":    15.0,
+    "eyrie_feathers":   20.0,
+    "ytria_cycles":     0.0,
+}
 
 class VoidTemplesPilot(GreedyAI):
     W_TEMPLE_COST_BONUS = 0.0

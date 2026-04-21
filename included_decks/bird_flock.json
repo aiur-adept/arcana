@@ -279,7 +279,7 @@
 			"ytria_cycles": 0
 		}
 	},
-	"deck_name": "bird_test",
+	"deck_name": "bird_flock",
 	"rules_snapshot": {
 		"max_bird_copies": 4,
 		"max_ritual_copies": 9,
