@@ -4463,7 +4463,9 @@ func _on_delpha_crypt_chosen(crypt_idx: int) -> void:
 
 
 func _rebuild_hand(hand: Variant) -> void:
-	for c in hand_row.get_children():
+	while hand_row.get_child_count() > 0:
+		var c: Node = hand_row.get_child(0)
+		hand_row.remove_child(c)
 		c.queue_free()
 	if typeof(hand) != TYPE_ARRAY:
 		return
