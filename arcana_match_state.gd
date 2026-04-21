@@ -40,6 +40,7 @@ var noble_played_this_turn: bool = false
 var temple_played_this_turn: bool = false
 var bird_played_this_turn: bool = false
 var bird_fight_used_this_turn: bool = false
+var bird_nested_this_turn: bool = false
 var discard_draw_used: bool
 var winner: int = -1
 var empty_deck_end: bool = false
@@ -297,6 +298,7 @@ func _turn_start_draw() -> void:
 	temple_played_this_turn = false
 	bird_played_this_turn = false
 	bird_fight_used_this_turn = false
+	bird_nested_this_turn = false
 	turn_number += 1
 	if turn_number == 1 and current == _starting_player:
 		discard_draw_used = false
@@ -623,6 +625,7 @@ func snapshot(for_player: int) -> Dictionary:
 		"your_noble_played": for_player == current and noble_played_this_turn,
 		"your_temple_played": for_player == current and temple_played_this_turn,
 		"your_bird_played": for_player == current and bird_played_this_turn,
+		"your_bird_nested": for_player == current and bird_nested_this_turn,
 		"discard_draw_used": discard_draw_used,
 		"winner": winner,
 		"empty_deck_end": empty_deck_end,
@@ -1250,6 +1253,8 @@ func can_nest_bird(p: int, bird_mid: int, temple_mid: int) -> bool:
 		return false
 	if _pending_stack_blocks_action(p):
 		return false
+	if bird_nested_this_turn:
+		return false
 	var b := _find_bird_on_field(p, bird_mid)
 	if b.is_empty():
 		return false
@@ -1289,6 +1294,7 @@ func nest_bird(p: int, bird_mid: int, temple_mid: int) -> String:
 		tf[j] = td
 		break
 	_log("P%d nests a bird (mid %d) in temple (mid %d)." % [p, bird_mid, temple_mid])
+	bird_nested_this_turn = true
 	_check_power_win(p)
 	return "ok"
 

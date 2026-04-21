@@ -85,8 +85,8 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 1.0,
-			"verb": "seek"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -142,13 +142,13 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
-			"verb": "insight"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 2.0,
-			"verb": "insight"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -200,17 +200,18 @@
 			"burn_4": 0.0,
 			"dethrone_4": 0.0,
 			"insight_1": 3.0,
-			"insight_2": 3.0,
+			"insight_2": 1,
 			"insight_3": 4.0,
 			"insight_4": 0.0,
 			"revive_2": 0.0,
-			"seek_1": 3.0,
+			"seek_1": 2,
 			"seek_2": 4.0,
 			"seek_3": 0.0,
 			"seek_4": 0.0,
 			"woe_3": 0.0,
 			"woe_4": 0.0,
-			"wrath_0": 0.0
+			"wrath_0": 0.0,
+			"deluge_3": 3
 		},
 		"nobles": {
 			"aeoiu_rituals": 0.0,

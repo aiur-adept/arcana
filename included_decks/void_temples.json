@@ -164,18 +164,18 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 0,
-			"verb": "void"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 0,
-			"verb": "void"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 0,
-			"verb": "void"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -221,7 +221,7 @@
 			"burn_3": 0,
 			"burn_4": 0,
 			"deluge_2": 0,
-			"deluge_3": 0,
+			"deluge_3": 3,
 			"deluge_4": 0,
 			"dethrone_4": 0,
 			"insight_1": 0,
@@ -232,7 +232,7 @@
 			"seek_1": 0,
 			"seek_2": 4,
 			"tears_3": 0,
-			"void_0": 4,
+			"void_0": 1,
 			"woe_3": 0,
 			"woe_4": 0,
 			"wrath_0": 0

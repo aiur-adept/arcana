@@ -93,9 +93,13 @@ def run_ea(
     init_uniform_delta: float,
     p1_use_saved_weights: bool,
     p1_snapshot_path: Path | None,
+    initial_weights: dict[str, float] | None = None,
 ) -> dict[str, float]:
     rng = random.Random(seed)
     baseline = baseline_weights_for_slug(slug)
+    if initial_weights:
+        for k, v in initial_weights.items():
+            baseline[k] = float(v)
     keys = list(greedy_ai_float_weight_keys())
 
     pop: list[dict[str, float]] = []
@@ -271,6 +275,12 @@ def main() -> None:
         default="",
         help="EA P1 snapshot JSON path (default: %%TEMP%%/arcana_ea_p1/<deck>.json; avoids OneDrive dotfiles in data/)",
     )
+    ap.add_argument(
+        "--init-weights",
+        type=str,
+        default="",
+        help="optional weights JSON path used to initialize the training baseline for --deck",
+    )
     args = ap.parse_args()
 
     slugs = included_deck_slugs()
@@ -300,6 +310,15 @@ def main() -> None:
         f"uniform_delta={udelta}"
     )
     _log(f"p1_trained_weights={bool(args.p1_trained_weights)}")
+    init_weights: dict[str, float] | None = None
+    if args.init_weights:
+        iw_path = Path(args.init_weights).resolve()
+        iw = weights_for_slug_from_file(iw_path, args.deck)
+        if iw:
+            init_weights = clamp_genome(iw)
+            _log(f"init_weights: using saved genome for {args.deck!r} from {iw_path}")
+        else:
+            _log(f"init_weights: no saved genome for {args.deck!r} in {iw_path}; using pilot baseline")
     p1_snap: Path | None = None
     if args.p1_trained_weights:
         p1_snap = Path(args.p1_snapshot).resolve() if args.p1_snapshot else default_ea_p1_snapshot_path(args.deck)
@@ -324,6 +343,7 @@ def main() -> None:
         init_uniform_delta=udelta,
         p1_use_saved_weights=args.p1_trained_weights,
         p1_snapshot_path=p1_snap,
+        initial_weights=init_weights,
     )
 
     merge_slug_into_weights_file(out_path, args.deck, best, genome_version=1)

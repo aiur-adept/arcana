@@ -1,5 +1,5 @@
 extends ArcanaCpuBase
-class_name ArcanaBirdTestPilot
+class_name ArcanaBirdFlockPilot
 
 # Port of sim/pilots/bird_flock.py
 

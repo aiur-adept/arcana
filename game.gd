@@ -1732,6 +1732,8 @@ func _has_fightable_birds(arr: Array) -> bool:
 
 
 func _has_nest_action_available(snap: Dictionary) -> bool:
+	if bool(snap.get("your_bird_nested", false)):
+		return false
 	var ys: Array = snap.get("your_birds", []) as Array
 	var has_free := false
 	for b in ys:
@@ -3581,6 +3583,9 @@ func _start_nest_from_bird(bird_mid: int) -> void:
 	if int(snap.get("current", -1)) != int(snap.get("you", -2)):
 		return
 	if bird_mid < 0:
+		return
+	if bool(snap.get("your_bird_nested", false)):
+		status_label.text = "You already nested a bird this turn."
 		return
 	if not _has_nest_action_available(snap):
 		status_label.text = "Nest: no temple with capacity."

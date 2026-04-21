@@ -88,6 +88,7 @@ class Player:
     temple_played_this_turn: bool = False
     bird_played_this_turn: bool = False
     bird_fight_used: bool = False
+    bird_nested_this_turn: bool = False
     discard_draw_used: bool = False
 
 
@@ -293,6 +294,7 @@ class MatchState:
         p.temple_played_this_turn = False
         p.bird_played_this_turn = False
         p.bird_fight_used = False
+        p.bird_nested_this_turn = False
         p.discard_draw_used = False
         if not self.has_temple(pid, "gotha_illness"):
             self._draw_n(pid, 1, can_lose=True)
@@ -1033,6 +1035,8 @@ class MatchState:
         if self.pending is not None:
             return
         p = self.players[pid]
+        if p.bird_nested_this_turn:
+            return
         b = next((x for x in p.bird_field if x.mid == bird_mid and x.nest_mid < 0), None)
         t = next((x for x in p.temple_field if x.mid == temple_mid), None)
         if b is None or t is None:
@@ -1043,6 +1047,7 @@ class MatchState:
             return
         b.nest_mid = t.mid
         t.nested.append(b.mid)
+        p.bird_nested_this_turn = True
         self._check_power_win()
 
     # --------------------------------------------------------------- bird combat

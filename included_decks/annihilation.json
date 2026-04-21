@@ -121,18 +121,18 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "woe"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "woe"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 3.0,
-			"verb": "woe"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -208,9 +208,10 @@
 			"seek_2": 1.0,
 			"seek_3": 0.0,
 			"seek_4": 0.0,
-			"woe_3": 4.0,
+			"woe_3": 1,
 			"woe_4": 4.0,
-			"wrath_0": 4.0
+			"wrath_0": 4.0,
+			"deluge_3": 3
 		},
 		"nobles": {
 			"aeoiu_rituals": 0.0,

@@ -152,8 +152,8 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 2,
-			"verb": "seek"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -172,13 +172,13 @@
 		},
 		{
 			"type": "Incantation",
-			"value": 2,
-			"verb": "insight"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
-			"value": 2,
-			"verb": "insight"
+			"verb": "deluge",
+			"value": 3
 		},
 		{
 			"type": "Incantation",
@@ -224,16 +224,16 @@
 			"burn_3": 0,
 			"burn_4": 0,
 			"deluge_2": 0,
-			"deluge_3": 0,
+			"deluge_3": 3,
 			"deluge_4": 0,
 			"dethrone_4": 0,
 			"insight_1": 0,
-			"insight_2": 3,
+			"insight_2": 1,
 			"insight_3": 0,
 			"insight_4": 0,
 			"revive_2": 0,
 			"seek_1": 0,
-			"seek_2": 4,
+			"seek_2": 3,
 			"seek_3": 0,
 			"seek_4": 0,
 			"tears_3": 0,

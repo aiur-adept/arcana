@@ -358,15 +358,16 @@ class GreedyAI:
             if ta is not None:
                 actions.append(ta)
 
-        for b in p.bird_field:
-            if b.nest_mid >= 0:
-                continue
-            for t in p.temple_field:
-                if len(t.nested) < t.cost:
-                    if self.should_nest(state, b, t):
-                        score = self.W_NEST_BASE + b.power * self.W_NEST_POWER_BONUS
-                        actions.append((score, "nest", (b.mid, t.mid)))
-                    break
+        if not p.bird_nested_this_turn:
+            for b in p.bird_field:
+                if b.nest_mid >= 0:
+                    continue
+                for t in p.temple_field:
+                    if len(t.nested) < t.cost:
+                        if self.should_nest(state, b, t):
+                            score = self.W_NEST_BASE + b.power * self.W_NEST_POWER_BONUS
+                            actions.append((score, "nest", (b.mid, t.mid)))
+                        break
 
         if not p.bird_fight_used:
             best = self._best_fight(state, pid)

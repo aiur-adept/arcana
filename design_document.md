@@ -93,6 +93,7 @@ All are active, so ritual power is `1 + 2 + 2 + 3 + 4 + 4 = 16`.
 ### 6A.3 Bird Nesting
 
 - Birds have the ability nest. A temple on your field may nest X birds in it where X is its cost. 
+- You may nest at most **one** bird per turn.
 - Each bird nested in a temple cannot be involved in fighting.
 - An un-nested bird is "wild".
 
@@ -139,6 +140,7 @@ To play a Ring, you must have the Ring's cost lane active (no sacrifice payment 
   - At most 1 temple from hand.
   - At most 1 bird from hand.
   - Any number of incantations (as long as each is legal and payable)
+- `Nest bird` may be used at most once per turn.
 - `Discard-for-draw` may be used once per turn.
 - `Bird combat` may be used once per turn.
 - Each noble/temple activation is once per turn per permanent.

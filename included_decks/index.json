@@ -2,12 +2,10 @@
 	"schema_version": 1,
 	"slugs": [
 		"ritual_reanimator",
-		"topheavy_annihilator",
 		"occultation",
 		"annihilation",
 		"emanation",
 		"bird_flock",
-		"void_temples",
-		"revive"
+		"void_temples"
 	]
 }
