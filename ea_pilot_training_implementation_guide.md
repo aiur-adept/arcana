@@ -30,10 +30,7 @@ These names are identical between [`sim/ai.py`](sim/ai.py) and [`cpu/cpu_base.gd
 
 | Name | Default | Role (summary) |
 |------|---------|------------------|
-| `W_RITUAL_BASE` | 10.0 | Base score for playing a ritual |
-| `W_RITUAL_VALUE_BONUS` | 1.0 | × ritual value |
-| `W_RITUAL_NEW_LANE` | 60.0 | Bonus when play opens a new lane |
-| `W_RITUAL_DUP_LANE_1` | -4.0 | Penalty for duplicate lane-1 value |
+| *(ritual from hand)* | — | Fixed heuristic in code (`RITUAL_PLAY_SCORE_*` in `sim/ai.py`, `RITUAL_PLAY_SCORE_*` in `cpu/cpu_base.gd`): prefer largest match-power gain, then largest printed value. Not in the EA genome. |
 | `W_NOBLE_BASE` | 60.0 | Base score for nobles |
 | `W_NOBLE_COST_BONUS` | 1.0 | × noble cost |
 | `W_NOBLE_GRANT_NEW_LANE` | 40.0 | Bonus when noble grants a new lane |
@@ -169,7 +166,7 @@ Pilots with **only** `REVIVE_VERB_PRIORITY` overrides (no float changes): `incan
 ### 4.1 Representation
 
 - **Genome:** Ordered map `weight_name → float` for the chosen gene set (typically all shared floats in §2.1).
-- **Bounds:** Lower/upper per gene (e.g. `W_RITUAL_DUP_LANE_1` may be negative; most bonuses non-negative). Clamp after mutation.
+- **Bounds:** Lower/upper per gene (most bonuses non-negative; some genes allow small negatives). Clamp after mutation.
 - **Optional:** Log-scale parameterization for wide ranges: store `x` where `w = exp(x)` for strictly positive weights.
 
 ### 4.2 Initialization

@@ -57,12 +57,11 @@ const RING_DEFS := {
 const RING_COST := 2
 const BIG_TRIPLET := ["xytzr_emanation", "yytzr_occultation", "zytzr_annihilation"]
 
-# -------------------------------------------------------------- weights
-var W_RITUAL_BASE: float = 10.0
-var W_RITUAL_VALUE_BONUS: float = 1.0
-var W_RITUAL_NEW_LANE: float = 60.0
-var W_RITUAL_DUP_LANE_1: float = -4.0
+# Ritual-from-hand: fixed heuristic (not EA weights) — max match-power gain, then max printed value.
+const RITUAL_PLAY_SCORE_BASE := 10.0
+const RITUAL_PLAY_SCORE_PER_MP := 12.0
 
+# -------------------------------------------------------------- weights
 var W_NOBLE_BASE: float = 60.0
 var W_NOBLE_COST_BONUS: float = 1.0
 var W_NOBLE_GRANT_NEW_LANE: float = 40.0
@@ -132,7 +131,6 @@ var W_REVIVE_PRIO_INSIGHT: float = 2.0
 var W_REVIVE_PRIO_RENEW: float = 0.0
 var W_REVIVE_PRIO_FLIGHT: float = 3.0
 
-var W_SF_RITUAL_MP_PUSH: float = 0.0
 var W_SF_INC_BEHIND: float = 0.0
 var W_SF_RING_OPP_BOARD: float = 0.0
 var W_SF_DISCARD_FLOOD: float = 0.0
@@ -367,10 +365,7 @@ func _enumerate_best(host: Node, snap: Dictionary) -> Variant:
 				continue
 			if not host._match.can_play_ritual(1, i):
 				continue
-			var v := int(c.get("value", 0))
-			var unlocked := _count_new_lanes_if_ritual(your_field, your_nobles, v)
-			var ymp := int(snap.get("your_match_power", 0))
-			var score := score_ritual_play(c, active_lanes, unlocked, ymp)
+			var score := score_ritual_play(c, snap)
 			actions.append({"score": score, "kind": "ritual", "hand_idx": i})
 		elif kind == "noble":
 			if noble_played:
@@ -533,13 +528,10 @@ func _enumerate_best(host: Node, snap: Dictionary) -> Variant:
 
 # -------- scoring hooks (per-play) --------
 
-func score_ritual_play(card: Dictionary, before_lanes: Array, lanes_unlocked: int, your_mp: int) -> float:
-	var score := W_RITUAL_BASE + float(card.get("value", 0)) * W_RITUAL_VALUE_BONUS + W_RITUAL_NEW_LANE * float(lanes_unlocked)
-	if int(card.get("value", 0)) == 1 and _lane_in_set(before_lanes, 1):
-		score += W_RITUAL_DUP_LANE_1
-	var deficit := maxi(0, 18 - your_mp)
-	score += W_SF_RITUAL_MP_PUSH * float(deficit) * float(lanes_unlocked)
-	return score
+func score_ritual_play(card: Dictionary, snap: Dictionary) -> float:
+	var v := int(card.get("value", 0))
+	var dmp := _ritual_match_power_gain_if_played(snap, v)
+	return RITUAL_PLAY_SCORE_BASE + float(dmp) * RITUAL_PLAY_SCORE_PER_MP + float(v)
 
 
 func score_noble_play(card: Dictionary, _eff_cost: int, sac: Array, active_lanes: Array, snap: Dictionary = {}) -> Variant:
@@ -1497,14 +1489,6 @@ func _lane_in_set(lanes: Array, n: int) -> bool:
 		if int(x) == n:
 			return true
 	return false
-
-
-func _count_new_lanes_if_ritual(your_field: Array, your_nobles: Array, value: int) -> int:
-	var before := _active_lanes(your_field, your_nobles)
-	var synthetic_field: Array = your_field.duplicate()
-	synthetic_field.append({"mid": -999, "value": value})
-	var after := _active_lanes(synthetic_field, your_nobles)
-	return maxi(0, after.size() - before.size())
 
 
 func _lanes_after_sac(your_field: Array, your_nobles: Array, sac_mids: Array) -> Array:

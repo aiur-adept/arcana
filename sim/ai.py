@@ -62,13 +62,12 @@ def simple_mulligan(state: MatchState, pid: int) -> bool:
     return False
 
 
+RITUAL_PLAY_SCORE_BASE = 10.0
+RITUAL_PLAY_SCORE_PER_MP = 12.0
+
+
 class GreedyAI:
     # -------------------------------------------------------------- weights
-    W_RITUAL_BASE: float = 10.0
-    W_RITUAL_VALUE_BONUS: float = 1.0       # multiplied by c.value
-    W_RITUAL_NEW_LANE: float = 60.0
-    W_RITUAL_DUP_LANE_1: float = -4.0
-
     W_NOBLE_BASE: float = 60.0
     W_NOBLE_COST_BONUS: float = 1.0         # multiplied by c.cost
     W_NOBLE_GRANT_NEW_LANE: float = 40.0
@@ -138,7 +137,6 @@ class GreedyAI:
     W_REVIVE_PRIO_RENEW: float = 0.0
     W_REVIVE_PRIO_FLIGHT: float = 3.0
 
-    W_SF_RITUAL_MP_PUSH: float = 0.0
     W_SF_INC_BEHIND: float = 0.0
     W_SF_RING_OPP_BOARD: float = 0.0
     W_SF_DISCARD_FLOOD: float = 0.0
@@ -250,9 +248,7 @@ class GreedyAI:
 
         for i, c in enumerate(p.hand):
             if c.kind is Kind.RITUAL and not p.ritual_played_this_turn:
-                before = active
-                lanes_unlocked = self._count_new_lanes_if_ritual(state, pid, c.value)
-                score = self.score_ritual_play(state, c, before, lanes_unlocked)
+                score = self.score_ritual_play(state, c)
                 actions.append((score, "ritual", (i,)))
 
             elif c.kind is Kind.NOBLE and not p.noble_played_this_turn:
@@ -397,13 +393,9 @@ class GreedyAI:
 
     # --------------------------------------------------------------- per-action scoring hooks
 
-    def score_ritual_play(self, state: MatchState, card, before_lanes: set[int], lanes_unlocked: int) -> float:
-        score = self.W_RITUAL_BASE + card.value * self.W_RITUAL_VALUE_BONUS + self.W_RITUAL_NEW_LANE * lanes_unlocked
-        if card.value == 1 and 1 in before_lanes:
-            score += self.W_RITUAL_DUP_LANE_1
-        deficit = max(0, 18 - state.match_power(self.pid))
-        score += self.W_SF_RITUAL_MP_PUSH * deficit * lanes_unlocked
-        return score
+    def score_ritual_play(self, state: MatchState, card) -> float:
+        dmp = self._ritual_match_power_gain_if_played(state, self.pid, card.value)
+        return float(RITUAL_PLAY_SCORE_BASE) + float(dmp) * float(RITUAL_PLAY_SCORE_PER_MP) + float(card.value)
 
     def score_noble_play(self, state: MatchState, card, eff_cost: int, sac: list[int]) -> Optional[float]:
         score = self.W_NOBLE_BASE + card.cost * self.W_NOBLE_COST_BONUS
@@ -448,14 +440,6 @@ class GreedyAI:
         return True
 
     # --------------------------------------------------------------- helpers
-
-    def _count_new_lanes_if_ritual(self, state: MatchState, pid: int, value: int) -> int:
-        before = state.active_lanes(pid)
-        p = state.players[pid]
-        p.field.append(Ritual(mid=-999, value=value))
-        after = state.active_lanes(pid)
-        p.field = [r for r in p.field if r.mid != -999]
-        return len(after - before)
 
     def _lanes_after_sac(self, state: MatchState, pid: int, sac_mids: list[int]) -> set[int]:
         p = state.players[pid]

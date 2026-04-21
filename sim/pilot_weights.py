@@ -61,8 +61,6 @@ def pilot_class_for_slug(slug: str, weights_path: Path | None, use_saved: bool) 
 
 def clamp_weight(name: str, v: float) -> float:
     lo, hi = -120.0, 400.0
-    if name == "W_RITUAL_DUP_LANE_1":
-        lo = -80.0
     return max(lo, min(hi, v))
 
 
