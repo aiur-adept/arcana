@@ -4499,6 +4499,15 @@ func _on_delpha_crypt_chosen(crypt_idx: int) -> void:
 		_broadcast_sync(true)
 
 
+func _void_stack_has_discard_candidate(hand: Array, stack_key: String, void_idx: int) -> bool:
+	for i in hand.size():
+		if i == void_idx:
+			continue
+		if _hand_card_stack_key(hand[i]) == stack_key:
+			return true
+	return false
+
+
 func _rebuild_hand(hand: Variant) -> void:
 	while hand_row.get_child_count() > 0:
 		var c: Node = hand_row.get_child(0)
@@ -4516,16 +4525,23 @@ func _rebuild_hand(hand: Variant) -> void:
 	var woe_you := bool(_last_snap.get("woe_pending_you_respond", false))
 	var void_pick: bool = _void_pick_discard_mode and bool(_last_snap.get("void_pending_you_respond", false))
 	var group_duplicates := true
-	if void_pick:
-		group_duplicates = false
 	var ritual_used := mine and bool(_last_snap.get("your_ritual_played", false))
 	var noble_used := mine and bool(_last_snap.get("your_noble_played", false))
 	var temple_used := mine and bool(_last_snap.get("your_temple_played", false))
 	var bird_used := mine and bool(_last_snap.get("your_bird_played", false))
 	var idx := 0
 	for card in hand_arr:
+		if void_pick and idx == _void_chosen_void_idx:
+			idx += 1
+			continue
 		var stack_key := _hand_card_stack_key(card)
 		if group_duplicates and rendered_keys.has(stack_key):
+			idx += 1
+			continue
+		var stack_count := int(card_counts.get(stack_key, 0))
+		if void_pick and _hand_card_stack_key(hand_arr[_void_chosen_void_idx]) == stack_key:
+			stack_count -= 1
+		if void_pick and stack_count <= 0:
 			idx += 1
 			continue
 		rendered_keys[stack_key] = true
@@ -4540,14 +4556,13 @@ func _rebuild_hand(hand: Variant) -> void:
 		var noble_cost_pick := mine and (_sndrr_picking or _wndrr_picking)
 		var is_disabled := ((not waiting_input_window and not _selecting_end_discard and not _mode_discard_draw) or _sacrifice_selecting or _insight_open or play_type_blocked) and not gotha_pick and not noble_cost_pick
 		if void_pick:
-			is_disabled = (idx == _void_chosen_void_idx)
+			is_disabled = not _void_stack_has_discard_candidate(hand_arr, stack_key, _void_chosen_void_idx)
 		var picked_count := 0
 		if woe_you:
 			picked_count = int(_woe_self_picked.get(stack_key, 0))
 		elif _selecting_end_discard:
 			picked_count = int(_end_discard_picked.get(stack_key, 0))
 		var picked := picked_count > 0
-		var stack_count := int(card_counts.get(stack_key, 0))
 		var widget := _make_hand_card_widget(card, is_disabled, picked, stack_count, picked_count)
 		if not mine and not void_pick and not woe_you:
 			widget.modulate = Color(0.55, 0.55, 0.58)
@@ -4880,11 +4895,19 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		var hand_v: Array = snap.get("your_hand", []) as Array
 		if hand_idx < 0 or hand_idx >= hand_v.size():
 			return
-		if hand_idx == _void_chosen_void_idx:
+		var sk := _hand_card_stack_key(hand_v[hand_idx])
+		var discard_idx := -1
+		for i in hand_v.size():
+			if i == _void_chosen_void_idx:
+				continue
+			if _hand_card_stack_key(hand_v[i]) == sk:
+				discard_idx = i
+				break
+		if discard_idx < 0:
 			status_label.text = "Cannot discard the Void you are playing; pick a different card."
 			return
 		_last_void_timed_out_id = int(snap.get("void_pending_id", -1))
-		_submit_void_react_rpc(_void_chosen_void_idx, hand_idx)
+		_submit_void_react_rpc(_void_chosen_void_idx, discard_idx)
 		return
 	var woe_you := bool(snap.get("woe_pending_you_respond", false))
 	if bool(snap.get("mulligan_active", false)):
