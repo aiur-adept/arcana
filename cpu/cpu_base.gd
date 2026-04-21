@@ -283,7 +283,7 @@ func scion_response(host: Node, snap: Dictionary) -> void:
 		host._try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
 		return
 	if st == "tmrsk_woe":
-		if int(snap.get("opp_hand", 0)) > 0:
+		if can_use_woe_on_opponent(snap):
 			if not host._try_submit_scion_trigger(1, "accept", {"scion_id": sid, "woe_target": 0}, false):
 				host._try_submit_scion_trigger(1, "skip", {"scion_id": sid}, false)
 		else:
@@ -707,6 +707,11 @@ func _score_incantation(host: Node, snap: Dictionary, card: Dictionary, hand_idx
 	var score := float((eff as Dictionary)["score"])
 	var ctx: Dictionary = ((eff as Dictionary)["ctx"] as Dictionary).duplicate(true)
 	score += INC_BASE_BONUS
+	if verb == VERB_WRATH:
+		var opp_killed_val := wrath_expected_killed_value(host, snap, val)
+		var self_sac_val := sac_total_value(snap.get("your_field", []) as Array, sac)
+		if opp_killed_val <= self_sac_val:
+			return null
 	if not sac.is_empty():
 		score -= _sac_penalty(sac, snap)
 	var adj: Variant = adjust_incantation_score(snap, card, sac, score)
@@ -827,7 +832,6 @@ func _score_effect(host: Node, snap: Dictionary, verb: String, val: int) -> Vari
 	var opp_field: Array = snap.get("opp_field", []) as Array
 	var your_birds: Array = snap.get("your_birds", []) as Array
 	var opp_birds: Array = snap.get("opp_birds", []) as Array
-	var opp_hand_size := int(snap.get("opp_hand", 0))
 	var your_crypt: Array = snap.get("your_crypt_cards", []) as Array
 	var v := verb.to_lower()
 	if v == VERB_SEEK:
@@ -848,7 +852,7 @@ func _score_effect(host: Node, snap: Dictionary, verb: String, val: int) -> Vari
 		var target := choose_burn_target(snap, val)
 		return {"score": W_EFFECT_BURN_BASE + float(val) * W_EFFECT_BURN_VALUE, "ctx": {"mill_target": target}}
 	if v == VERB_WOE:
-		if opp_hand_size <= 0:
+		if not can_use_woe_on_opponent(snap):
 			return null
 		var discards := maxi(val - 2, 0)
 		if _has_noble_on_field(snap.get("your_nobles", []) as Array, "zytzr_annihilation"):
@@ -1061,7 +1065,11 @@ func choose_wrath_targets(snap: Dictionary, count: int) -> Array:
 	var opp_field: Array = snap.get("opp_field", []) as Array
 	var sorted_field: Array = opp_field.duplicate()
 	sorted_field.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return int(a.get("value", 0)) > int(b.get("value", 0))
+		var av := int(a.get("value", 0))
+		var bv := int(b.get("value", 0))
+		if av == bv:
+			return int(a.get("mid", -1)) < int(b.get("mid", -1))
+		return av > bv
 	)
 	var out: Array = []
 	for i in mini(count, sorted_field.size()):
@@ -1085,6 +1093,39 @@ func choose_wrath_instigator_sac_from_snap(snap: Dictionary) -> int:
 			best_val = vm
 			best_mid = mid
 	return best_mid
+
+
+func can_use_woe_on_opponent(snap: Dictionary) -> bool:
+	return int(snap.get("opp_hand", 0)) > 0
+
+
+func wrath_expected_killed_value(host: Node, snap: Dictionary, val: int) -> int:
+	var opp_field: Array = snap.get("opp_field", []) as Array
+	if opp_field.is_empty():
+		return 0
+	var killcount: int = host._match.effective_wrath_destroy_count(1, val)
+	killcount = mini(killcount, opp_field.size())
+	var sorted_vals: Array = []
+	for r in opp_field:
+		sorted_vals.append(int((r as Dictionary).get("value", 0)))
+	sorted_vals.sort()
+	sorted_vals.reverse()
+	var killed_val := 0
+	for i in killcount:
+		killed_val += int(sorted_vals[i])
+	return killed_val
+
+
+func sac_total_value(field: Array, sac_mids: Array) -> int:
+	var total := 0
+	for mid_v in sac_mids:
+		var mid := int(mid_v)
+		for r in field:
+			var d := r as Dictionary
+			if int(d.get("mid", -1)) == mid:
+				total += int(d.get("value", 0))
+				break
+	return total
 
 
 func _revive_verb_prio_bonus(verb: String) -> float:
