@@ -346,6 +346,53 @@ func _woe_discard_count_ui(snap: Dictionary, value: int, victim_is_you: bool) ->
 	return mini(base + extra, hand_sz)
 
 
+func _snapshot_ring_reduction_for_key(snap: Dictionary, key: String) -> int:
+	var defs: Dictionary = ArcanaMatchState.RING_DEFS
+	var hosts: Array = []
+	hosts.append_array(snap.get("your_nobles", []) as Array)
+	hosts.append_array(snap.get("your_birds", []) as Array)
+	var total := 0
+	for host in hosts:
+		for r in ((host as Dictionary).get("rings", []) as Array):
+			var rid := str((r as Dictionary).get("ring_id", ""))
+			if not defs.has(rid):
+				continue
+			var def: Dictionary = defs[rid] as Dictionary
+			var reds: Dictionary = def.get("reductions", {}) as Dictionary
+			total += int(reds.get(key, 0))
+	return total
+
+
+func _snapshot_effective_incantation_cost(snap: Dictionary, verb: String, printed_value: int) -> int:
+	var vl := verb.to_lower()
+	if vl == "void":
+		return 0
+	return maxi(0, printed_value - _snapshot_ring_reduction_for_key(snap, vl))
+
+
+func _snapshot_has_active_ritual_lane(snap: Dictionary, n: int) -> bool:
+	if n <= 0:
+		return true
+	var field: Array = snap.get("your_field", []) as Array
+	if ArcanaMatchState.has_lane_for_field(field, n):
+		return true
+	var birds: Array = snap.get("your_birds", []) as Array
+	var bird_lane := 0
+	for b in birds:
+		var bd := b as Dictionary
+		if int(bd.get("nest_temple_mid", -1)) >= 0:
+			continue
+		bird_lane += int(bd.get("power", 0))
+	if bird_lane == n:
+		return true
+	var nobles: Array = snap.get("your_nobles", []) as Array
+	return ArcanaMatchState.lane_grants_from_nobles(nobles).has(n)
+
+
+func _snapshot_has_active_incantation_lane(snap: Dictionary, n: int) -> bool:
+	return _snapshot_has_active_ritual_lane(snap, n)
+
+
 func _yytzr_should_offer_bonus(ctx: Dictionary) -> bool:
 	if _yytzr_waits_second_crypt:
 		return false
@@ -5125,8 +5172,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		if _match != null:
 			eff_cost_n = _match.effective_noble_cost(_my_player_for_action(), base_cost_n)
 		var field_n: Array = snap.get("your_field", [])
-		var your_nobles_n: Array = snap.get("your_nobles", [])
-		var has_lane_n := ArcanaMatchState.has_lane_for_field_and_nobles(field_n, your_nobles_n, eff_cost_n)
+		var has_lane_n := _snapshot_has_active_ritual_lane(snap, eff_cost_n)
 		if eff_cost_n == 0 or has_lane_n:
 			if _is_network_client():
 				submit_play_noble.rpc_id(1, hand_idx, [])
@@ -5167,8 +5213,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			return
 		var n := int(c.get("value", 4))
 		var field: Array = snap.get("your_field", [])
-		var your_nobles_d: Array = snap.get("your_nobles", [])
-		var has_lane := ArcanaMatchState.has_lane_for_field_and_nobles(field, your_nobles_d, n)
+		var has_lane := _snapshot_has_active_ritual_lane(snap, n)
 		if not has_lane and _field_ritual_total_value(field) < n:
 			status_label.text = "Not enough ritual value on your field to pay for Dethrone %d." % n
 			return
@@ -5187,15 +5232,15 @@ func _on_hand_pressed(hand_idx: int) -> void:
 	else:
 		var n: int = int(c.get("value", 0))
 		var verb := str(c.get("verb", "")).to_lower()
+		var n_eff := _snapshot_effective_incantation_cost(snap, verb, n)
 		var field: Array = snap.get("your_field", [])
-		var your_nobles_i: Array = snap.get("your_nobles", [])
 		if verb == "wrath" and _match != null:
 			if field.is_empty():
 				status_label.text = "Wrath (0-cost): sacrifice one of your rituals to cast."
 				return
 			_enter_sacrifice_mode(hand_idx, 0, "Wrath", true)
 			return
-		if ArcanaMatchState.has_lane_for_field_and_nobles(field, your_nobles_i, n):
+		if _snapshot_has_active_incantation_lane(snap, n_eff):
 			if verb == "insight":
 				_begin_insight_ui(hand_idx, _insight_depth_for(_last_snap, n), [])
 				return
@@ -5238,7 +5283,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			else:
 				_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
 			return
-		if _field_ritual_total_value(field) < n:
+		if _field_ritual_total_value(field) < n_eff:
 			status_label.text = "Not enough ritual value on your field to pay for this incantation."
 			return
 		if verb == "tears":
@@ -5247,7 +5292,7 @@ func _on_hand_pressed(hand_idx: int) -> void:
 				status_label.text = "No birds in your crypt to revive."
 				return
 		var sac_lbl := "Wrath" if verb == "wrath" else ("%s %d" % [verb, n])
-		_enter_sacrifice_mode(hand_idx, n, sac_lbl)
+		_enter_sacrifice_mode(hand_idx, n_eff, sac_lbl)
 
 
 func _my_player_for_action() -> int:
@@ -5319,9 +5364,7 @@ func _ring_target_lists_for_self(snap: Dictionary) -> Dictionary:
 
 func _try_begin_ring_play(hand_idx: int, _card: Dictionary) -> void:
 	var snap: Dictionary = _last_snap
-	var your_field: Array = snap.get("your_field", [])
-	var your_nobles: Array = snap.get("your_nobles", [])
-	if not ArcanaMatchState.has_lane_for_field_and_nobles(your_field, your_nobles, 2):
+	if not _snapshot_has_active_ritual_lane(snap, 2):
 		status_label.text = "Need an active 2-lane to play a ring."
 		return
 	var targets := _ring_target_lists_for_self(snap)

@@ -2099,6 +2099,9 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 		var wt := int(ctx.get("woe_target", -1))
 		var opp := 1 - p
 		var need := _woe_discard_need(p, value, wt)
+		# Wndrr's noble activation uses Woe 3 but should only force 1 discard.
+		if nid == "wndrr_incantation":
+			need = mini(1, (_players[wt]["hand"] as Array).size())
 		if wt == opp and need > 0:
 			_woe_pending_instigator = p
 			_woe_pending_victim = wt
