@@ -575,7 +575,7 @@ static func _temple_preview_text(temple_id: String) -> String:
 		"ytria_cycles":
 			return "Activate (once per turn): discard your hand, then draw that many cards."
 		"eyrie_feathers":
-			return "When this Temple enters, search your deck for 2 Bird cards and put them onto your field, then shuffle your deck. You get +1 match power for each Bird nested in this Temple."
+			return "When this Temple enters, search your deck for 2 Bird cards and put them onto your field, then shuffle your deck."
 		_:
 			return "Temple — sacrifice 7 to play from hand."
 

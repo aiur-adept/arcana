@@ -3,7 +3,7 @@
 Mirrors arcana_match_state.gd. Deck `top` is the end of the `deck` list:
 draw = deck.pop(), burn = deck.pop(), insight-to-bottom = deck.insert(0, ...).
 Match power is ritual-power (sum of active ritual values) plus one per bird in
-play, plus one extra per bird nested in Eyrie. Win at >=20 or having higher
+play. Win at >=20 or having higher
 match power than the opponent on an empty-deck draw attempt.
 """
 
@@ -262,8 +262,7 @@ class MatchState:
 
     def match_power(self, pid: int) -> int:
         p = self.players[pid]
-        eyrie_nested_bonus = sum(len(t.nested) for t in p.temple_field if t.temple_id == "eyrie_feathers")
-        return self.ritual_power(pid) + len(p.bird_field) + eyrie_nested_bonus
+        return self.ritual_power(pid) + len(p.bird_field)
 
     def match_power_loss_remove_ritual(self, pid: int, mid: int) -> int:
         p = self.players[pid]

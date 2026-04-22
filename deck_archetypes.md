@@ -177,7 +177,7 @@ A pure temple-toolbox deck: find a big ritual board, then slam every temple. Che
 **Non-rituals**: 4x Sparrow (cost 2 / power 1), 4x Raven (cost 4 / power 3), 1x Hawk (4/3), 1x Gull (3/2), 4x Seek 2, 3x Insight 2, 1x Sndrr, 1x Phaedra, 1x Eyrie (Temple of Feathers), 1x Sinofia (Ring of Feathers)
 
 ### Game plan
-A bird-tribal strategy leveraging both bird match-power (+1 per wild bird, +1 extra per nested) and bird combat. Sparrows are cheap board presence; Ravens are the power-3 beaters that dominate fights. Eyrie searches for a free bird on entry. Phaedra provides a nesting site (cost 7, so 7 birds can nest, each adding +1 ritual power). Sinofia reduces all birds and Tears by 1, making Sparrow a 1-lane bird and Raven a 3-lane bird.
+A bird-tribal strategy leveraging both bird match-power (+1 per bird on your bird field) and bird combat. Sparrows are cheap board presence; Ravens are the power-3 beaters that dominate fights. Eyrie searches for a free bird on entry. Phaedra provides a nesting site (cost 7, so 7 birds can nest, each adding +1 ritual power). Sinofia reduces all birds and Tears by 1, making Sparrow a 1-lane bird and Raven a 3-lane bird.
 
 ### Key synergies
 - **Eyrie + Bird search** — drop Eyrie, immediately search a bird for free. With 10 birds in the deck this almost never fizzles.
@@ -205,7 +205,7 @@ A defensive temple/bird combo: use Void reactively to counter opposing game-endi
 - **Ytria + Void** — cast Ytria to refresh the hand, dumping spent Voids and drawing potentially fresh Voids.
 - **Eyrie** pulls a bird straight onto the field for free, boosting match power on the same turn it enters. Eyrie and Phaedra also act as one-shot Deluge shelters — Sparrows (power 1) and Gulls (power 2) parked in a nest survive the destruction step, but Deluge's second clause un-nests them, so the shelter doesn't carry across multiple Deluges.
 - **Gotha** discards a bird or ritual to draw equal-to-cost; with 4-cost Gulls (power 2) and cost-4 rituals, this draws 2-4 cards per activation.
-- **Void + Deluge** — the stronger line against Deluge is to Void it outright rather than rely on nesting. A Voided Deluge never unnests anyone, so the Phaedra/Eyrie ritual-power bonus from nested birds stays intact.
+- **Void + Deluge** — the stronger line against Deluge is to Void it outright rather than rely on nesting. A Voided Deluge never unnests anyone, so one-shot Deluge shelter from Phaedra or Eyrie nests stays intact.
 
 ### Weaknesses
 - No nobles at all. No Wrath, no Woe, no Dethrone, no Burn — zero proactive disruption.

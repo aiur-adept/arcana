@@ -92,7 +92,7 @@ All of Set 1 per `design_document.md` is implemented:
 - `dethrone 4`.
 - All 15 nobles (Krss/Trss/Yrss/Xytzr/Yytzr/Zytzr/Aeoiu + 5 Incantation nobles +
   3 Scions).
-- All 5 temples, including Eyrie ETB bird search + nested-bird match-power
+- All 5 temples, including Eyrie ETB bird search
   bonus, Gotha draw-skip static,
   Delpha sac → burn → replay ritual, Ytria hand-cycle.
 - Birds with cost/power catalog, bird-lane activation from wild-bird power sum,

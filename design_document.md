@@ -169,9 +169,8 @@ If empty-deck draw is attempted:
 - **Revive 2**: Cast 1 eligible incantation from your crypt.
   - Revive itself cannot be revived.
   - Cards cast this way go to abyss (not crypt).
-- **Renew 3**: Play 1 Ritual from your crypt (pay the incantation's cost normally — active lane or rituals totaling its value).
+- **Renew 3**: Play 1 Ritual from your crypt.
   - This is in addition to your regular Ritual play for turn.
-  - A Renew cast via Revive uses the same crypt ritual choice (declared in the nested context).
 - **Dethrone 4**: Destroy one opposing noble.
 - **Deluge X**: Destroy all wild Birds of power X-1 or less, then all nested birds become wild again. [comes in Deluge 2, 3 and 4]
 - **Tears 3**: Return a Bird from your crypt to the field. 
@@ -270,7 +269,6 @@ Temple activations are once per turn per temple.
 
 **Eyrie, Temple of Feathers**:
   - When this Temple enters, search your deck for two Bird cards and put them onto your field, then shuffle your deck.
-  - Static: You get +1 match power for each Bird nested in this Temple.
 
 ### 12.2 Cost 7 temples
 

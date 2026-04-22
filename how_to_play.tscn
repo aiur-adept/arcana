@@ -316,7 +316,7 @@ bbcode_enabled = false
 fit_content = true
 scroll_active = false
 text = "Use Nest on your turn to place one of your birds under one of your temples. A temple can hold up to as many birds as its cost (for example, 7 birds under a cost-7 temple).
-Each bird still counts for match power +1 additional each, while nested. Nested birds cannot join bird fights. On the field, click the small stack tab beside a temple to see which birds are nested there.
+Nested birds remain on your bird field and each still contributes +1 to match power. Nested birds cannot join bird fights. On the field, click the small stack tab beside a temple to see which birds are nested there.
 
 Example (cards below): Wren starts on your field, then nests under Delpha — the stack tab shows how many birds are inside."
 
