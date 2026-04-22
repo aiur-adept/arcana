@@ -35,10 +35,22 @@ def _log(msg: str) -> None:
     print(msg, flush=True)
 
 
-def _mutate(rng: random.Random, w: dict[str, float], sigma: float) -> dict[str, float]:
-    out = {}
-    for k, v in w.items():
-        out[k] = v + rng.gauss(0.0, sigma)
+def _select_trainable_keys(train_discard_weights_only: bool) -> list[str]:
+    keys = list(greedy_ai_float_weight_keys())
+    if not train_discard_weights_only:
+        return keys
+    return [k for k in keys if k == "W_DISCARD_DRAW" or k.startswith("DD_")]
+
+
+def _mutate(
+    rng: random.Random,
+    w: dict[str, float],
+    sigma: float,
+    trainable_keys: list[str],
+) -> dict[str, float]:
+    out = dict(w)
+    for k in trainable_keys:
+        out[k] = out.get(k, 0.0) + rng.gauss(0.0, sigma)
     return clamp_genome(out)
 
 
@@ -51,17 +63,15 @@ def _init_individual(
     init_uniform_fraction: float,
     init_uniform_delta: float,
 ) -> dict[str, float]:
+    g = dict(baseline)
     if rng.random() < init_uniform_fraction:
-        g = {k: baseline[k] for k in keys}
         for k in keys:
             lo = baseline[k] - init_uniform_delta
             hi = baseline[k] + init_uniform_delta
             g[k] = rng.uniform(lo, hi)
         return clamp_genome(g)
-    g = _mutate(rng, baseline, sigma_init * 2.0 * init_spread)
     for k in keys:
-        if k not in g:
-            g[k] = baseline[k]
+        g[k] = baseline[k] + rng.gauss(0.0, sigma_init * 2.0 * init_spread)
     return clamp_genome(g)
 
 
@@ -94,13 +104,14 @@ def run_ea(
     p1_use_saved_weights: bool,
     p1_snapshot_path: Path | None,
     initial_weights: dict[str, float] | None = None,
+    trainable_keys: list[str] | None = None,
 ) -> dict[str, float]:
     rng = random.Random(seed)
     baseline = baseline_weights_for_slug(slug)
     if initial_weights:
         for k, v in initial_weights.items():
             baseline[k] = float(v)
-    keys = list(greedy_ai_float_weight_keys())
+    keys = trainable_keys if trainable_keys is not None else list(greedy_ai_float_weight_keys())
 
     pop: list[dict[str, float]] = []
     for _ in range(population):
@@ -121,7 +132,7 @@ def run_ea(
         snap0 = dict(baseline)
         disk_w = weights_for_slug_from_file(weights_file_path, slug)
         if disk_w:
-            for k in keys:
+            for k in greedy_ai_float_weight_keys():
                 if k in disk_w:
                     snap0[k] = disk_w[k]
         write_ea_opponent_snapshot(p1_snapshot_path, weights_file_path, slug, snap0)
@@ -201,16 +212,13 @@ def run_ea(
             while len(next_gen) < population:
                 p1 = _tournament_pick(rng, pop, fitness, tournament_k)
                 p2 = _tournament_pick(rng, pop, fitness, tournament_k)
-                child: dict[str, float] = {}
+                child: dict[str, float] = baseline.copy()
                 for k in keys:
                     if rng.random() < 0.5:
-                        child[k] = p1[k]
+                        child[k] = p1.get(k, baseline[k])
                     else:
-                        child[k] = p2[k]
-                child = _mutate(rng, child, sigma)
-                for k in keys:
-                    if k not in child:
-                        child[k] = baseline[k]
+                        child[k] = p2.get(k, baseline[k])
+                child = _mutate(rng, child, sigma, keys)
                 next_gen.append(clamp_genome(child))
             pop = next_gen
 
@@ -281,6 +289,16 @@ def main() -> None:
         default="",
         help="optional weights JSON path used to initialize the training baseline for --deck",
     )
+    ap.add_argument(
+        "--start-from-trained",
+        action="store_true",
+        help="initialize baseline from existing weights_by_slug[--deck] in --out (or default output file)",
+    )
+    ap.add_argument(
+        "--train-discard-weights-only",
+        action="store_true",
+        help="only train W_DISCARD_DRAW and DD_* contextual discard weights",
+    )
     args = ap.parse_args()
 
     slugs = included_deck_slugs()
@@ -304,6 +322,9 @@ def main() -> None:
     )
     _log(f"seed={args.seed}  workers={workers}")
     _log(f"output: {out_path.resolve()}")
+    trainable_keys = _select_trainable_keys(args.train_discard_weights_only)
+    _log(f"train_discard_weights_only={bool(args.train_discard_weights_only)}")
+    _log(f"trainable_genes={len(trainable_keys)}")
     udelta = args.init_uniform_delta if args.init_uniform_delta > 0 else (args.sigma * 3.0)
     _log(
         f"init: spread={args.init_spread}  uniform_fraction={args.init_uniform_fraction}  "
@@ -319,6 +340,16 @@ def main() -> None:
             _log(f"init_weights: using saved genome for {args.deck!r} from {iw_path}")
         else:
             _log(f"init_weights: no saved genome for {args.deck!r} in {iw_path}; using pilot baseline")
+    elif args.start_from_trained:
+        iw = weights_for_slug_from_file(out_path, args.deck)
+        if iw:
+            init_weights = clamp_genome(iw)
+            _log(f"start_from_trained: using saved genome for {args.deck!r} from {out_path.resolve()}")
+        else:
+            _log(
+                f"start_from_trained: no saved genome for {args.deck!r} in {out_path.resolve()}; "
+                "using pilot baseline"
+            )
     p1_snap: Path | None = None
     if args.p1_trained_weights:
         p1_snap = Path(args.p1_snapshot).resolve() if args.p1_snapshot else default_ea_p1_snapshot_path(args.deck)
@@ -344,6 +375,7 @@ def main() -> None:
         p1_use_saved_weights=args.p1_trained_weights,
         p1_snapshot_path=p1_snap,
         initial_weights=init_weights,
+        trainable_keys=trainable_keys,
     )
 
     merge_slug_into_weights_file(out_path, args.deck, best, genome_version=1)
