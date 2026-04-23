@@ -25,11 +25,14 @@ def evaluate_genome(
     seed: int,
     p1_snapshot_path: str = "",
     p1_use_saved_weights: bool = False,
+    fixed_opponent_slug: str | None = None,
 ) -> dict[str, Any]:
     decks = load_all_included_decks()
     slugs = included_deck_slugs()
     if slug not in decks:
         raise ValueError(f"unknown deck slug {slug!r}")
+    if fixed_opponent_slug and fixed_opponent_slug not in decks:
+        raise ValueError(f"unknown fixed opponent slug {fixed_opponent_slug!r}")
     p0_deck = decks[slug]
     base_cls = get_pilot(slug)
     p0_cls = make_weighted_pilot(base_cls, weights)
@@ -38,7 +41,10 @@ def evaluate_genome(
     pilot_cache: dict[str, type] = {}
     snap_path = Path(p1_snapshot_path) if p1_snapshot_path else None
     for _ in range(n_games):
-        p1_slug = slugs[rng.randrange(len(slugs))]
+        if fixed_opponent_slug:
+            p1_slug = fixed_opponent_slug
+        else:
+            p1_slug = slugs[rng.randrange(len(slugs))]
         p1_deck = decks[p1_slug]
         p1_cls = pilot_cache.get(p1_slug)
         if p1_cls is None:
@@ -69,6 +75,7 @@ def eval_genome_worker(args: tuple[Any, ...]) -> tuple[int, float]:
     idx, slug, weights_tuple, n_games, seed = args[0], args[1], args[2], args[3], args[4]
     p1_snap = str(args[5]) if len(args) > 5 else ""
     p1_saved = bool(args[6]) if len(args) > 6 else False
+    fix_opp = str(args[7]) if len(args) > 7 and args[7] else None
     weights = dict(weights_tuple)
-    stats = evaluate_genome(slug, weights, n_games, seed, p1_snap, p1_saved)
+    stats = evaluate_genome(slug, weights, n_games, seed, p1_snap, p1_saved, fix_opp)
     return idx, float(stats["fitness"])

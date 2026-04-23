@@ -4,6 +4,7 @@ Writes JSON consumed by Godot: data/pilot_weights.json
 
 Usage:
     python -m sim.train_ea --deck bird_flock --generations 30 --population 24 --games 400 [--seed 0]
+    python -m sim.train_ea --deck bird_flock --opponent void_whisper  # P1 is always that deck
 """
 
 from __future__ import annotations
@@ -121,6 +122,7 @@ def run_ea(
     p1_snapshot_path: Path | None,
     initial_weights: dict[str, float] | None = None,
     trainable_keys: list[str] | None = None,
+    fixed_opponent_slug: str | None = None,
 ) -> dict[str, float]:
     rng = random.Random(seed)
     baseline = baseline_weights_for_slug(slug)
@@ -160,6 +162,11 @@ def run_ea(
         p1_snap_str = ""
         _log("P1 opponents: baseline pilot classes (no JSON weights).")
 
+    if fixed_opponent_slug:
+        _log(f"Fixed P1 deck: {fixed_opponent_slug!r} (all eval games).")
+    else:
+        _log("P1 deck: random among included_decks each game.")
+
     _log(
         f"Initial population ready: {population} individuals, {len(keys)} genes each "
         f"(pilot {slug!r}; init_spread={init_spread}, uniform_frac={init_uniform_fraction})."
@@ -181,7 +188,16 @@ def run_ea(
                 eval_seed = seed + gen * 1_000_003 + i * 17 + 1
                 wt = tuple(sorted(pop[i].items()))
                 payloads.append(
-                    (i, slug, wt, games_per_eval, eval_seed, p1_snap_str, p1_use_saved_weights)
+                    (
+                        i,
+                        slug,
+                        wt,
+                        games_per_eval,
+                        eval_seed,
+                        p1_snap_str,
+                        p1_use_saved_weights,
+                        fixed_opponent_slug or "",
+                    )
                 )
 
             _log("")
@@ -323,11 +339,20 @@ def main() -> None:
             "and W_CAST_WITH_SAC_PAYMENT_MP_LOSS"
         ),
     )
+    ap.add_argument(
+        "--opponent",
+        type=str,
+        default="",
+        metavar="SLUG",
+        help="if set, P1 always uses this included deck (default: random P1 each game)",
+    )
     args = ap.parse_args()
 
     slugs = included_deck_slugs()
     if args.deck not in slugs:
         raise SystemExit(f"--deck must be one of {slugs}; got {args.deck!r}")
+    if args.opponent and args.opponent not in slugs:
+        raise SystemExit(f"--opponent must be one of {slugs}; got {args.opponent!r}")
 
     workers = args.workers if args.workers > 0 else (os.cpu_count() or 1)
     workers = max(1, min(workers, args.population))
@@ -338,7 +363,8 @@ def main() -> None:
     _log("=== EA pilot training ===")
     _log(
         f"deck={args.deck!r}  population={args.population}  generations={args.generations}  "
-        f"games_per_genome={args.games}"
+        f"games_per_genome={args.games}  "
+        f"opponent={(args.opponent if args.opponent else 'random')!r}"
     )
     _log(
         f"sigma={args.sigma}  sigma_floor={args.sigma_floor}  sigma_decay={args.sigma_decay}  "
@@ -404,6 +430,7 @@ def main() -> None:
         p1_snapshot_path=p1_snap,
         initial_weights=init_weights,
         trainable_keys=trainable_keys,
+        fixed_opponent_slug=args.opponent or None,
     )
 
     merge_slug_into_weights_file(out_path, args.deck, best, genome_version=1)

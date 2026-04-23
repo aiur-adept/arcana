@@ -436,6 +436,7 @@ func _ready() -> void:
 	set_multiplayer_authority(1)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_label.clip_text = true
+	status_label.add_theme_font_size_override("font_size", int(round(float(status_label.get_theme_font_size("font_size", "Label")) * 1.618)))
 	_build_insight_overlay()
 	_build_burn_woe_revive_overlays()
 	_build_discard_prompt_overlay()
@@ -1973,14 +1974,12 @@ func _apply_snap(snap: Dictionary) -> void:
 		_show_scion_prompt_ui(snap)
 	else:
 		_last_scion_prompt_id = -1
-	if bool(snap.get("goldfish", false)):
-		bird_fight_button.visible = false
-	else:
-		bird_fight_button.visible = true
 	end_turn_button.disabled = not mine or ui_block
 	var your_fightable := _has_fightable_birds(snap.get("your_birds", []) as Array)
 	var opp_fightable := _has_fightable_birds(snap.get("opp_birds", []) as Array)
-	bird_fight_button.disabled = not mine or ui_block or bool(snap.get("your_bird_fight_used", false)) or not your_fightable or not opp_fightable
+	var bird_fight_unlocked := (not bool(snap.get("goldfish", false))) and mine and your_fightable and opp_fightable and not bool(snap.get("your_bird_fight_used", false))
+	bird_fight_button.visible = bird_fight_unlocked
+	bird_fight_button.disabled = (not bird_fight_unlocked) or ui_block
 	discard_draw_button.disabled = not mine or bool(snap.get("discard_draw_used", true)) or ui_block
 	_rebuild_hand(snap.get("your_hand", []))
 	if bool(snap.get("woe_pending_you_respond", false)):
@@ -2215,6 +2214,7 @@ func _end_game_ui(snap: Dictionary) -> void:
 			msg = "Empty deck — draw."
 	status_label.text = msg
 	end_turn_button.disabled = true
+	bird_fight_button.visible = false
 	bird_fight_button.disabled = true
 	discard_draw_button.disabled = true
 	_clear_sacrifice_mode()

@@ -6,48 +6,7 @@ Unless otherwise noted, the win condition is reaching **20 match power** before 
 
 ---
 
-## 1. Incantations
-
-**Ritual curve**: 7/6/3/3 (1s/2s/3s/4s)
-**Non-rituals**: 4x Seek 2, 4x Insight 2, 4x Burn 2, 4x Woe 3, 2x Revive 2, 2x Renew 3, 1x Wrath
-**Nobles / Temples / Rings**: none
-
-### Game plan
-A pure spellslinger that commits almost nothing to the field beyond rituals. The curve is heavily weighted toward the 2-lane so most non-rituals are castable off a single active 2R. The deck aims to convert Seek/Insight into reliable draws, erode the opponent's hand with Woe 3, and mill with Burn 2 while using Revive 2 to replay any of those incantations from crypt for a second pass; Renew 3 wants a 3-lane, Wrath wants a 4-lane.
-
-### Key synergies
-- Revive 2 effectively doubles the Woe/Burn/Seek/Insight payload once the crypt fills up (Renew 3 pulls rituals from crypt instead).
-- The single Wrath is the only disruption against opposing ritual boards; save it for a lane the opponent actually needs (usually their 3-lane for Woe or their 4-lane for Wrath mirror).
-- A 1R + 2R open runs most of the deck; the 2-lane gates Woe 3 and Revive 2; the 3-lane gates Renew 3 and Wrath.
-
-### Weaknesses
-- No nobles, temples, or rings means no ceiling beyond raw ritual power. Reaching 20 match power depends entirely on resolving rituals.
-- No Dethrone, so opposing Power-Nobles or Yytzr/Zytzr are unanswerable.
-- Weak to Wrath from opponents — losing the 2R lane turns the deck off entirely.
-
----
-
-## 2. Noble Test
-
-**Ritual curve**: 6/5/5/3
-**Non-rituals**: 4x Seek 1, 4x Seek 2, 4x Dethrone 4, 1x Serraf (Ring of Nobles), and **the full noble cast** — Krss, Trss, Yrss (Power 2/3/4 lane-granters), plus all five Incantation-nobles (Sndrr, Indrr, Bndrr, Wndrr, Rndrr).
-
-### Game plan
-A tutor/toolbox deck designed to exercise every noble in Set 1. Play a Power-noble early to unlock a lane for free, then chain Incantation-nobles whose activated abilities provide repeatable Seek/Insight/Burn/Woe/Revive effects each turn. Serraf reduces every noble to effective cost N-1, making a turn-1 Krss or turn-2 Trss realistic.
-
-### Key synergies
-- **Serraf + any noble** — essentially one-lane-cheaper deployment across the whole 8-noble suite.
-- **Power-noble stacking** — Krss (grants 1), Trss (grants 2), Yrss (grants 3) stack their static lane grants, so the deck can project ritual power from nobles alone.
-- **Dethrone 4 x4** is unusually heavy, reflecting that the mirror plan against opposing nobles is also the plan here: clear their board before they stack static value.
-
-### Weaknesses
-- Extremely noble-dependent. Wrath / Dethrone 4 exchanges against a disruption deck gut the strategy quickly.
-- Only 9 incantations total (8 Seek + 4 Dethrone); card velocity is driven almost entirely by noble activations, which require those nobles to survive a turn.
-- Cannot revive nobles, so each removed noble is permanently down.
-
----
-
-## 3. Ritual Reanimator
+## 1. Ritual Reanimator
 
 **Ritual curve**: 5/4/3/7
 **Non-rituals**: 1x Cymbil (Ring of Occultation), 1x Ytria (Temple of Cycles), 1x Aeoiu (Scion of Rituals), 1x Yytzr (Revenant of Occultation), 1x Smrsk (Scion of Occultation), 4x Renew 3, 4x Seek 2, 3x Deluge 3, 1x Insight 2, 4x Sparrow
@@ -68,27 +27,7 @@ Ritual recursion and velocity: **Renew 3** plays an extra ritual from crypt each
 
 ---
 
-## 4. Topheavy Annihilator
-
-**Ritual curve**: 3/4/4/8 (almost maxed on 4-rituals)
-**Non-rituals**: 4x Wrath, 4x Burn 4, 4x Insight 4, 4x Dethrone 4, 4x Seek 2, 1x Zytzr (Noble of Annihilation)
-
-### Game plan
-Aggressive high-lane removal/burst. With eight 4-rituals the deck almost always has lane 4 available, so every piece of removal and every Burn 4 can be fired off-lane without sacrifice. Seek 2 is the only cheap draw. Zytzr is the capstone: it grants +1 ritual destroyed on every Wrath (so Wrath hits 2) and +1 discard on Woe — but this deck carries no Woe, leveraging only the Wrath boost.
-
-### Key synergies
-- **Zytzr + Wrath** — Wrath destroys **2** opposing rituals instead of 1 while Zytzr is on the field. Against a ritual-heavy opponent this is a runaway swing.
-- **4-lane saturation** — lanes 1-3 are deliberately thin; opponents relying on Wrath still need to sacrifice to pay, while this deck plays Wrath/Burn/Dethrone on-lane for free.
-- **Burn 4 + Insight 4** as a late alternate-win package: 11 mill per Burn 4 cast (or 14 with Yytzr, not run here) plus top-deck sculpting.
-
-### Weaknesses
-- Extremely fragile lane ladder. One Wrath on a 1-, 2-, or 3-ritual can deactivate lane 4 entirely (a 4-ritual is only active if 1/2/3 are each active).
-- Only one noble; if Zytzr is Dethroned, Wrath reverts to single-target.
-- No revive, no temples, no rings — no recovery tools if the early game is disrupted.
-
----
-
-## 5. Occultation
+## 2. Occultation
 
 **Ritual curve**: 5/5/5/4
 **Non-rituals**: 2x Burn 1, 2x Burn 2, 2x Burn 3, 2x Burn 4, 4x Revive 2, 4x Renew 3, 2x Dethrone 4, 1x Yytzr (Noble of Occultation), 1x Aeoiu (Scion of Rituals), 1x Cymbil (Ring of Occultation)
@@ -109,7 +48,7 @@ A mill-win deck built around Yytzr's static ability: "Your Burn mills +3". The c
 
 ---
 
-## 6. Annihilation
+## 3. Annihilation
 
 **Ritual curve**: 6/4/4/5
 **Non-rituals**: 4x Wrath, 4x Woe 3, 4x Woe 4, 4x Dethrone 4, 1x Seek 2, 1x Zytzr, 1x Wndrr, 1x Tmrsk (Scion of Annihilation), 1x Celadon (Ring of Annihilation)
@@ -130,7 +69,7 @@ A dedicated hand-and-board-disruption deck. Every non-ritual (except one Seek) a
 
 ---
 
-## 7. Emanation
+## 4. Emanation
 
 **Ritual curve**: 6/5/4/4
 **Non-rituals**: 3x Seek 1, 4x Seek 2, 3x Insight 1, 3x Insight 2, 4x Insight 3, 1x Dethrone 4, 1x Rmrsk (Scion of Emanation), 1x Sndrr (Noble of Incantation), 1x Sybiline (Ring of Emanation)
@@ -150,28 +89,7 @@ A card-velocity / draw-engine deck. Seek and Insight together are 17 cards of th
 
 ---
 
-## 8. Temples
-
-**Ritual curve**: 6/5/4/4
-**Non-rituals**: 5x Seek 1, 4x Seek 2, 4x Insight 1, 4x Insight 2, plus **all four Set 1 temples** — Phaedra (7), Delpha (7), Gotha (7), and Ytria (9).
-
-### Game plan
-A pure temple-toolbox deck: find a big ritual board, then slam every temple. Cheap Seek/Insight fills the hand and finds sacrifice fodder; Ytria at cost 9 is the sacrificial capstone that dumps the hand to redraw the same number. Delpha recurs rituals from crypt to keep lanes active after temple sacrifices drain the field. Gotha's discard-for-draw activation converts dead-in-hand rituals and spells into fresh cards.
-
-### Key synergies
-- **Ytria + a full hand** — discard 7, draw 7. Best cast after Seek/Insight has filled the hand.
-- **Delpha + high-value ritual** — sacrifice a 4R to abyss, Burn self 4 (mill fuel), then pull a different ritual from crypt. Net: lose a 4R, gain a ritual, 8 cards milled for a future Revive deck (though this deck has no Revive — the mill is incidental).
-- **Gotha** can discard an unused 4R to draw 4 — devastating value.
-- **Phaedra's** Insight-then-draw smooths out every draw step.
-
-### Weaknesses
-- Temples each cost 7 or 9 in ritual sacrifices — casting them deactivates the player's own lanes. Needs active Delpha (or redundancy) to refill.
-- No removal, no nobles, no Revive. Opposing nobles go entirely unanswered.
-- Expensive setup: a temple-heavy opening hand is nearly uncastable until turn 4+.
-
----
-
-## 9. Bird Test
+## 5. Bird Flock
 
 **Ritual curve**: 7/5/4/3
 **Non-rituals**: 4x Sparrow (cost 2 / power 1), 4x Raven (cost 4 / power 3), 1x Hawk (4/3), 1x Gull (3/2), 4x Seek 2, 3x Insight 2, 1x Sndrr, 1x Phaedra, 1x Eyrie (Temple of Feathers), 1x Sinofia (Ring of Feathers)
@@ -192,7 +110,7 @@ A bird-tribal strategy leveraging both bird match-power (+1 per bird on your bir
 
 ---
 
-## 10. Void Temples
+## 6. Void Temples
 
 **Ritual curve**: 5/5/3/6
 **Non-rituals**: 4x Void, 4x Seek 2, 4x Sparrow, 4x Gull (3/2), and **every Set 1 temple** (Phaedra, Delpha, Gotha, Eyrie, Ytria).
@@ -212,25 +130,6 @@ A defensive temple/bird combo: use Void reactively to counter opposing game-endi
 - Temples are singletons and cost 6-9; if opponent Woes them out of hand, they're gone.
 - The deck leans on drawing Void at the right time; without it on a critical opposing play the deck lacks answers.
 
----
-
-## 11. Revive
-
-**Ritual curve**: 7/5/4/3
-**Non-rituals**: 4x Seek 1, 4x Seek 2, 4x Insight 1, 4x Insight 2, 4x Revive 2, 1x Rndrr (Noble of Incantation)
-
-### Game plan
-An engine deck focused on recycling incantations from crypt. Most non-rituals are cost 1 or 2, so the deck opens on a 1R + 2R ladder, but Revive 2 needs the 2-lane online. Revive 2 is cast from hand to re-cast an eligible incantation from crypt (into abyss); Rndrr provides a once-per-turn free Revive 2, effectively doubling up on the most powerful Seek/Insight resolved so far.
-
-### Key synergies
-- **Rndrr + crypt full of Seek 2** — free extra Seek 2 every turn after a single Seek has been resolved.
-- **Revive 2 + Insight 2** — cast an Insight 2 from crypt for a second helping of top-deck sculpting with the same ritual footprint.
-- **Heavy 1-ritual base** (7x) keeps the ladder warm; the 2-lane must stay active for Revive 2 from hand, while Rndrr’s free Revive 2 does not consume a lane.
-
-### Weaknesses
-- No removal, no temples, no Wrath, no Dethrone — the deck has no board-impacting cards at all. Opposing nobles and rituals go unanswered.
-- Revived cards go to abyss, so they cannot be looped a third time. The engine is finite.
-- Flat ritual ceiling: with only 3x 4R and 4x 3R, pure ritual power tops out around 15-17; reaching 20 match power demands near-perfect draws.
 
 ---
 
@@ -238,14 +137,9 @@ An engine deck focused on recycling incantations from crypt. Most non-rituals ar
 
 | Deck | Axis | Primary Win Path | Core Engine |
 |---|---|---|---|
-| Incantations | Midrange spells | Ritual power + disruption | Revive 2 loops |
-| Noble Test | Noble toolbox | Noble static/activated value | Serraf + Power-nobles |
-| Ritual Reanimator | Mill/reanimate | Deck-out + lane grinding | Aeoiu + Burn |
-| Topheavy Annihilator | Aggro removal | Ritual power + board wipes | 4-lane saturation + Zytzr |
+| Ritual Reanimator | Ritual recursion / midrange | Match power (20) | Aeoiu + Renew + Ytria hand reload |
 | Occultation | Mill | Opponent decks out | Yytzr + Burn + Cymbil |
-| Annihilation | Prison/disruption | Opponent cannot function | Zytzr + Tmrsk + Wrath/Woe |
-| Emanation | Combo/draw | Ritual power via velocity | Rmrsk + Insight + Sybiline |
-| Temples | Big-ritual toolbox | Overwhelming temple value | Ytria refill + Delpha recursion |
-| Bird Test | Bird tribal | Match-power via birds + nesting | Eyrie + Phaedra nesting |
+| Annihilation | Prison / disruption | Opponent cannot function | Zytzr + Tmrsk + Wrath/Woe |
+| Emanation | Combo / draw | Match power via velocity | Rmrsk + Insight + Sybiline |
+| Bird Flock | Bird tribal | Match power via birds + combat | Eyrie + Phaedra + Sinofia |
 | Void Temples | Reactive control | Outlast, then temple finish | Void + Ytria reset |
-| Revive | Engine combo | Ritual power via incantation loops | Rndrr + Revive 2 |
