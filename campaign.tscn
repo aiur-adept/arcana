@@ -1,0 +1,197 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://campaign.gd" id="1_campaign"]
+[ext_resource type="Script" path="res://main_menu_card_field.gd" id="2_card_field"]
+
+[node name="Campaign" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_campaign")
+
+[node name="CardField" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("2_card_field")
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.72)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 30
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+horizontal_alignment = 1
+text = "Campaign"
+
+[node name="ProgressLabel" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+text = "Progress: 0/6"
+
+[node name="DeckRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="CampaignDeckLabel" type="Label" parent="Margin/VBox/DeckRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Deck: -"
+
+[node name="CampaignDeckButton" type="Button" parent="Margin/VBox/DeckRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Select deck"
+
+[node name="SpacerTop" type="Control" parent="Margin/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="TrackWrap" type="Control" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NodeTrack" type="Control" parent="Margin/VBox/TrackWrap"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="NodeHBox" type="HBoxContainer" parent="Margin/VBox/TrackWrap"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Hint" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "Click the highlighted deck preview. You must win a best-of-3 while playing that challenger deck."
+
+[node name="ButtonRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="BackButton" type="Button" parent="Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back"
+
+[node name="ChallengeDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Campaign challenge"
+ok_button_text = "Challenge"
+dialog_text = "challenge deck?"
+
+[node name="DeckPickerOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 250
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Backdrop" type="ColorRect" parent="DeckPickerOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.92)
+
+[node name="CenterContainer" type="CenterContainer" parent="DeckPickerOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="DeckPickerOverlay/CenterContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(460, 320)
+
+[node name="Margin" type="MarginContainer" parent="DeckPickerOverlay/CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="DeckPickerOverlay/CenterContainer/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Select your deck"
+
+[node name="DeckPickerList" type="ItemList" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DeckPickerStatus" type="Label" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Buttons" type="HBoxContainer" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="DeckPickerCancelButton" type="Button" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Cancel"
+
+[node name="DeckPickerConfirmButton" type="Button" parent="DeckPickerOverlay/CenterContainer/Panel/Margin/VBox/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Play"

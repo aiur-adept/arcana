@@ -23,6 +23,18 @@ const SELECTED_DECK_PATH_FILE := "user://selected_deck_path.txt"
 const SELECTED_OPPONENT_DECK_PATH_FILE := "user://selected_opponent_deck_path.txt"
 const PLAY_MODE_FILE := "user://arcana_play_mode.txt"
 const LAN_JOIN_FILE := "user://arcana_lan_join.txt"
+const CAMPAIGN_PROGRESS_FILE := "user://arcana_campaign_progress.json"
+const CAMPAIGN_CHALLENGER_FILE := "user://arcana_campaign_challenger.txt"
+const CAMPAIGN_SERIES_FILE := "user://arcana_campaign_series.json"
+const CAMPAIGN_PLAYER_DECK_FILE := "user://arcana_campaign_player_deck.txt"
+const CAMPAIGN_ORDER: Array[String] = [
+	"emanation",
+	"occultation",
+	"annihilation",
+	"ritual_reanimator",
+	"void_temples",
+	"bird_flock"
+]
 const CPU_ACTION_SEC := 1.618
 const CARD_SCALE := 1.618
 const HAND_CARD_W := 72.0 * CARD_SCALE
@@ -245,6 +257,7 @@ var _game_end_title: Label
 var _game_end_body: Label
 var _game_end_play_again: Button
 var _game_end_main_menu: Button
+var _campaign_result_recorded: bool = false
 var _end_discard_modal: PanelContainer
 var _end_discard_label: Label
 var _end_discard_confirm_button: Button
@@ -609,6 +622,7 @@ func _on_peer_connected(id: int) -> void:
 
 
 func _start_match() -> void:
+	_campaign_result_recorded = false
 	if _is_network_host_session():
 		_start_network_host_match()
 		return
@@ -2234,6 +2248,7 @@ func _log_scroll_to_bottom() -> void:
 func _end_game_ui(snap: Dictionary) -> void:
 	var w: int = int(snap.get("winner", -1))
 	var you: int = int(snap.get("you", 0))
+	_try_record_campaign_progress(w, you)
 	var msg := "Draw."
 	var title := "Draw"
 	if bool(snap.get("goldfish", false)):
@@ -2951,6 +2966,149 @@ func _on_game_end_play_again_pressed() -> void:
 
 func _on_game_end_main_menu_pressed() -> void:
 	_on_quit_to_menu_confirmed()
+
+
+func _try_record_campaign_progress(winner: int, you: int) -> void:
+	if _campaign_result_recorded:
+		return
+	_campaign_result_recorded = true
+	if _read_play_mode_string() != "campaign":
+		return
+	if not FileAccess.file_exists(CAMPAIGN_CHALLENGER_FILE):
+		return
+	var chf := FileAccess.open(CAMPAIGN_CHALLENGER_FILE, FileAccess.READ)
+	if chf == null:
+		return
+	var challenger_slug := chf.get_as_text().strip_edges()
+	if challenger_slug.is_empty():
+		return
+	var player_deck_path := _read_campaign_player_deck_path()
+	var deck_key := _campaign_deck_key(player_deck_path)
+	if deck_key.is_empty():
+		return
+	var completed := _load_campaign_completed_for_key(deck_key)
+	completed = clampi(completed, 0, CAMPAIGN_ORDER.size())
+	if completed >= CAMPAIGN_ORDER.size():
+		return
+	if CAMPAIGN_ORDER[completed] != challenger_slug:
+		return
+	if winner < 0:
+		return
+	var series := _load_campaign_series_for_key(deck_key)
+	var wins := int(series.get("wins", 0))
+	var losses := int(series.get("losses", 0))
+	if str(series.get("slug", "")) != challenger_slug:
+		wins = 0
+		losses = 0
+	if winner == you:
+		wins += 1
+	else:
+		losses += 1
+	if wins >= 2:
+		_store_campaign_completed_for_key(deck_key, completed + 1)
+		_clear_campaign_series_for_key(deck_key)
+		return
+	if losses >= 2:
+		wins = 0
+		losses = 0
+	_store_campaign_series_for_key(deck_key, {
+		"slug": challenger_slug,
+		"wins": wins,
+		"losses": losses
+	})
+
+
+func _read_campaign_player_deck_path() -> String:
+	if FileAccess.file_exists(CAMPAIGN_PLAYER_DECK_FILE):
+		var f := FileAccess.open(CAMPAIGN_PLAYER_DECK_FILE, FileAccess.READ)
+		if f != null:
+			var v := f.get_as_text().strip_edges()
+			if not v.is_empty():
+				return v
+	return _resolve_selected_deck_path()
+
+
+func _campaign_deck_key(path: String) -> String:
+	var p := path.strip_edges()
+	if p.is_empty():
+		return ""
+	if IncludedDecks.is_token(p):
+		return p
+	return p.replace("\\", "/").to_lower()
+
+
+func _read_json_dict(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed as Dictionary
+
+
+func _write_json_dict(path: String, data: Dictionary) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(JSON.stringify(data))
+
+
+func _load_campaign_completed_for_key(deck_key: String) -> int:
+	var root := _read_json_dict(CAMPAIGN_PROGRESS_FILE)
+	var by_deck_var: Variant = root.get("completed_by_deck", null)
+	if typeof(by_deck_var) == TYPE_DICTIONARY:
+		var by_deck := by_deck_var as Dictionary
+		return int(by_deck.get(deck_key, 0))
+	return int(root.get("completed", 0))
+
+
+func _store_campaign_completed_for_key(deck_key: String, completed: int) -> void:
+	var root := _read_json_dict(CAMPAIGN_PROGRESS_FILE)
+	var by_deck: Dictionary = {}
+	var by_deck_var: Variant = root.get("completed_by_deck", null)
+	if typeof(by_deck_var) == TYPE_DICTIONARY:
+		by_deck = (by_deck_var as Dictionary).duplicate(true)
+	by_deck[deck_key] = completed
+	root["completed_by_deck"] = by_deck
+	_write_json_dict(CAMPAIGN_PROGRESS_FILE, root)
+
+
+func _load_campaign_series_for_key(deck_key: String) -> Dictionary:
+	var root := _read_json_dict(CAMPAIGN_SERIES_FILE)
+	var by_deck_var: Variant = root.get("series_by_deck", null)
+	if typeof(by_deck_var) == TYPE_DICTIONARY:
+		var by_deck := by_deck_var as Dictionary
+		var one_var: Variant = by_deck.get(deck_key, null)
+		if typeof(one_var) == TYPE_DICTIONARY:
+			return one_var as Dictionary
+	if root.has("slug"):
+		return root
+	return {}
+
+
+func _store_campaign_series_for_key(deck_key: String, series: Dictionary) -> void:
+	var root := _read_json_dict(CAMPAIGN_SERIES_FILE)
+	var by_deck: Dictionary = {}
+	var by_deck_var: Variant = root.get("series_by_deck", null)
+	if typeof(by_deck_var) == TYPE_DICTIONARY:
+		by_deck = (by_deck_var as Dictionary).duplicate(true)
+	by_deck[deck_key] = series
+	root["series_by_deck"] = by_deck
+	_write_json_dict(CAMPAIGN_SERIES_FILE, root)
+
+
+func _clear_campaign_series_for_key(deck_key: String) -> void:
+	var root := _read_json_dict(CAMPAIGN_SERIES_FILE)
+	var by_deck_var: Variant = root.get("series_by_deck", null)
+	if typeof(by_deck_var) != TYPE_DICTIONARY:
+		return
+	var by_deck := (by_deck_var as Dictionary).duplicate(true)
+	by_deck.erase(deck_key)
+	root["series_by_deck"] = by_deck
+	_write_json_dict(CAMPAIGN_SERIES_FILE, root)
 
 
 func _field_ritual_total_value(field: Array) -> int:

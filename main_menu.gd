@@ -16,6 +16,7 @@ const _PICKER_STEP_YOURS := "yours"
 const _PICKER_STEP_OPPONENT := "opponent"
 
 @onready var play_button: Button = %PlayLink
+@onready var campaign_button: Button = %CampaignLink
 @onready var goldfish_button: Button = %GoldfishLink
 @onready var lan_host_button: Button = %LanHostLink
 @onready var lan_join_button: Button = %LanJoinLink
@@ -47,6 +48,7 @@ var _your_deck_path: String = ""
 
 func _ready() -> void:
 	_double_button_padding(play_button)
+	_double_button_padding(campaign_button)
 	_double_button_padding(goldfish_button)
 	_double_button_padding(lan_host_button)
 	_double_button_padding(lan_join_button)
@@ -55,6 +57,7 @@ func _ready() -> void:
 	_double_button_padding(how_to_play_button)
 	_double_button_padding(exit_button)
 	%PlayLink.pressed.connect(_on_play_pressed)
+	%CampaignLink.pressed.connect(_on_campaign_pressed)
 	%GoldfishLink.pressed.connect(_on_goldfish_pressed)
 	%LanHostLink.pressed.connect(_on_lan_host_pressed)
 	%LanJoinLink.pressed.connect(_on_lan_join_pressed)
@@ -101,6 +104,10 @@ func _on_goldfish_pressed() -> void:
 	_your_deck_path = ""
 	_deck_picker_step = _PICKER_STEP_YOURS
 	_show_deck_picker()
+
+
+func _on_campaign_pressed() -> void:
+	get_tree().change_scene_to_file("res://campaign.tscn")
 
 
 func _on_lan_host_pressed() -> void:
