@@ -45,7 +45,7 @@ def _empty_bucket() -> dict[str, Any]:
         "power_curve_p0_count": [0] * len(POWER_CURVE_MARKERS),
         "power_curve_p1_sum": [0] * len(POWER_CURVE_MARKERS),
         "power_curve_p1_count": [0] * len(POWER_CURVE_MARKERS),
-        "end_reason_counts": {"power_20": 0, "deck_out": 0, "turn_cap": 0},
+        "end_reason_counts": {"power_win": 0, "deck_out": 0, "turn_cap": 0},
         "p0_win_non_ritual_plays": {},
         "p0_end_birds_sum": 0,
         "p0_end_temples_sum": 0,
@@ -215,7 +215,7 @@ def _print_report(
         f"{'opponent':22s}  {'games':>6s}  "
         f"{'P0_win%':>8s}  {'P0_loss%':>9s}  {'draw%':>7s}  "
         f"{'avg_turns':>9s}  {'avg_P0_pwr':>10s}  {'avg_P1_pwr':>10s}  "
-        f"{'power_20':>8s}  {'deck_out':>8s}  {'turn_cap':>8s}"
+        f"{'power_win':>8s}  {'deck_out':>8s}  {'turn_cap':>8s}"
     )
     print(header)
     print("-" * len(header))
@@ -228,7 +228,7 @@ def _print_report(
             f"{slug:22s}  {g:6d}  "
             f"{_fmt_pct(b['p0_wins'], g)}  {_fmt_pct(b['p1_wins'], g)}  {_fmt_pct(b['draws'], g)}  "
             f"{_avg(b['turns_sum'], g):9.2f}  {_avg(b['p0_power_sum'], g):10.2f}  {_avg(b['p1_power_sum'], g):10.2f}  "
-            f"{b['end_reason_counts']['power_20']:8d}  {b['end_reason_counts']['deck_out']:8d}  {b['end_reason_counts']['turn_cap']:8d}"
+            f"{b['end_reason_counts']['power_win']:8d}  {b['end_reason_counts']['deck_out']:8d}  {b['end_reason_counts']['turn_cap']:8d}"
         )
         _merge_bucket(totals, b)
     print("-" * len(header))
@@ -237,7 +237,7 @@ def _print_report(
         f"{'TOTAL':22s}  {g:6d}  "
         f"{_fmt_pct(totals['p0_wins'], g)}  {_fmt_pct(totals['p1_wins'], g)}  {_fmt_pct(totals['draws'], g)}  "
         f"{_avg(totals['turns_sum'], g):9.2f}  {_avg(totals['p0_power_sum'], g):10.2f}  {_avg(totals['p1_power_sum'], g):10.2f}  "
-        f"{totals['end_reason_counts']['power_20']:8d}  {totals['end_reason_counts']['deck_out']:8d}  {totals['end_reason_counts']['turn_cap']:8d}"
+        f"{totals['end_reason_counts']['power_win']:8d}  {totals['end_reason_counts']['deck_out']:8d}  {totals['end_reason_counts']['turn_cap']:8d}"
     )
     print()
     print("--- match-power progression (avg across all matchups) ---")

@@ -350,7 +350,7 @@ class MatchState:
     def _check_power_win(self) -> None:
         for pid in (0, 1):
             if self.match_power(pid) >= WIN_POWER:
-                self._finish(pid, "power_20")
+                self._finish(pid, "power_win")
                 return
 
     def _note_non_ritual_play(self, pid: int, card: Card) -> None:
