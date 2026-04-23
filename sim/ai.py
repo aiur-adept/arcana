@@ -7,6 +7,7 @@ specialized pilot."""
 
 from __future__ import annotations
 
+from itertools import combinations
 from typing import Optional
 
 from .cards import (
@@ -29,22 +30,35 @@ from .cards import (
 from .match import EndOfGame, MatchState, Ritual
 
 
-def _ritual_combinations_for_value(p_field, target: int) -> Optional[list[int]]:
-    rituals = sorted(p_field, key=lambda r: r.value)
-    chosen: list[int] = []
-    total = 0
-    for r in rituals:
-        if total >= target:
-            break
-        chosen.append(r.mid)
-        total += r.value
-    if total < target:
+def _ritual_combinations_for_value(p_field, target: int, impact_by_mid: Optional[dict[int, float]] = None) -> Optional[list[int]]:
+    if target <= 0:
+        return []
+    rituals = sorted(p_field, key=lambda r: (r.value, r.mid))
+    if not rituals:
         return None
-    return chosen
+    if sum(r.value for r in rituals) < target:
+        return None
+    if impact_by_mid is None:
+        impact_by_mid = {}
+    best_key: Optional[tuple[float, int, int, tuple[int, ...]]] = None
+    best_choice: Optional[list[int]] = None
+    for n in range(1, len(rituals) + 1):
+        for combo in combinations(rituals, n):
+            total = sum(r.value for r in combo)
+            if total < target:
+                continue
+            mids = tuple(sorted(r.mid for r in combo))
+            impact = float(sum(float(impact_by_mid.get(r.mid, r.value)) for r in combo))
+            overpay = total - target
+            key = (impact, overpay, len(combo), mids)
+            if best_key is None or key < best_key:
+                best_key = key
+                best_choice = list(mids)
+    return best_choice
 
 
-def _minimal_sac_for_lane(p_field, target: int) -> Optional[list[int]]:
-    return _ritual_combinations_for_value(p_field, target)
+def _minimal_sac_for_lane(p_field, target: int, impact_by_mid: Optional[dict[int, float]] = None) -> Optional[list[int]]:
+    return _ritual_combinations_for_value(p_field, target, impact_by_mid)
 
 
 def simple_mulligan(state: MatchState, pid: int) -> bool:
@@ -159,6 +173,9 @@ class GreedyAI:
     W_EFFECT_TEARS_BASE: float = 10.0
     W_EFFECT_FLIGHT_BASE: float = 2.0
     W_EFFECT_FLIGHT_PER_DRAW: float = 3.0
+    W_CAST_WITH_SAC_BASE: float = 0.0
+    W_CAST_WITH_SAC_EXPECTED_MP_DELTA: float = 1.0
+    W_CAST_WITH_SAC_PAYMENT_MP_LOSS: float = 1.0
 
     def __init__(self, pid: int) -> None:
         self.pid = pid
@@ -234,6 +251,64 @@ class GreedyAI:
             return self.DD_W_RING
         return 0.0
 
+    def _ritual_impact_by_mid(self, state: MatchState, pid: int) -> dict[int, float]:
+        p = state.players[pid]
+        out: dict[int, float] = {}
+        for r in p.field:
+            out[r.mid] = float(state.match_power_loss_remove_ritual(pid, r.mid))
+        return out
+
+    def _sacrifice_match_power_loss(self, state: MatchState, pid: int, sac_mids: list[int]) -> int:
+        if not sac_mids:
+            return 0
+        p = state.players[pid]
+        mids = set(sac_mids)
+        before = state.match_power(pid)
+        saved = list(p.field)
+        p.field = [r for r in p.field if r.mid not in mids]
+        after = state.match_power(pid)
+        p.field = saved
+        return before - after
+
+    def _should_cast_with_sacrifice(
+        self,
+        state: MatchState,
+        pid: int,
+        expected_match_power_delta: float,
+        sac_mids: list[int],
+    ) -> bool:
+        payment_loss = float(self._sacrifice_match_power_loss(state, pid, sac_mids))
+        score = (
+            self.W_CAST_WITH_SAC_BASE
+            + self.W_CAST_WITH_SAC_EXPECTED_MP_DELTA * float(expected_match_power_delta)
+            - self.W_CAST_WITH_SAC_PAYMENT_MP_LOSS * payment_loss
+        )
+        return score > 0.0
+
+    def _estimate_incantation_expected_match_power_delta(self, state: MatchState, pid: int, card) -> float:
+        me = state.players[pid]
+        opp = state.players[state.opponent(pid)]
+        if card.verb == VERB_WRATH:
+            k = 1 + (1 if state.has_noble(pid, "zytzr_annihilation") else 0)
+            killed = sorted((r.value for r in opp.field), reverse=True)[:k]
+            return float(sum(killed))
+        if card.verb == VERB_RENEW:
+            ritual_values = sorted((c.value for c in me.crypt if c.kind is Kind.RITUAL), reverse=True)
+            if not ritual_values:
+                return 0.0
+            bonus = ritual_values[0]
+            if len(ritual_values) > 1 and state.has_noble(pid, "yytzr_occultation"):
+                bonus += ritual_values[1]
+            return float(bonus)
+        if card.verb == VERB_TEARS:
+            return 1.0 if any(c.kind is Kind.BIRD for c in me.crypt) else 0.0
+        if card.verb == VERB_DELUGE:
+            threshold = card.value - 1
+            opp_hit = sum(1 for b in opp.bird_field if b.power <= threshold and b.nest_mid < 0)
+            me_hit = sum(1 for b in me.bird_field if b.power <= threshold and b.nest_mid < 0)
+            return float(opp_hit - me_hit)
+        return 0.0
+
     def _take_best_action(self, state: MatchState) -> bool:
         try:
             return self._enumerate_and_act(state)
@@ -256,6 +331,7 @@ class GreedyAI:
                 eff = state.effective_noble_cost(pid, c.cost)
                 sac: list[int] = []
                 playable = False
+                impact_by_mid = self._ritual_impact_by_mid(state, pid)
                 if eff == 0:
                     playable = True
                 elif eff in active:
@@ -263,7 +339,7 @@ class GreedyAI:
                 elif eff < 6:
                     playable = False
                 else:
-                    s = _ritual_combinations_for_value(p.field, eff)
+                    s = _ritual_combinations_for_value(p.field, eff, impact_by_mid)
                     if s is not None:
                         sac = s
                         playable = True
@@ -285,7 +361,8 @@ class GreedyAI:
                         actions.append(ring_act)
 
             elif c.kind is Kind.TEMPLE and not p.temple_played_this_turn:
-                sac = _minimal_sac_for_lane(p.field, c.cost)
+                impact_by_mid = self._ritual_impact_by_mid(state, pid)
+                sac = _minimal_sac_for_lane(p.field, c.cost, impact_by_mid)
                 if sac is not None:
                     would_keep_lanes = self._lanes_after_sac(state, pid, sac)
                     score = self.score_temple_play(state, c, sac, would_keep_lanes)
@@ -294,10 +371,11 @@ class GreedyAI:
 
             elif c.kind is Kind.INCANTATION and c.verb == VERB_DETHRONE:
                 if opp.noble_field:
+                    impact_by_mid = self._ritual_impact_by_mid(state, pid)
                     if 4 in active:
                         sac_d: list[int] = []
                     else:
-                        s = _ritual_combinations_for_value(p.field, 4)
+                        s = _ritual_combinations_for_value(p.field, 4, impact_by_mid)
                         if s is None:
                             continue
                         sac_d = s
@@ -551,11 +629,15 @@ class GreedyAI:
             r = min(p.field, key=lambda rr: (rr.value, rr.mid))
             sac = [r.mid]
         elif eff_val > 0 and eff_val not in active:
-            s = _ritual_combinations_for_value(p.field, eff_val)
+            impact_by_mid = self._ritual_impact_by_mid(state, pid)
+            s = _ritual_combinations_for_value(p.field, eff_val, impact_by_mid)
             if s is None:
                 return None
             after = self._lanes_after_sac(state, pid, s)
             if len(after) < 1:
+                return None
+            expected_delta = self._estimate_incantation_expected_match_power_delta(state, pid, card)
+            if not self._should_cast_with_sacrifice(state, pid, expected_delta, s):
                 return None
             sac = s
         eff = self._score_effect(state, pid, card.verb, card.value)

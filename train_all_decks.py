@@ -34,6 +34,43 @@ def _extract_total_win_rate(stdout: str) -> float:
     raise RuntimeError("Could not parse TOTAL P0 win% from sim.run output.")
 
 
+def _weights_for_slug(path: Path, slug: str) -> dict[str, float]:
+    if not path.is_file():
+        return {}
+    with path.open(encoding="utf-8") as f:
+        data = json.load(f)
+    wbs = data.get("weights_by_slug", {})
+    if not isinstance(wbs, dict):
+        return {}
+    raw = wbs.get(slug)
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k): float(v) for k, v in raw.items() if isinstance(v, (int, float))}
+
+
+def _print_weight_delta(deck: str, before_path: Path, after_path: Path) -> None:
+    before = _weights_for_slug(before_path, deck)
+    after = _weights_for_slug(after_path, deck)
+    keys = sorted(set(before.keys()) | set(after.keys()))
+    if not keys:
+        print(f"Weight delta for {deck!r}: no per-slug genome present in either file.", flush=True)
+        return
+    changed: list[tuple[float, str, float, float]] = []
+    for k in keys:
+        b = float(before.get(k, 0.0))
+        a = float(after.get(k, 0.0))
+        d = a - b
+        if abs(d) > 1e-12:
+            changed.append((abs(d), k, b, a))
+    if not changed:
+        print(f"Weight delta for {deck!r}: no numeric changes.", flush=True)
+        return
+    changed.sort(reverse=True)
+    print(f"Weight delta for {deck!r}: {len(changed)} changed key(s). Top deltas:", flush=True)
+    for _, k, b, a in changed[:8]:
+        print(f"  {k}: {b:.6f} -> {a:.6f} (delta {a - b:+.6f})", flush=True)
+
+
 def _run_sim(deck: str, runs: int, seed: int, workers: int, weights_path: Path, pyexe: str) -> float:
     cmd = [
         pyexe,
@@ -70,6 +107,8 @@ def _run_train(
     population: int,
     games: int,
     seed: int,
+    train_discard_weights_only: bool,
+    train_sacrifice_cast_weights_only: bool,
 ) -> None:
     cmd = [
         pyexe,
@@ -91,6 +130,10 @@ def _run_train(
         "--init-weights",
         str(init_weights),
     ]
+    if train_discard_weights_only:
+        cmd.append("--train-discard-weights-only")
+    if train_sacrifice_cast_weights_only:
+        cmd.append("--train-sacrifice-cast-weights-only")
     r = subprocess.run(cmd, cwd=ROOT)
     if r.returncode != 0:
         raise RuntimeError(f"sim.train_ea failed for {deck!r} (exit {r.returncode})")
@@ -124,7 +167,22 @@ def main() -> None:
     ap.add_argument("--eval-seed", type=int, default=108)
     ap.add_argument("--eval-workers", type=int, default=0, help="sim.run workers (0 => cpu count)")
     ap.add_argument("--weights", type=str, default="", help="weights JSON path (default: data/pilot_weights.json)")
+    ap.add_argument(
+        "--train-discard-weights-only",
+        action="store_true",
+        help="forwarded to sim.train_ea: only train W_DISCARD_DRAW and DD_* weights",
+    )
+    ap.add_argument(
+        "--train-sacrifice-cast-weights-only",
+        action="store_true",
+        help=(
+            "forwarded to sim.train_ea: only train W_CAST_WITH_SAC_BASE, "
+            "W_CAST_WITH_SAC_EXPECTED_MP_DELTA, and W_CAST_WITH_SAC_PAYMENT_MP_LOSS"
+        ),
+    )
     args = ap.parse_args()
+    if args.train_discard_weights_only and args.train_sacrifice_cast_weights_only:
+        raise SystemExit("Choose only one focused mode: discard-only or sacrifice-cast-only.")
 
     slugs = included_deck_slugs()
     ex = sys.executable
@@ -156,7 +214,10 @@ def main() -> None:
                     population=args.population,
                     games=args.games,
                     seed=args.seed,
+                    train_discard_weights_only=args.train_discard_weights_only,
+                    train_sacrifice_cast_weights_only=args.train_sacrifice_cast_weights_only,
                 )
+                _print_weight_delta(deck, source_snapshot_path, candidate_path)
 
                 print("Post-train evaluation (sim.run)...", flush=True)
                 after_wr = _run_sim(deck, args.eval_runs, args.eval_seed, eval_workers, candidate_path, ex)
