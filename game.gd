@@ -3003,24 +3003,26 @@ func _try_record_campaign_progress(winner: int, you: int) -> void:
 func _build_campaign_series_ui() -> void:
 	_campaign_series_panel = PanelContainer.new()
 	_campaign_series_panel.name = "CampaignSeriesPanel"
-	_campaign_series_panel.anchor_left = 0.5
-	_campaign_series_panel.anchor_right = 0.5
-	_campaign_series_panel.anchor_top = 0.0
-	_campaign_series_panel.anchor_bottom = 0.0
-	_campaign_series_panel.offset_left = -230
-	_campaign_series_panel.offset_right = 230
-	_campaign_series_panel.offset_top = 12
-	_campaign_series_panel.offset_bottom = 52
+	_campaign_series_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_campaign_series_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_campaign_series_panel.custom_minimum_size = Vector2(0, 40)
 	_campaign_series_panel.visible = false
 	_campaign_series_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_campaign_series_panel.z_index = 80
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.09, 0.12, 0.94)
 	sb.border_color = Color(0.66, 0.72, 0.86, 0.95)
 	sb.set_border_width_all(2)
 	sb.set_corner_radius_all(10)
 	_campaign_series_panel.add_theme_stylebox_override("panel", sb)
-	add_child(_campaign_series_panel)
+	var board_col := get_node_or_null("Margin/RootRow/BoardCol")
+	if board_col is VBoxContainer:
+		(board_col as VBoxContainer).add_child(_campaign_series_panel)
+		var stats_row := get_node_or_null("Margin/RootRow/BoardCol/StatsRow")
+		var stats_idx := (board_col as VBoxContainer).get_children().find(stats_row)
+		if stats_idx >= 0:
+			(board_col as VBoxContainer).move_child(_campaign_series_panel, stats_idx)
+	else:
+		add_child(_campaign_series_panel)
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_right", 10)
