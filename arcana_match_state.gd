@@ -1550,10 +1550,13 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 	if a != "accept" and a != "skip":
 		return "illegal"
 	if a == "skip":
+		var def_phaedra := bool(_scion_pending.get("deferred_phaedra_temple_draw", false))
 		_scion_clear_pending()
 		match ptype:
 			"rmrsk_draw":
 				_log("P%d skips Rmrsk trigger." % p)
+				if def_phaedra:
+					_draw_n(p, 1)
 			"smrsk_burn":
 				_log("P%d skips Smrsk trigger." % p)
 			"tmrsk_woe":
@@ -1561,9 +1564,12 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 		return "ok"
 	match ptype:
 		"rmrsk_draw":
+			var def_phaedra2 := bool(_scion_pending.get("deferred_phaedra_temple_draw", false))
 			_scion_clear_pending()
 			_draw_n(p, 1)
 			_log("P%d resolves Rmrsk (draw 1)." % p)
+			if def_phaedra2:
+				_draw_n(p, 1)
 			return "ok"
 		"smrsk_burn":
 			var ritual_mid := int(ctx.get("ritual_mid", -1))
@@ -2371,7 +2377,10 @@ func apply_temple_phaedra_insight(p: int, temple_mid: int, insight_target: int, 
 	if err != "ok":
 		return err
 	_queue_post_effect_scion_trigger(p, "insight")
-	_draw_n(p, 1)
+	if _scion_waiting_on_response():
+		_scion_pending["deferred_phaedra_temple_draw"] = true
+	else:
+		_draw_n(p, 1)
 	_mark_temple_used_this_turn(p, temple_mid)
 	_check_power_win(p)
 	return "ok"

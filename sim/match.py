@@ -902,12 +902,17 @@ class MatchState:
             return
         payload = self.pending.payload
         scion = payload["scion"]
+        def_phaedra = bool(payload.get("deferred_phaedra_temple", False))
         self.pending = None
         if not accept:
+            if scion == "rmrsk" and def_phaedra:
+                self._draw_n(pid, 1, can_lose=True)
             self._check_power_win()
             return
         if scion == "rmrsk":
             self._draw_n(pid, 1, can_lose=True)
+            if def_phaedra:
+                self._draw_n(pid, 1, can_lose=True)
         elif scion == "smrsk":
             p = self.players[pid]
             if not p.field:
@@ -1011,6 +1016,8 @@ class MatchState:
             self._effect_insight(pid, 1, target, ctx)
             if self.pending is None:
                 self._draw_n(pid, 1, can_lose=True)
+            elif self.pending.kind == "scion" and self.pending.payload.get("scion") == "rmrsk":
+                self.pending.payload["deferred_phaedra_temple"] = True
             t.used_turn = self.turn_number
         elif t.temple_id == "delpha_oracles":
             ritual_mid = ctx.get("ritual_mid")

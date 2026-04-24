@@ -1761,7 +1761,7 @@ func _should_abort_sacrifice_for_snap(snap: Dictionary) -> bool:
 	if int(snap.get("current", -1)) != you:
 		return true
 	if _pending_inc_hand_idx < 0:
-		if _inc_pick_phase != INC_PICK_BIRD_ATTACK and _inc_pick_phase != INC_PICK_BIRD_TARGET and _inc_pick_phase != INC_PICK_NEST_BIRD and _inc_pick_phase != INC_PICK_NEST_TEMPLE and _inc_pick_phase != INC_PICK_SMRSK and _inc_pick_phase != INC_PICK_DELPHA and _inc_pick_phase != INC_PICK_WRATH_TAX:
+		if _inc_pick_phase != INC_PICK_BIRD_ATTACK and _inc_pick_phase != INC_PICK_BIRD_TARGET and _inc_pick_phase != INC_PICK_NEST_BIRD and _inc_pick_phase != INC_PICK_NEST_TEMPLE and _inc_pick_phase != INC_PICK_SMRSK and _inc_pick_phase != INC_PICK_DELPHA and _inc_pick_phase != INC_PICK_WRATH_TAX and _inc_pick_phase != INC_PICK_RMRSK:
 			return true
 	var h: Array = snap.get("your_hand", []) as Array
 	return _pending_inc_hand_idx >= h.size()
