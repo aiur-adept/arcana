@@ -10,5 +10,5 @@ func build_definition() -> Dictionary:
 
 
 func activate(state: ArcanaMatchState, owner: int, _noble: Dictionary) -> Dictionary:
-	state.resolve_spell_like_effect(owner, "woe", 3)
+	state.resolve_spell_like_effect(owner, "woe", 3, {}, false)
 	return {"ok": true, "log": "P%d activates Wndrr (Woe 3)." % owner}

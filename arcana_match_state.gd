@@ -1512,7 +1512,9 @@ func _finalize_pending_play(frame: Dictionary) -> void:
 			_finalize_play_ring(p, card, payload)
 
 
-func _queue_post_effect_scion_trigger(p: int, verb: String) -> void:
+func _queue_post_effect_scion_trigger(p: int, verb: String, count_for_triggers: bool = true) -> void:
+	if not count_for_triggers:
+		return
 	var v := verb.to_lower()
 	if v == "insight":
 		if _noble_on_field(p, "rmrsk_emanation"):
@@ -1550,13 +1552,10 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 	if a != "accept" and a != "skip":
 		return "illegal"
 	if a == "skip":
-		var def_phaedra := bool(_scion_pending.get("deferred_phaedra_temple_draw", false))
 		_scion_clear_pending()
 		match ptype:
 			"rmrsk_draw":
 				_log("P%d skips Rmrsk trigger." % p)
-				if def_phaedra:
-					_draw_n(p, 1)
 			"smrsk_burn":
 				_log("P%d skips Smrsk trigger." % p)
 			"tmrsk_woe":
@@ -1564,12 +1563,9 @@ func submit_scion_trigger_response(p: int, action: String, ctx: Dictionary = {})
 		return "ok"
 	match ptype:
 		"rmrsk_draw":
-			var def_phaedra2 := bool(_scion_pending.get("deferred_phaedra_temple_draw", false))
 			_scion_clear_pending()
 			_draw_n(p, 1)
 			_log("P%d resolves Rmrsk (draw 1)." % p)
-			if def_phaedra2:
-				_draw_n(p, 1)
 			return "ok"
 		"smrsk_burn":
 			var ritual_mid := int(ctx.get("ritual_mid", -1))
@@ -2071,6 +2067,10 @@ func submit_woe_discard(p: int, indices: Array) -> String:
 	var spell_to_abyss := _woe_pending_spell_to_abyss
 	var wrap_card: Variant = _woe_pending_revive_wrapper
 	var noble_mid := _woe_pending_noble_mid
+	var woe_from_ndrr := false
+	if noble_mid >= 0:
+		var wn := _find_noble_on_field(inst, noble_mid)
+		woe_from_ndrr = str(wn.get("noble_id", "")) in ["wndrr_incantation", "rndrr_incantation"]
 	_woe_clear_pending()
 	var pli: Dictionary = _players[inst]
 	if spell != null:
@@ -2083,7 +2083,7 @@ func submit_woe_discard(p: int, indices: Array) -> String:
 	if noble_mid >= 0:
 		_mark_noble_used_this_turn(inst, noble_mid)
 	_log("Woe response complete (victim P%d)." % p)
-	if not _scion_waiting_on_response():
+	if not _scion_waiting_on_response() and not woe_from_ndrr:
 		_queue_post_effect_scion_trigger(inst, "woe")
 	_check_power_win(inst)
 	return "ok"
@@ -2157,7 +2157,6 @@ func apply_noble_spell_like(p: int, noble_mid: int, verb: String, value: int, wr
 	var err := execute_incantation_effect(p, v, value, wr_r, ctx)
 	if err != "ok":
 		return err
-	_queue_post_effect_scion_trigger(p, v)
 	_mark_noble_used_this_turn(p, noble_mid)
 	_check_power_win(p)
 	return "ok"
@@ -2221,7 +2220,6 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 				return rerr
 			pl["inc_abyss"].append(crypt_card)
 			_log("P%d Revive casts Renew %d from crypt (Rndrr)." % [p, cn], _incantation_log_meta("renew", cn, "Renew"))
-			_queue_post_effect_scion_trigger(p, "renew")
 			_check_power_win(p)
 			continue
 		var err := execute_incantation_effect(p, cv, cn, wr_r, nested)
@@ -2230,7 +2228,6 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 			return err
 		pl["inc_abyss"].append(crypt_card)
 		_log("P%d Revive casts %s %d from crypt (Rndrr)." % [p, cv, cn], _incantation_log_meta(cv, cn, cv.capitalize()))
-		_queue_post_effect_scion_trigger(p, cv)
 		_check_power_win(p)
 	if yytzr_renew_idx >= 0:
 		var rg: Array = _ritual_crypt_cards(pl)
@@ -2245,9 +2242,7 @@ func apply_noble_revive_from_crypt(p: int, noble_mid: int, ctx: Dictionary) -> S
 		var ymid := _next_mid(pl)
 		pl["field"].append({"mid": ymid, "value": int(rc.get("value", 0))})
 		_log("P%d Yytzr: Revive also plays %d-Ritual from crypt." % [p, int(rc.get("value", 0))], _incantation_log_meta("renew", 0, "Renew"))
-		_queue_post_effect_scion_trigger(p, "renew")
 	_mark_noble_used_this_turn(p, noble_mid)
-	_queue_post_effect_scion_trigger(p, "revive")
 	return "ok"
 
 
@@ -2369,18 +2364,19 @@ func apply_temple_phaedra_insight(p: int, temple_mid: int, insight_target: int, 
 	var t := _find_temple_on_field(p, temple_mid)
 	if str(t.get("temple_id", "")) != TEMPLE_PHAEDRA:
 		return "illegal"
-	var ctx := {"insight_target": insight_target, "insight_top": insight_top, "insight_bottom": insight_bottom}
+	var ctx := {
+		"insight_target": insight_target,
+		"insight_top": insight_top,
+		"insight_bottom": insight_bottom,
+		"count_for_triggers": false,
+	}
 	if _validate_play_ctx(p, "insight", 1, [], ctx) != "ok":
 		return "illegal"
 	_log("P%d activates Phaedra (Insight 1, draw 1)." % p)
 	var err := execute_incantation_effect(p, "insight", 1, [], ctx)
 	if err != "ok":
 		return err
-	_queue_post_effect_scion_trigger(p, "insight")
-	if _scion_waiting_on_response():
-		_scion_pending["deferred_phaedra_temple_draw"] = true
-	else:
-		_draw_n(p, 1)
+	_draw_n(p, 1)
 	_mark_temple_used_this_turn(p, temple_mid)
 	_check_power_win(p)
 	return "ok"
@@ -2410,7 +2406,7 @@ func apply_temple_delpha(p: int, temple_mid: int, ritual_mid: int, crypt_idx: in
 	pl["field"] = keep
 	pl["inc_abyss"].append(abyss_ritual)
 	_log("P%d activates Delpha (send ritual %d to abyss, Burn %d, ritual from crypt)." % [p, ritual_mid, x])
-	var berr := execute_incantation_effect(p, "burn", x, [], {"mill_target": p})
+	var berr := execute_incantation_effect(p, "burn", x, [], {"mill_target": p, "count_for_triggers": false})
 	if berr != "ok":
 		pl["field"] = field
 		(pl["inc_abyss"] as Array).remove_at((pl["inc_abyss"] as Array).size() - 1)
@@ -2581,7 +2577,7 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 	var play_meta := _incantation_log_meta(verb, n, verb_raw)
 	if verb == "revive":
 		var rr := _run_revive_steps_after_payment(p, n, ctx_use, payment_text, card)
-		if rr == "ok":
+		if rr == "ok" and bool(ctx_use.get("count_for_triggers", true)):
 			_queue_post_effect_scion_trigger(p, "revive")
 		return
 	if verb == "renew":
@@ -2606,7 +2602,8 @@ func _finalize_play_incantation(p: int, card: Dictionary, payload: Dictionary) -
 			return
 	_log("P%d plays %s (%s)." % [p, play_disp, payment_text], play_meta)
 	execute_incantation_effect(p, verb, n, wrath_resolved, ctx_use)
-	_queue_post_effect_scion_trigger(p, verb)
+	if bool(ctx_use.get("count_for_triggers", true)):
+		_queue_post_effect_scion_trigger(p, verb)
 	pl["crypt"].append(card)
 	_check_power_win(p)
 
@@ -2713,7 +2710,6 @@ func activate_noble_with_insight(p: int, noble_mid: int, insight_target: int, in
 			return "illegal"
 		_log("P%d activates Indrr (Insight %d)." % [p, insight_effective_n(p, 1)], _incantation_log_meta("insight", 1, "Insight"))
 		execute_incantation_effect(p, "insight", 1, [], ctx)
-		_queue_post_effect_scion_trigger(p, "insight")
 		_mark_noble_used_this_turn(p, noble_mid)
 		return "ok"
 	var hook: Variant = _hook_for_noble(noble)
@@ -2801,14 +2797,14 @@ func _incantation_payment_text(p: int, cost: int, used_sacrifice: bool, mids: Di
 	return "paid by sacrificing mids %s (values %s, total %d for cost %d)" % [str(mid_list), str(values), total, cost]
 
 
-func resolve_spell_like_effect(p: int, verb: String, value: int, ctx: Dictionary = {}) -> void:
+func resolve_spell_like_effect(p: int, verb: String, value: int, ctx: Dictionary = {}, count_for_triggers: bool = true) -> void:
 	var v := verb.to_lower()
 	var wr: Array = []
 	if v == "wrath":
 		wr = _wrath_resolve_mids(1 - p, value, [], p)
 	if execute_incantation_effect(p, v, value, wr, ctx) != "ok":
 		return
-	_queue_post_effect_scion_trigger(p, v)
+	_queue_post_effect_scion_trigger(p, v, count_for_triggers)
 	_check_power_win(p)
 
 

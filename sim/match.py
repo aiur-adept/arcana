@@ -569,7 +569,7 @@ class MatchState:
             p.inc_abyss.append(card)
         else:
             p.crypt.append(card)
-        if self.pending is None:
+        if self.pending is None and bool(ctx.get("count_for_triggers", True)):
             self._post_effect_scion_trigger(pid, card.verb)
         self._check_power_win()
 
@@ -628,21 +628,22 @@ class MatchState:
     def _resolve_incantation_effect(self, pid: int, card: Card, ctx: dict) -> dict:
         verb = card.verb
         val = card.value
+        cft = bool(ctx.get("count_for_triggers", True))
         if verb == VERB_SEEK:
             self._effect_seek(pid, val)
         elif verb == VERB_INSIGHT:
             target = ctx.get("insight_target", pid)
-            self._effect_insight(pid, val, target, ctx)
+            self._effect_insight(pid, val, target, ctx, count_for_triggers=cft)
         elif verb == VERB_BURN:
             target = ctx.get("burn_target", self.opponent(pid))
-            self._effect_burn(pid, val, target)
+            self._effect_burn(pid, val, target, count_for_triggers=cft)
         elif verb == VERB_WOE:
             target = ctx.get("woe_target", self.opponent(pid))
             self._effect_woe(pid, val, target, ctx)
         elif verb == VERB_WRATH:
             self._effect_wrath(pid, val, ctx)
         elif verb == VERB_REVIVE:
-            return self._effect_revive(pid, val, ctx)
+            return self._effect_revive(pid, val, ctx, count_for_triggers=cft)
         elif verb == VERB_RENEW:
             self._effect_renew(pid, ctx)
             return {}
@@ -658,7 +659,7 @@ class MatchState:
         extra = 1 if self.has_noble(pid, "xytzr_emanation") else 0
         self._draw_n(pid, n + extra, can_lose=True)
 
-    def _effect_insight(self, pid: int, n: int, target_pid: int, ctx: dict) -> None:
+    def _effect_insight(self, pid: int, n: int, target_pid: int, ctx: dict, count_for_triggers: bool = True) -> None:
         extra = 1 if self.has_noble(pid, "xytzr_emanation") else 0
         eff = n + extra
         tgt = self.players[target_pid]
@@ -685,7 +686,8 @@ class MatchState:
                     tgt.deck.append(reveal[top_idx[i]])
                 for i in bottom_idx:
                     tgt.deck.insert(0, reveal[i])
-                self._post_effect_scion_trigger(pid, VERB_INSIGHT)
+                if count_for_triggers:
+                    self._post_effect_scion_trigger(pid, VERB_INSIGHT)
                 return
         send_bottom = int(ctx.get("insight_bottom", 0))
         send_bottom = max(0, min(send_bottom, take))
@@ -694,12 +696,14 @@ class MatchState:
         for c in bottom_cards:
             tgt.deck.insert(0, c)
         tgt.deck.extend(keep_top)
-        self._post_effect_scion_trigger(pid, VERB_INSIGHT)
+        if count_for_triggers:
+            self._post_effect_scion_trigger(pid, VERB_INSIGHT)
 
-    def _effect_burn(self, pid: int, n: int, target_pid: int) -> None:
+    def _effect_burn(self, pid: int, n: int, target_pid: int, count_for_triggers: bool = True) -> None:
         extra = 3 if self.has_noble(pid, "yytzr_occultation") else 0
         self._mill(target_pid, 2 * n + extra)
-        self._post_effect_scion_trigger(pid, VERB_BURN)
+        if count_for_triggers:
+            self._post_effect_scion_trigger(pid, VERB_BURN)
 
     def _effect_woe(self, pid: int, n: int, target_pid: int, ctx: dict) -> None:
         extra = 1 if self.has_noble(pid, "zytzr_annihilation") else 0
@@ -721,7 +725,15 @@ class MatchState:
             for i in chosen:
                 victim.crypt.append(victim.hand.pop(i))
         else:
-            self.pending = Pending(kind="woe", responder=target_pid, payload={"need": need, "instigator": pid})
+            self.pending = Pending(
+                kind="woe",
+                responder=target_pid,
+                payload={
+                    "need": need,
+                    "instigator": pid,
+                    "skip_woe_tmrsk": bool(ctx.get("skip_woe_tmrsk", False)),
+                },
+            )
 
     def _effect_wrath(self, pid: int, n: int, ctx: dict) -> None:
         if n not in (0, 4):
@@ -752,7 +764,7 @@ class MatchState:
             opp.crypt.append(Card(kind=Kind.RITUAL, value=v))
         self._post_effect_scion_trigger(pid, VERB_WRATH)
 
-    def _effect_revive(self, pid: int, n: int, ctx: dict) -> dict:
+    def _effect_revive(self, pid: int, n: int, ctx: dict, count_for_triggers: bool = True) -> dict:
         p = self.players[pid]
         crypt_inc_indices = [i for i, c in enumerate(p.crypt)
                              if c.kind is Kind.INCANTATION and c.verb not in (VERB_REVIVE, VERB_TEARS, VERB_DETHRONE)]
@@ -777,10 +789,12 @@ class MatchState:
             if 0 <= yidx < len(ritual_indices):
                 rc = p.crypt.pop(ritual_indices[yidx])
                 p.field.append(Ritual(mid=self.mid(), value=rc.value))
-                self._post_effect_scion_trigger(pid, VERB_RENEW)
+                if count_for_triggers:
+                    self._post_effect_scion_trigger(pid, VERB_RENEW)
         if self.pending is None:
             p.inc_abyss.append(sub)
-            self._post_effect_scion_trigger(pid, VERB_REVIVE)
+            if count_for_triggers:
+                self._post_effect_scion_trigger(pid, VERB_REVIVE)
         else:
             self.pending.payload["revive_subcast"] = sub
         return {}
@@ -894,7 +908,8 @@ class MatchState:
             p_inst = self.players[instigator]
             p_inst.inc_abyss.append(payload["revive_subcast"])
         self.pending = None
-        self._post_effect_scion_trigger(instigator, VERB_WOE)
+        if not bool(payload.get("skip_woe_tmrsk", False)):
+            self._post_effect_scion_trigger(instigator, VERB_WOE)
         self._check_power_win()
 
     def submit_scion_trigger(self, pid: int, accept: bool, ctx: Optional[dict] = None) -> None:
@@ -902,17 +917,12 @@ class MatchState:
             return
         payload = self.pending.payload
         scion = payload["scion"]
-        def_phaedra = bool(payload.get("deferred_phaedra_temple", False))
         self.pending = None
         if not accept:
-            if scion == "rmrsk" and def_phaedra:
-                self._draw_n(pid, 1, can_lose=True)
             self._check_power_win()
             return
         if scion == "rmrsk":
             self._draw_n(pid, 1, can_lose=True)
-            if def_phaedra:
-                self._draw_n(pid, 1, can_lose=True)
         elif scion == "smrsk":
             p = self.players[pid]
             if not p.field:
@@ -987,20 +997,32 @@ class MatchState:
             return
         if verb is None:
             return
+        ndrr = n.noble_id in (
+            "indrr_incantation",
+            "bndrr_incantation",
+            "wndrr_incantation",
+            "sndrr_incantation",
+            "rndrr_incantation",
+        )
+        ctx_use = dict(ctx)
+        if ndrr:
+            ctx_use["count_for_triggers"] = False
+        if n.noble_id == "wndrr_incantation":
+            ctx_use["skip_woe_tmrsk"] = True
         if info.get("activation_discard"):
             if not p.hand:
                 return
-            di = ctx.get("discard_hand_idx", 0)
+            di = ctx_use.get("discard_hand_idx", 0)
             if not (0 <= di < len(p.hand)):
                 return
             p.crypt.append(p.hand.pop(di))
         pseudo = Card(kind=Kind.INCANTATION, verb=verb, value=val)
-        self._resolve_incantation_effect(pid, pseudo, ctx)
+        self._resolve_incantation_effect(pid, pseudo, ctx_use)
         n.used_turn = self.turn_number
-        if self.pending is None:
-            self._post_effect_scion_trigger(pid, verb)
-        else:
+        if self.pending is not None:
             self.pending.payload["noble_activation_mid"] = n.mid
+        elif not ndrr:
+            self._post_effect_scion_trigger(pid, verb)
         self._check_power_win()
 
     def activate_temple(self, pid: int, temple_mid: int, ctx: Optional[dict] = None) -> None:
@@ -1013,11 +1035,8 @@ class MatchState:
         ctx = ctx or {}
         if t.temple_id == "phaedra_illusion":
             target = ctx.get("insight_target", self.opponent(pid))
-            self._effect_insight(pid, 1, target, ctx)
-            if self.pending is None:
-                self._draw_n(pid, 1, can_lose=True)
-            elif self.pending.kind == "scion" and self.pending.payload.get("scion") == "rmrsk":
-                self.pending.payload["deferred_phaedra_temple"] = True
+            self._effect_insight(pid, 1, target, ctx, count_for_triggers=False)
+            self._draw_n(pid, 1, can_lose=True)
             t.used_turn = self.turn_number
         elif t.temple_id == "delpha_oracles":
             ritual_mid = ctx.get("ritual_mid")
