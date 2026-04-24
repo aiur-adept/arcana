@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from .ai import GreedyAI, simple_mulligan
+from .cards import Kind
 from .decks import included_deck_slugs, load_all_included_decks
 from .match import EndOfGame, MatchState
 from .pilot_weights import default_pilot_weights_path, pilot_class_for_slug
@@ -59,6 +60,12 @@ def _empty_bucket() -> dict[str, Any]:
         "p1_discard_draws_sum": 0,
         "p0_wins_by_power": 0,
         "p1_wins_by_power": 0,
+        "p0_ritual_play_counts": {1: 0, 2: 0, 3: 0, 4: 0},
+        "p1_ritual_play_counts": {1: 0, 2: 0, 3: 0, 4: 0},
+        "p0_first_ritual_counts": {1: 0, 2: 0, 3: 0, 4: 0},
+        "p1_first_ritual_counts": {1: 0, 2: 0, 3: 0, 4: 0},
+        "p0_ritual_sequence_counts": {},
+        "p1_ritual_sequence_counts": {},
     }
 
 
@@ -82,6 +89,22 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
     ai0 = p0_pilot_cls(0)
     ai1 = p1_pilot_cls(1)
     ais = (ai0, ai1)
+    ritual_trace: dict[int, list[int]] = {0: [], 1: []}
+
+    original_play_ritual = state.play_ritual
+
+    def traced_play_ritual(pid: int, hand_idx: int) -> None:
+        p = state.players[pid]
+        ritual_value: int | None = None
+        if 0 <= hand_idx < len(p.hand):
+            c = p.hand[hand_idx]
+            if c.kind is Kind.RITUAL:
+                ritual_value = int(c.value)
+        original_play_ritual(pid, hand_idx)
+        if ritual_value is not None:
+            ritual_trace[pid].append(ritual_value)
+
+    state.play_ritual = traced_play_ritual  # type: ignore[method-assign]
 
     def pilot_mulligan(s: MatchState, pid: int) -> bool:
         return ais[pid].mulligan(s, pid)
@@ -122,6 +145,8 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
         "p1_incant_plays": state.incantation_plays[1],
         "p0_discard_draws": state.discard_for_draw_plays[0],
         "p1_discard_draws": state.discard_for_draw_plays[1],
+        "p0_ritual_sequence": list(ritual_trace[0]),
+        "p1_ritual_sequence": list(ritual_trace[1]),
     }
 
 
@@ -177,12 +202,33 @@ def _record_result(bucket: dict[str, Any], res: dict[str, Any]) -> None:
         bucket["p0_wins_by_power"] += 1
     if w == 1 and reason == "power_win":
         bucket["p1_wins_by_power"] += 1
+    _record_ritual_trace(bucket, 0, res.get("p0_ritual_sequence") or [])
+    _record_ritual_trace(bucket, 1, res.get("p1_ritual_sequence") or [])
+
+
+def _record_ritual_trace(bucket: dict[str, Any], pid: int, seq: list[int]) -> None:
+    play_counts_key = "p0_ritual_play_counts" if pid == 0 else "p1_ritual_play_counts"
+    first_counts_key = "p0_first_ritual_counts" if pid == 0 else "p1_first_ritual_counts"
+    seq_counts_key = "p0_ritual_sequence_counts" if pid == 0 else "p1_ritual_sequence_counts"
+    plays: dict[int, int] = bucket[play_counts_key]
+    firsts: dict[int, int] = bucket[first_counts_key]
+    seq_counts: dict[str, int] = bucket[seq_counts_key]
+    if not seq:
+        return
+    for v in seq:
+        if v in plays:
+            plays[v] += 1
+    first = seq[0]
+    if first in firsts:
+        firsts[first] += 1
+    label = ">".join(str(v) for v in seq)
+    seq_counts[label] = seq_counts.get(label, 0) + 1
 
 
 def run_shard(args: tuple[Any, ...]) -> dict[str, dict[str, Any]]:
     p0_slug, runs_in_shard, shard_seed = args[0], args[1], args[2]
     weights_path_str = args[3] if len(args) > 3 else ""
-    use_saved_weights = args[4] if len(args) > 4 else False
+    use_saved_weights = args[4] if len(args) > 4 else True
     wpath = Path(weights_path_str) if weights_path_str else None
 
     decks = load_all_included_decks()
@@ -312,6 +358,7 @@ def _print_report(
             n_games=totals["games"],
             rate_header="/game",
         )
+    _print_ritual_play_tracking_section(totals)
 
 
 def _print_p0_non_ritual_plays_section(
@@ -343,6 +390,51 @@ def _print_p0_non_ritual_plays_section(
     print()
 
 
+def _print_ritual_play_tracking_section(totals: dict[str, Any]) -> None:
+    print("--- ritual play tracking (all games) ---")
+    _print_ritual_player_summary(
+        "P0",
+        totals["p0_ritual_play_counts"],
+        totals["p0_first_ritual_counts"],
+        totals["p0_ritual_sequence_counts"],
+    )
+    _print_ritual_player_summary(
+        "P1",
+        totals["p1_ritual_play_counts"],
+        totals["p1_first_ritual_counts"],
+        totals["p1_ritual_sequence_counts"],
+    )
+    print()
+
+
+def _print_ritual_player_summary(
+    label: str,
+    play_counts: dict[int, int],
+    first_counts: dict[int, int],
+    seq_counts: dict[str, int],
+) -> None:
+    total_plays = sum(play_counts.values())
+    total_games_with_ritual = sum(first_counts.values())
+    play_line = "  ".join(
+        f"{v}:{play_counts.get(v, 0):5d} ({(100.0 * play_counts.get(v, 0) / total_plays):5.1f}% )" if total_plays > 0
+        else f"{v}:{play_counts.get(v, 0):5d} (  n/a )"
+        for v in (1, 2, 3, 4)
+    )
+    first_line = "  ".join(
+        f"{v}:{first_counts.get(v, 0):5d} ({(100.0 * first_counts.get(v, 0) / total_games_with_ritual):5.1f}% )" if total_games_with_ritual > 0
+        else f"{v}:{first_counts.get(v, 0):5d} (  n/a )"
+        for v in (1, 2, 3, 4)
+    )
+    print(f"{label} ritual values played total={total_plays}: {play_line}")
+    print(f"{label} first ritual value distribution (games with any ritual={total_games_with_ritual}): {first_line}")
+    if not seq_counts:
+        print(f"{label} top ritual sequences: (none)")
+        return
+    ranked = sorted(seq_counts.items(), key=lambda t: (-t[1], t[0]))[:8]
+    seq_text = ", ".join(f"{seq} x{n}" for seq, n in ranked)
+    print(f"{label} top ritual sequences: {seq_text}")
+
+
 def _print_hist(hist: list[int]) -> None:
     total = sum(hist)
     max_count = max(hist) if hist else 1
@@ -361,9 +453,14 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0, help="master RNG seed for reproducibility")
     ap.add_argument("--workers", type=int, default=0, help="override worker count (default: os.cpu_count())")
     ap.add_argument(
+        "--baseline-pilots",
+        action="store_true",
+        help="use class-default pilots only (ignore pilot_weights.json; default behavior is trained-first when available)",
+    )
+    ap.add_argument(
         "--use-saved-weights",
         action="store_true",
-        help="for each deck slug, use weights from data/pilot_weights.json when that slug has an entry (same file as Godot)",
+        help=argparse.SUPPRESS,
     )
     ap.add_argument(
         "--weights",
@@ -382,8 +479,9 @@ def main() -> None:
     if args.deck not in slugs:
         raise SystemExit(f"--deck must be one of {slugs}; got {args.deck!r}")
 
+    use_saved_weights = not bool(args.baseline_pilots)
     weights_path_str = ""
-    if args.use_saved_weights:
+    if use_saved_weights:
         wp = Path(args.weights) if args.weights else default_pilot_weights_path()
         weights_path_str = str(wp.resolve())
 
@@ -395,12 +493,14 @@ def main() -> None:
     for i in range(workers):
         runs_i = per_shard + (1 if i < remainder else 0)
         shard_args.append(
-            (args.deck, runs_i, args.seed * 1_000_003 + i * 17 + 1, weights_path_str, args.use_saved_weights)
+            (args.deck, runs_i, args.seed * 1_000_003 + i * 17 + 1, weights_path_str, use_saved_weights)
         )
 
     print(f"Launching {workers} worker(s); total runs={args.runs} (per-shard ~={per_shard})")
-    if args.use_saved_weights:
+    if use_saved_weights:
         print(f"Saved weights: {weights_path_str} (per-slug when present; else hand-tuned pilot class)")
+    else:
+        print("Pilot mode: baseline class defaults (saved weights disabled)")
     t0 = time.perf_counter()
     agg: dict[str, dict[str, Any]] = {}
     if workers == 1:

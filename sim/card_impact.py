@@ -89,7 +89,12 @@ def main() -> None:
     ap.add_argument("--runs-per-variant", type=int, default=400, help="games per removed slot")
     ap.add_argument("--seed", type=int, default=0, help="master RNG seed")
     ap.add_argument("--workers", type=int, default=0, help="parallel workers (default: cpu count)")
-    ap.add_argument("--use-saved-weights", action="store_true")
+    ap.add_argument(
+        "--baseline-pilots",
+        action="store_true",
+        help="use class-default pilots only (ignore pilot_weights.json; default behavior is trained-first when available)",
+    )
+    ap.add_argument("--use-saved-weights", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--weights", type=str, default="", help="pilot_weights.json path")
     args = ap.parse_args()
 
@@ -97,8 +102,9 @@ def main() -> None:
     if args.deck not in slugs:
         raise SystemExit(f"--deck must be one of {slugs}; got {args.deck!r}")
 
+    use_saved_weights = not bool(args.baseline_pilots)
     weights_path_str = ""
-    if args.use_saved_weights:
+    if use_saved_weights:
         wp = Path(args.weights) if args.weights else default_pilot_weights_path()
         weights_path_str = str(wp.resolve())
     wpath = Path(weights_path_str) if weights_path_str else None
@@ -120,7 +126,7 @@ def main() -> None:
             args.baseline_runs,
             args.seed,
             wpath,
-            args.use_saved_weights,
+            use_saved_weights,
         )
         baseline_rate = bw / args.baseline_runs
 
@@ -133,7 +139,7 @@ def main() -> None:
                 args.runs_per_variant,
                 args.seed * 1_000_003 + (i + 1) * 97,
                 weights_path_str,
-                args.use_saved_weights,
+                use_saved_weights,
             )
             for i in range(n)
         ]
@@ -242,7 +248,7 @@ def main() -> None:
             args.runs_per_variant,
             args.seed * 1_000_003 + (k + 1) * 97,
             weights_path_str,
-            args.use_saved_weights,
+            use_saved_weights,
         )
         for k, (label, indices) in enumerate(items)
     ]

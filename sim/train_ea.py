@@ -42,18 +42,35 @@ SAC_CAST_ONLY_KEYS = (
     "W_CAST_WITH_SAC_PAYMENT_MP_LOSS",
 )
 
+RITUAL_ONLY_KEYS = (
+    "DD_W_RITUAL_BASE",
+    "DD_W_RITUAL_PER_VALUE",
+    "SAC_PENALTY_PER_RITUAL",
+    "SAC_W_FIELD_POWER",
+    "SAC_W_HIGH_RITUAL",
+    "W_AEOIU_RITUAL_VALUE",
+    "W_CAST_WITH_SAC_BASE",
+    "W_CAST_WITH_SAC_EXPECTED_MP_DELTA",
+    "W_CAST_WITH_SAC_PAYMENT_MP_LOSS",
+    "W_INCANTATION_SACRIFICE_RITUAL_PER_VALUE",
+)
+
 
 def _select_trainable_keys(
     train_discard_weights_only: bool,
     train_sacrifice_weights_only: bool,
+    train_ritual_weights_only: bool,
 ) -> list[str]:
     keys = list(greedy_ai_float_weight_keys())
-    if train_discard_weights_only and train_sacrifice_weights_only:
+    focused_modes = int(train_discard_weights_only) + int(train_sacrifice_weights_only) + int(train_ritual_weights_only)
+    if focused_modes > 1:
         raise ValueError("only one focused training mode may be enabled at a time")
     if train_discard_weights_only:
         return [k for k in keys if k == "W_DISCARD_DRAW" or k.startswith("DD_")]
     if train_sacrifice_weights_only:
         return [k for k in keys if k in SAC_CAST_ONLY_KEYS]
+    if train_ritual_weights_only:
+        return [k for k in keys if k in RITUAL_ONLY_KEYS]
     if not train_discard_weights_only and not train_sacrifice_weights_only:
         return keys
     return keys
@@ -345,6 +362,11 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     ap.add_argument(
+        "--train-ritual-weights-only",
+        action="store_true",
+        help="only train ritual play/sequencing related weights",
+    )
+    ap.add_argument(
         "--opponent",
         type=str,
         default="",
@@ -380,12 +402,15 @@ def main() -> None:
     train_sacrifice_weights_only = bool(
         args.train_sacrifice_weights_only or args.train_sacrifice_cast_weights_only
     )
+    train_ritual_weights_only = bool(args.train_ritual_weights_only)
     trainable_keys = _select_trainable_keys(
         args.train_discard_weights_only,
         train_sacrifice_weights_only,
+        train_ritual_weights_only,
     )
     _log(f"train_discard_weights_only={bool(args.train_discard_weights_only)}")
     _log(f"train_sacrifice_weights_only={train_sacrifice_weights_only}")
+    _log(f"train_ritual_weights_only={train_ritual_weights_only}")
     _log(f"trainable_genes={len(trainable_keys)}")
     udelta = args.init_uniform_delta if args.init_uniform_delta > 0 else (args.sigma * 3.0)
     _log(

@@ -7,11 +7,11 @@ Row labels are the P0 opponent; column headers are the focal deck as P1.
 This avoids win-rate distortion when some matchups draw often.
 
 Usage:
-    # Baseline pilots (class default GreedyAI weights; no JSON overrides)
+    # Trained-first pilots from data/pilot_weights.json (per slug when present)
     python -m sim.meta --runs 100000 --seed 42 [--out sim_meta_matrix.csv]
 
-    # Trained weights from data/pilot_weights.json (per slug when present)
-    python -m sim.meta --runs 100000 --seed 42 --use-saved-weights [--weights PATH]
+    # Baseline pilots only (class defaults; no JSON overrides)
+    python -m sim.meta --runs 100000 --seed 42 --baseline-pilots
 
 Common flags: ``--workers N``, ``--games-out``, ``--gameplay-out``.
 
@@ -350,9 +350,14 @@ def main() -> None:
     ap.add_argument("--gameplay-out", type=str, default="",
                     help="optional: write P1 focal gameplay + outlier flags (CSV)")
     ap.add_argument(
+        "--baseline-pilots",
+        action="store_true",
+        help="use class-default pilots only (ignore pilot_weights.json; default behavior is trained-first when available)",
+    )
+    ap.add_argument(
         "--use-saved-weights",
         action="store_true",
-        help="load trained weights per slug from pilot_weights.json (omit flag for baseline/greedy pilots)",
+        help=argparse.SUPPRESS,
     )
     ap.add_argument("--weights", type=str, default="",
                     help="pilot_weights.json path; only used with --use-saved-weights "
@@ -364,15 +369,16 @@ def main() -> None:
     out_path = Path(args.out)
     games_out_path = Path(args.games_out) if args.games_out else None
     gameplay_out_path = Path(args.gameplay_out) if args.gameplay_out else None
+    use_saved_weights = not bool(args.baseline_pilots)
     weights_path_str = ""
-    if args.use_saved_weights:
+    if use_saved_weights:
         wp = Path(args.weights) if args.weights else default_pilot_weights_path()
         weights_path_str = str(wp.resolve())
     run_meta(
         args.runs, args.seed, workers, out_path,
         games_out_path,
         gameplay_out_path,
-        weights_path_str, args.use_saved_weights,
+        weights_path_str, use_saved_weights,
     )
 
 
