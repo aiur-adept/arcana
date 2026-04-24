@@ -348,6 +348,7 @@ class GreedyAI:
                         sac = s
                         playable = True
                 if playable:
+                    state.note_non_ritual_playable(pid, c)
                     score = self.score_noble_play(state, c, eff, sac)
                     if score is not None:
                         actions.append((score, "noble", (i, tuple(sac))))
@@ -355,6 +356,7 @@ class GreedyAI:
             elif c.kind is Kind.BIRD and not p.bird_played_this_turn:
                 eff = state.effective_bird_cost(pid, c.cost)
                 if eff == 0 or eff in active:
+                    state.note_non_ritual_playable(pid, c)
                     score = self.score_bird_play(state, c)
                     actions.append((score, "bird", (i,)))
 
@@ -362,12 +364,14 @@ class GreedyAI:
                 if RING_COST in active:
                     ring_act = self._score_ring(state, pid, c, i)
                     if ring_act is not None:
+                        state.note_non_ritual_playable(pid, c)
                         actions.append(ring_act)
 
             elif c.kind is Kind.TEMPLE and not p.temple_played_this_turn:
                 impact_by_mid = self._ritual_impact_by_mid(state, pid)
                 sac = _minimal_sac_for_lane(p.field, c.cost, impact_by_mid)
                 if sac is not None:
+                    state.note_non_ritual_playable(pid, c)
                     would_keep_lanes = self._lanes_after_sac(state, pid, sac)
                     score = self.score_temple_play(state, c, sac, would_keep_lanes)
                     if score is not None:
@@ -383,6 +387,7 @@ class GreedyAI:
                         if s is None:
                             continue
                         sac_d = s
+                    state.note_non_ritual_playable(pid, c)
                     target = self.choose_dethrone_target(state, pid)
                     if target is None:
                         continue
@@ -392,6 +397,15 @@ class GreedyAI:
                     actions.append((score, "dethrone", (i, tuple(sac_d), target.mid)))
 
             elif c.kind is Kind.INCANTATION:
+                eff_val = state.effective_incantation_cost(pid, c.verb, c.value)
+                inc_can_pay = (
+                    (c.verb == VERB_WRATH and len(p.field) > 0)
+                    or eff_val <= 0
+                    or eff_val in active
+                    or _ritual_combinations_for_value(p.field, eff_val) is not None
+                )
+                if inc_can_pay:
+                    state.note_non_ritual_playable(pid, c)
                 s = self._score_incantation(state, pid, c)
                 if s is None:
                     continue

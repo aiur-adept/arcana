@@ -125,6 +125,7 @@ class MatchState:
         self.power_curve_p0: list[Optional[int]] = [None] * len(self.power_curve_markers)
         self.power_curve_p1: list[Optional[int]] = [None] * len(self.power_curve_markers)
         self.non_ritual_plays_from_hand: list[dict[str, int]] = [{}, {}]
+        self.non_ritual_playable_from_hand: list[dict[str, int]] = [{}, {}]
         self.incantation_plays: list[int] = [0, 0]
         self.discard_for_draw_plays: list[int] = [0, 0]
 
@@ -360,6 +361,13 @@ class MatchState:
             return
         lab = card.label()
         d = self.non_ritual_plays_from_hand[pid]
+        d[lab] = d.get(lab, 0) + 1
+
+    def note_non_ritual_playable(self, pid: int, card: Card) -> None:
+        if card.kind is Kind.RITUAL:
+            return
+        lab = card.label()
+        d = self.non_ritual_playable_from_hand[pid]
         d[lab] = d.get(lab, 0) + 1
 
     # --------------------------------------------------------------- plays

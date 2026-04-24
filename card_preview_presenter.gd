@@ -479,7 +479,7 @@ static func card_rules_text(card: Dictionary) -> String:
 		"renew":
 			return "Renew %d: play 1 Ritual from your crypt (extra ritual play for the turn)." % n
 		"wrath":
-			return "Wrath: destroy 1 opponent ritual. From hand, sacrifice one of your rituals as cost; when cast via Revive, this sacrifice is not required."
+			return "Wrath: destroy 1 opponent ritual. From field, sacrifice one of your rituals as cost; when cast via Revive, this sacrifice is not required."
 		"deluge":
 			var shown := maxi(n - 1, 1)
 			var threshold := n - 1

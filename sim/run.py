@@ -47,10 +47,12 @@ def _empty_bucket() -> dict[str, Any]:
         "power_curve_p1_count": [0] * len(POWER_CURVE_MARKERS),
         "end_reason_counts": {"power_win": 0, "deck_out": 0, "turn_cap": 0},
         "p0_win_non_ritual_plays": {},
+        "p0_win_non_ritual_playable": {},
         "p0_end_birds_sum": 0,
         "p0_end_temples_sum": 0,
         "p0_end_rituals_sum": 0,
         "p0_non_ritual_plays_all_games": {},
+        "p0_non_ritual_playable_all_games": {},
         "p0_incant_plays_sum": 0,
         "p1_incant_plays_sum": 0,
         "p0_discard_draws_sum": 0,
@@ -99,6 +101,7 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
         pass
     state._sample_power_curve(force=True)
     p0_plays = state.non_ritual_plays_from_hand[0]
+    p0_playable = state.non_ritual_playable_from_hand[0]
     p0 = state.players[0]
     return {
         "winner": state.winner if state.winner in (-1, 0, 1) else -1,
@@ -109,7 +112,9 @@ def _play_one_game(p0_deck_cards, p1_deck_cards, rng: random.Random,
         "p1_curve": state.power_curve_p1,
         "end_reason": state.end_reason or "turn_cap",
         "p0_win_non_ritual_plays": dict(p0_plays) if state.winner == 0 else {},
+        "p0_win_non_ritual_playable": dict(p0_playable) if state.winner == 0 else {},
         "p0_non_ritual_plays": dict(p0_plays),
+        "p0_non_ritual_playable": dict(p0_playable),
         "p0_end_birds": len(p0.bird_field),
         "p0_end_temples": len(p0.temple_field),
         "p0_end_rituals": len(p0.field),
@@ -155,9 +160,15 @@ def _record_result(bucket: dict[str, Any], res: dict[str, Any]) -> None:
         acc = bucket["p0_win_non_ritual_plays"]
         for lab, n in (res.get("p0_win_non_ritual_plays") or {}).items():
             acc[lab] = acc.get(lab, 0) + n
+        acc_playable = bucket["p0_win_non_ritual_playable"]
+        for lab, n in (res.get("p0_win_non_ritual_playable") or {}).items():
+            acc_playable[lab] = acc_playable.get(lab, 0) + n
     acc_all = bucket["p0_non_ritual_plays_all_games"]
     for lab, n in (res.get("p0_non_ritual_plays") or {}).items():
         acc_all[lab] = acc_all.get(lab, 0) + n
+    acc_all_playable = bucket["p0_non_ritual_playable_all_games"]
+    for lab, n in (res.get("p0_non_ritual_playable") or {}).items():
+        acc_all_playable[lab] = acc_all_playable.get(lab, 0) + n
     bucket["p0_incant_plays_sum"] += res["p0_incant_plays"]
     bucket["p1_incant_plays_sum"] += res["p1_incant_plays"]
     bucket["p0_discard_draws_sum"] += res["p0_discard_draws"]
@@ -287,6 +298,7 @@ def _print_report(
         totals,
         scope_label="P0 wins only",
         counts_key="p0_win_non_ritual_plays",
+        playable_key="p0_win_non_ritual_playable",
         n_games=totals["p0_wins"],
         rate_header="/win",
     )
@@ -296,6 +308,7 @@ def _print_report(
             totals,
             scope_label="all P0 games (wins + losses)",
             counts_key="p0_non_ritual_plays_all_games",
+            playable_key="p0_non_ritual_playable_all_games",
             n_games=totals["games"],
             rate_header="/game",
         )
@@ -307,20 +320,26 @@ def _print_p0_non_ritual_plays_section(
     *,
     scope_label: str,
     counts_key: str,
+    playable_key: str,
     n_games: int,
     rate_header: str,
 ) -> None:
     counts: dict[str, int] = totals.get(counts_key) or {}
+    playable: dict[str, int] = totals.get(playable_key) or {}
     print(f"--- non-ritual cards played from hand (P0={p0_slug}, {scope_label}, n={n_games}) ---")
-    if n_games <= 0 or not counts:
-        print("  (no games in scope or no tracked plays)")
+    if n_games <= 0 or (not counts and not playable):
+        print("  (no games in scope or no tracked opportunities)")
         print()
         return
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    colw = max(22, max((len(lab) for lab, _ in ranked), default=0))
-    print(f"{'card':{colw}s}  {'plays':>8s}  {rate_header:>8s}")
-    for lab, n in ranked:
-        print(f"{lab:{colw}s}  {n:8d}  {n / n_games:8.2f}")
+    labels = sorted(set(counts.keys()) | set(playable.keys()))
+    ranked = sorted(labels, key=lambda lab: (-(playable.get(lab, 0)), -(counts.get(lab, 0)), lab))
+    colw = max(22, max((len(lab) for lab in ranked), default=0))
+    print(f"{'card':{colw}s}  {'plays':>8s}  {'playable':>9s}  {rate_header:>8s}  {'take%':>8s}")
+    for lab in ranked:
+        n_play = counts.get(lab, 0)
+        n_possible = playable.get(lab, 0)
+        take = (100.0 * n_play / n_possible) if n_possible > 0 else 0.0
+        print(f"{lab:{colw}s}  {n_play:8d}  {n_possible:9d}  {n_play / n_games:8.2f}  {take:7.2f}%")
     print()
 
 
