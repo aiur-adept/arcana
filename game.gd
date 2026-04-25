@@ -35,6 +35,8 @@ const CAMPAIGN_ORDER: Array[String] = [
 	"void_temples",
 	"bird_flock"
 ]
+const NET_RECONNECT_MAX := 5
+const NET_RECONNECT_BASE_SEC := 0.5
 const CPU_ACTION_SEC := 1.618
 const CARD_SCALE := 1.618
 const HAND_CARD_W := 72.0 * CARD_SCALE
@@ -250,6 +252,9 @@ var _eyrie_picked: Array[int] = []
 var _eyrie_candidate_buttons: Array[Button] = []
 
 var _lan_opponent_cards: Array = []
+var _net_pvp_connected: bool = false
+var _net_reconnect_n: int = 0
+var _host_last_remote_void_timeout_id: int = -1
 var _hover_preview: Dictionary = {}
 var _game_end_overlay: Control
 var _game_end_modal: PanelContainer
@@ -316,6 +321,73 @@ func _is_network_client_role() -> bool:
 
 func _is_network_pvp() -> bool:
 	return _is_network_host_session() or _is_network_client_role()
+
+
+func _net_pvp_send_ok() -> bool:
+	if not _is_network_client():
+		return true
+	if multiplayer.multiplayer_peer == null:
+		return false
+	if not _net_pvp_connected:
+		return false
+	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return false
+	return true
+
+
+func _net_client_return_if_blocked() -> bool:
+	if not _is_network_client():
+		return false
+	if _net_pvp_send_ok():
+		return false
+	if status_label != null:
+		status_label.text = "Not connected to host."
+	return true
+
+
+func _host_resync_peer(peer_id: int) -> void:
+	if not multiplayer.is_server() or _match == null or peer_id == 0:
+		return
+	sync_state.rpc_id(peer_id, _match.snapshot(1))
+
+
+func _host_resolve_remote_stuck() -> void:
+	if not multiplayer.is_server() or _match == null:
+		return
+	if int(_match.phase) == int(ArcanaMatchState.Phase.GAME_OVER):
+		return
+	var s1: Dictionary = _match.snapshot(1)
+	if bool(s1.get("void_pending_you_respond", false)):
+		if _match.submit_void_skip(1) == "ok":
+			_broadcast_sync(true)
+		return
+	if bool(s1.get("woe_pending_you_respond", false)):
+		var h1: Array = s1.get("your_hand", []) as Array
+		var hand_sz: int = h1.size()
+		var amt: int = int(s1.get("woe_pending_amount", 0))
+		var wneed: int = mini(amt, hand_sz)
+		var wpick: Array = []
+		for wi in range(wneed):
+			wpick.append(wi)
+		if _match.submit_woe_discard(1, wpick) == "ok":
+			_broadcast_sync(true)
+		return
+	if bool(s1.get("scion_pending_you_respond", false)):
+		var scid: int = int(s1.get("scion_pending_id", -1))
+		if scid >= 0 and _match.submit_scion_trigger_response(1, "skip", {"scion_id": scid}) == "ok":
+			_broadcast_sync(true)
+		return
+	if bool(s1.get("eyrie_pending_you_respond", false)):
+		if _match.apply_eyrie_submit(1, []) == "ok":
+			_broadcast_sync(true)
+		return
+	if bool(s1.get("mulligan_active", false)) and int(s1.get("current", -1)) == 1:
+		if int(s1.get("your_mulligan_bottom_needed", 0)) > 0 and not (s1.get("your_hand", []) as Array).is_empty():
+			if _match.bottom_mulligan_card(1, 0) == "ok":
+				_broadcast_sync(true)
+		elif bool(s1.get("your_mulligan_decision_pending", false)) and _match.choose_starting_hand(1, false) == "ok":
+			_broadcast_sync(true)
+		return
 
 
 func _arcana_host_address() -> String:
@@ -635,7 +707,9 @@ func _ready() -> void:
 		_host = true
 		_my_player = 0
 		_lan_opponent_cards.clear()
+		_net_pvp_connected = true
 		multiplayer.peer_connected.connect(_on_peer_connected)
+		multiplayer.peer_disconnected.connect(_on_net_peer_disconnected)
 		multiplayer.connected_to_server.connect(_on_connected_ok)
 		var peer: ENetMultiplayerPeer = null
 		for p in range(PORT_MIN, PORT_MAX + 1):
@@ -655,6 +729,7 @@ func _ready() -> void:
 		_my_player = 1
 		multiplayer.connected_to_server.connect(_on_connected_ok)
 		multiplayer.connection_failed.connect(_on_lan_connection_failed)
+		multiplayer.server_disconnected.connect(_on_server_disconnected)
 		_connect_client_to_lan_host()
 		return
 	_host = true
@@ -705,15 +780,66 @@ func _connect_client_to_lan_host() -> void:
 
 
 func _on_lan_connection_failed() -> void:
+	if _is_network_client_role() and _net_reconnect_n > 0:
+		if _net_reconnect_n < NET_RECONNECT_MAX:
+			_schedule_client_reconnect()
+		else:
+			status_label.text = "Connection lost. Rejoin from menu when the host is ready."
+		return
 	status_label.text = "Connection failed."
+
+
+func _on_server_disconnected() -> void:
+	if not _is_network_client_role():
+		return
+	_net_pvp_connected = false
+	_net_reconnect_n = 0
+	status_label.text = "Connection lost. Reconnecting…"
+	_schedule_client_reconnect()
+
+
+func _schedule_client_reconnect() -> void:
+	if not _is_network_client_role():
+		return
+	_net_reconnect_n += 1
+	if _net_reconnect_n > NET_RECONNECT_MAX:
+		status_label.text = "Connection lost. Rejoin from menu when the host is ready."
+		if multiplayer.multiplayer_peer != null:
+			multiplayer.multiplayer_peer = null
+		return
+	status_label.text = "Connection lost. Retry %d/%d…" % [_net_reconnect_n, NET_RECONNECT_MAX]
+	if multiplayer.multiplayer_peer != null:
+		multiplayer.multiplayer_peer = null
+	var wait := NET_RECONNECT_BASE_SEC * float(_net_reconnect_n)
+	get_tree().create_timer(wait).timeout.connect(_on_reconnect_timer_elapsed)
+
+
+func _on_reconnect_timer_elapsed() -> void:
+	if not _is_network_client_role():
+		return
+	_connect_client_to_lan_host()
+
+
+func _on_net_peer_disconnected(_id: int) -> void:
+	if not _is_network_host_session() or not multiplayer.is_server():
+		return
+	status_label.text = "Opponent disconnected — waiting to resume…"
+	_host_resolve_remote_stuck()
 
 
 func _on_connected_ok() -> void:
 	if _is_network_client_role():
+		_net_pvp_connected = true
+		if not _last_snap.is_empty():
+			_net_reconnect_n = 0
+			status_label.text = "Connected — syncing state…"
+			request_state_resync.rpc_id(1)
+			return
 		var cards := _load_deck_cards()
 		if cards.is_empty():
 			status_label.text = "No deck at %s — use deck editor first." % _deck_path
 			return
+		_net_reconnect_n = 0
 		submit_lan_deck.rpc(cards)
 		status_label.text = "Sent deck — waiting for host…"
 		return
@@ -725,6 +851,13 @@ func _on_peer_connected(id: int) -> void:
 	if not _host or not _is_network_host_session():
 		return
 	if id == 0:
+		return
+	if _match != null:
+		_host_resync_peer(id)
+		if int(_match.phase) == int(ArcanaMatchState.Phase.GAME_OVER):
+			status_label.text = "Peer %d reconnected (match ended)." % id
+		else:
+			status_label.text = "Peer %d reconnected — state synced." % id
 		return
 	status_label.text = "Peer %d connected — waiting for opponent deck…" % id
 
@@ -1269,6 +1402,8 @@ func _on_eyrie_confirm_pressed() -> void:
 		picks.append(int(i))
 	_hide_eyrie_overlay()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_temple_eyrie.rpc_id(1, picks)
 		return
 	if _match != null:
@@ -1377,6 +1512,8 @@ func _on_burn_woe_confirm_pressed() -> void:
 		else:
 			var ctxt := {"scion_id": sid, "woe_target": _pending_woe_target}
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_scion_trigger_response.rpc_id(1, "accept", ctxt)
 			else:
 				if _match != null:
@@ -1387,6 +1524,8 @@ func _on_burn_woe_confirm_pressed() -> void:
 	if _burn_woe_mode == "noble_burn":
 		var ctxb := {"mill_target": _pending_mill_target}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "burn", 2, [], ctxb)
 		else:
 			if _match != null:
@@ -1408,6 +1547,8 @@ func _on_burn_woe_confirm_pressed() -> void:
 		else:
 			var ctxw := {"woe_target": _pending_woe_target}
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_noble_spell_like.rpc_id(1, _noble_spell_mid, "woe", 3, [], ctxw)
 			else:
 				if _match != null:
@@ -1490,6 +1631,8 @@ func _on_revive_skip_pressed() -> void:
 		_revive_ui_for_noble_mid = -1
 		var ctxs := {"revive_steps": [{"revive_skip": true}]}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_noble_revive.rpc_id(1, nm, ctxs)
 		else:
 			if _match != null:
@@ -1665,6 +1808,8 @@ func _finalize_revive_cast(ctx: Dictionary) -> void:
 			var nm1 := _revive_ui_for_noble_mid
 			_revive_ui_for_noble_mid = -1
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_noble_revive.rpc_id(1, nm1, merged)
 			else:
 				if _match != null:
@@ -1686,6 +1831,8 @@ func _finalize_revive_cast(ctx: Dictionary) -> void:
 		var nm := _revive_ui_for_noble_mid
 		_revive_ui_for_noble_mid = -1
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_noble_revive.rpc_id(1, nm, ctx)
 		else:
 			if _match != null:
@@ -1871,11 +2018,31 @@ func sync_state(snap: Dictionary) -> void:
 
 
 @rpc("any_peer", "reliable")
+func request_state_resync() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		return
+	if _match == null:
+		return
+	_host_resync_peer(sender)
+	status_label.text = "Re-synced state for peer %d." % sender
+
+
+@rpc("any_peer", "reliable")
 func submit_lan_deck(cards: Array) -> void:
 	if not multiplayer.is_server():
 		return
 	var sid := multiplayer.get_remote_sender_id()
 	if sid == 0:
+		return
+	if _match != null:
+		_host_resync_peer(sid)
+		if int(_match.phase) == int(ArcanaMatchState.Phase.GAME_OVER):
+			status_label.text = "Opponent reconnected (match ended)."
+		else:
+			status_label.text = "Opponent rejoined — state synced."
 		return
 	_lan_opponent_cards = _normalize_card_dicts(cards)
 	if _lan_opponent_cards.is_empty():
@@ -3051,6 +3218,8 @@ func _on_game_end_play_again_pressed() -> void:
 	if _campaign_force_return:
 		return
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		_game_end_play_again.disabled = true
 		_game_end_play_again.text = "Waiting for host..."
 		request_play_again.rpc_id(1)
@@ -3502,7 +3671,25 @@ func _update_void_countdown_label(snap: Dictionary) -> void:
 	_void_countdown_label.text = "%.1fs" % (float(remaining_ms) / 1000.0)
 
 
+func _host_process_remote_void_timeout() -> void:
+	if not multiplayer.is_server() or _match == null:
+		return
+	var s1: Dictionary = _match.snapshot(1)
+	if not bool(s1.get("void_pending_you_respond", false)):
+		return
+	var d := int(s1.get("void_pending_deadline_ms", 0))
+	if d <= 0 or Time.get_ticks_msec() < d:
+		return
+	var vr := int(s1.get("void_pending_id", -1))
+	if vr < 0 or vr == _host_last_remote_void_timeout_id:
+		return
+	_host_last_remote_void_timeout_id = vr
+	if _match.submit_void_skip(1) == "ok":
+		_broadcast_sync(true)
+
+
 func _process(_delta: float) -> void:
+	_host_process_remote_void_timeout()
 	if _last_snap.is_empty():
 		return
 	if not bool(_last_snap.get("void_pending_you_respond", false)):
@@ -3510,6 +3697,8 @@ func _process(_delta: float) -> void:
 	if _void_pick_discard_mode:
 		return
 	_update_void_countdown_label(_last_snap)
+	if _is_network_client() and not _net_pvp_send_ok():
+		return
 	var deadline := int(_last_snap.get("void_pending_deadline_ms", 0))
 	if deadline <= 0:
 		return
@@ -3525,6 +3714,8 @@ func _process(_delta: float) -> void:
 func _submit_void_skip_rpc() -> void:
 	_hide_void_prompt_ui()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_void_skip.rpc_id(1)
 		return
 	if _match == null:
@@ -3536,6 +3727,8 @@ func _submit_void_skip_rpc() -> void:
 func _submit_void_react_rpc(void_hand_idx: int, discard_hand_idx: int) -> void:
 	_hide_void_prompt_ui()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_void_react.rpc_id(1, void_hand_idx, discard_hand_idx)
 		return
 	if _match == null:
@@ -3691,6 +3884,8 @@ func _submit_inc_play(sac: Array, wrath_mids: Array) -> void:
 
 func _submit_inc_play_full(sac: Array, wrath_mids: Array, ctx: Dictionary = {}) -> void:
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_play_inc.rpc_id(1, _pending_inc_hand_idx, sac, wrath_mids, ctx)
 		_clear_incantation_flow_ui()
 		return
@@ -3724,6 +3919,8 @@ func _clear_incantation_flow_ui() -> void:
 
 func _submit_dethrone_play(hand_idx: int, noble_mids: Array, sacrifice_mids: Array = []) -> void:
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_play_dethrone.rpc_id(1, hand_idx, noble_mids, sacrifice_mids)
 		_clear_sacrifice_mode()
 		return
@@ -3738,6 +3935,8 @@ func _submit_dethrone_play(hand_idx: int, noble_mids: Array, sacrifice_mids: Arr
 
 func _submit_noble_activate_with_insight(noble_mid: int, insight_target: int, insight_top: Array, insight_bottom: Array) -> void:
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_activate_noble_with_insight.rpc_id(1, noble_mid, insight_target, insight_top, insight_bottom)
 		_clear_insight_ui()
 		return
@@ -3752,6 +3951,8 @@ func _submit_noble_activate_with_insight(noble_mid: int, insight_target: int, in
 
 func _submit_temple_phaedra_insight(temple_mid: int, insight_target: int, insight_top: Array, insight_bottom: Array) -> void:
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_temple_phaedra_insight.rpc_id(1, temple_mid, insight_target, insight_top, insight_bottom)
 		_clear_insight_ui()
 		return
@@ -3816,6 +4017,8 @@ func _insight_current_peek() -> Array:
 
 func _request_insight_peek_for_ui() -> void:
 	if not _is_network_client():
+		return
+	if _net_client_return_if_blocked():
 		return
 	_insight_client_req_nonce += 1
 	var nonce := _insight_client_req_nonce
@@ -3957,6 +4160,8 @@ func _on_insight_target_yours() -> void:
 		return
 	_insight_target = int(_last_snap.get("you", 0))
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		_request_insight_peek_for_ui()
 	_insight_reset_orders_for_current_deck()
 	_insight_refresh_insight_panel()
@@ -3967,6 +4172,8 @@ func _on_insight_target_opps() -> void:
 		return
 	_insight_target = 1 - int(_last_snap.get("you", 0))
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		_request_insight_peek_for_ui()
 	_insight_reset_orders_for_current_deck()
 	_insight_refresh_insight_panel()
@@ -4059,6 +4266,8 @@ func _on_nest_temple_chosen(temple_mid: int) -> void:
 	if _nest_pick_bird_mid < 0:
 		return
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_nest_bird.rpc_id(1, _nest_pick_bird_mid, temple_mid)
 		_clear_sacrifice_mode()
 		return
@@ -4186,6 +4395,8 @@ func _on_bird_assign_confirm_pressed() -> void:
 	_bird_assign_overlay.visible = false
 	_clear_sacrifice_mode()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_bird_fight.rpc_id(1, attackers, defender_mid, assign)
 	else:
 		_try_resolve_bird_fight(_my_player_for_action(), attackers, defender_mid, assign)
@@ -4218,6 +4429,8 @@ func _on_sacrifice_confirm_pressed() -> void:
 		var sid := int(_last_snap.get("scion_pending_id", -1))
 		var ctxs := {"scion_id": sid, "ritual_mid": _single_ritual_pick_mid}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_scion_trigger_response.rpc_id(1, "accept", ctxs)
 		else:
 			if _match != null:
@@ -4244,6 +4457,8 @@ func _on_sacrifice_confirm_pressed() -> void:
 		var sidr := int(_last_snap.get("scion_pending_id", -1))
 		var ctxr := {"scion_id": sidr}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_scion_trigger_response.rpc_id(1, "accept", ctxr)
 		else:
 			if _match != null:
@@ -4280,6 +4495,8 @@ func _on_sacrifice_confirm_pressed() -> void:
 			var hi_t := _pending_inc_hand_idx
 			_clear_sacrifice_mode()
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_play_temple.rpc_id(1, hi_t, sac)
 			else:
 				_try_play_temple(_my_player_for_action(), hi_t, sac)
@@ -4289,6 +4506,8 @@ func _on_sacrifice_confirm_pressed() -> void:
 			var hi_n := _pending_noble_hand_idx
 			_clear_sacrifice_mode()
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_play_noble.rpc_id(1, hi_n, sac)
 			else:
 				_try_play_noble(_my_player_for_action(), hi_n, sac, true)
@@ -4409,6 +4628,8 @@ func _on_sacrifice_cancel_pressed() -> void:
 		var sid2 := int(_last_snap.get("scion_pending_id", -1))
 		var ctx_skip := {"scion_id": sid2}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_scion_trigger_response.rpc_id(1, "skip", ctx_skip)
 		else:
 			if _match != null:
@@ -4420,6 +4641,8 @@ func _on_sacrifice_cancel_pressed() -> void:
 		var sidr2 := int(_last_snap.get("scion_pending_id", -1))
 		var ctx_skip_r := {"scion_id": sidr2}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_scion_trigger_response.rpc_id(1, "skip", ctx_skip_r)
 		else:
 			if _match != null:
@@ -4574,6 +4797,8 @@ func _on_noble_activate_pressed(noble_mid: int) -> void:
 			return
 		break
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_activate_noble.rpc_id(1, noble_mid)
 		return
 	if _match == null:
@@ -4668,6 +4893,8 @@ func _on_aeoiu_crypt_chosen(crypt_idx: int) -> void:
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_aeoiu_ritual.rpc_id(1, nm, crypt_idx)
 		return
 	if _match != null:
@@ -4812,6 +5039,8 @@ func _on_temple_activate_pressed(temple_mid: int) -> void:
 			return
 		if tid == "ytria_cycles":
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_temple_ytria.rpc_id(1, temple_mid)
 			else:
 				if _match == null or _match.apply_temple_ytria(_my_player_for_action(), temple_mid) != "ok":
@@ -4896,6 +5125,8 @@ func _on_delpha_crypt_chosen(crypt_idx: int) -> void:
 	end_turn_button.disabled = false
 	discard_draw_button.disabled = false
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_temple_delpha.rpc_id(1, tm, ritual_mid, crypt_idx)
 		return
 	if _match != null:
@@ -5321,6 +5552,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			return
 		if int(snap.get("your_mulligan_bottom_needed", 0)) > 0:
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_mulligan_bottom.rpc_id(1, hand_idx)
 			else:
 				_try_mulligan_bottom(_my_player_for_action(), hand_idx)
@@ -5364,6 +5597,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			idxsn.sort()
 			var ctxn := {"woe_target": int(snap.get("you", 0)), "woe_indices": idxsn}
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_noble_spell_like.rpc_id(1, _pending_noble_woe_mid, "woe", 3, [], ctxn)
 			else:
 				if _match != null:
@@ -5430,6 +5665,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			_burn_woe_mode = ""
 			_woe_self_picked.clear()
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_scion_trigger_response.rpc_id(1, "accept", ctxt)
 			else:
 				if _match != null:
@@ -5443,6 +5680,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			status_label.text = "Gotha cannot discard temple cards."
 			return
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_temple_gotha.rpc_id(1, _gotha_temple_mid, hand_idx)
 		else:
 			if _match == null or _match.apply_temple_gotha(_my_player_for_action(), _gotha_temple_mid, hand_idx) != "ok":
@@ -5455,6 +5694,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 	if _sndrr_picking:
 		var ctxs := {"discard_hand_idx": hand_idx}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_noble_spell_like.rpc_id(1, _sndrr_noble_mid, "seek", 1, [], ctxs)
 		else:
 			if _match == null or _match.apply_noble_spell_like(_my_player_for_action(), _sndrr_noble_mid, "seek", 1, [], ctxs) != "ok":
@@ -5468,6 +5709,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		var opp_w := 1 - int(snap.get("you", 0))
 		var ctxw := {"discard_hand_idx": hand_idx, "woe_target": opp_w}
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_noble_spell_like.rpc_id(1, _wndrr_noble_mid, "woe", 3, [], ctxw)
 		else:
 			if _match == null or _match.apply_noble_spell_like(_my_player_for_action(), _wndrr_noble_mid, "woe", 3, [], ctxw) != "ok":
@@ -5484,6 +5727,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 	if _mode_discard_draw:
 		_mode_discard_draw = false
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_discard_draw.rpc_id(1, hand_idx)
 		else:
 			_try_discard_draw(_my_player_for_action(), hand_idx)
@@ -5512,6 +5757,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			status_label.text = "You already played a ritual this turn."
 			return
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_play_ritual.rpc_id(1, hand_idx)
 		else:
 			_try_play_ritual(_my_player_for_action(), hand_idx)
@@ -5528,6 +5775,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 		var has_lane_n := _snapshot_has_active_ritual_lane(snap, eff_cost_n)
 		if eff_cost_n == 0 or has_lane_n:
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_play_noble.rpc_id(1, hand_idx, [])
 			else:
 				_try_play_noble(_my_player_for_action(), hand_idx, [], true)
@@ -5544,6 +5793,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			status_label.text = "You already played a bird this turn."
 			return
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_play_bird.rpc_id(1, hand_idx)
 		else:
 			_try_play_bird(_my_player_for_action(), hand_idx)
@@ -5574,6 +5825,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 			if opp_nobles.size() == 1:
 				var only_mid := int(opp_nobles[0].get("mid", -1))
 				if _is_network_client():
+					if _net_client_return_if_blocked():
+						return
 					submit_play_dethrone.rpc_id(1, hand_idx, [only_mid], [])
 				else:
 					_try_play_dethrone(_my_player_for_action(), hand_idx, [only_mid], [], true)
@@ -5599,6 +5852,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 				return
 			if verb == "seek":
 				if _is_network_client():
+					if _net_client_return_if_blocked():
+						return
 					submit_play_inc.rpc_id(1, hand_idx, [], [], {})
 				else:
 					_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
@@ -5632,6 +5887,8 @@ func _on_hand_pressed(hand_idx: int) -> void:
 					_begin_tears_hand_ui(hand_idx, n, [])
 				return
 			if _is_network_client():
+				if _net_client_return_if_blocked():
+					return
 				submit_play_inc.rpc_id(1, hand_idx, [], [], {})
 			else:
 				_try_play_inc(_my_player_for_action(), hand_idx, [], [], {})
@@ -5759,6 +6016,8 @@ func _on_ring_target_clicked(host_kind: String, host_mid: int) -> void:
 		return
 	_exit_ring_target_mode(false)
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_play_ring.rpc_id(1, hand_idx, host_kind, host_mid)
 	else:
 		_try_play_ring(_my_player_for_action(), hand_idx, host_kind, host_mid)
@@ -5884,6 +6143,8 @@ func _confirm_end_turn_discard() -> void:
 	_end_discard_picked.clear()
 	_hide_end_discard_modal()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_end_turn.rpc_id(1, indices)
 	else:
 		_try_end_turn(_my_player_for_action(), indices)
@@ -5949,6 +6210,8 @@ func _confirm_woe_discard() -> void:
 	var idxs: Array = _woe_discard_indices_from_hand(_last_snap.get("your_hand", []) as Array)
 	idxs.sort()
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_woe_discard.rpc_id(1, idxs)
 		_woe_self_picked.clear()
 	else:
@@ -6357,6 +6620,8 @@ func _on_end_turn_pressed() -> void:
 	var need := maxi(0, hand.size() - 7)
 	if need == 0:
 		if _is_network_client():
+			if _net_client_return_if_blocked():
+				return
 			submit_end_turn.rpc_id(1, [])
 		else:
 			_try_end_turn(_my_player_for_action(), [])
@@ -6395,6 +6660,8 @@ func _on_mulligan_keep_pressed() -> void:
 	if _last_snap.is_empty():
 		return
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_choose_mulligan.rpc_id(1, false)
 	else:
 		_try_choose_mulligan(_my_player_for_action(), false)
@@ -6404,6 +6671,8 @@ func _on_mulligan_take_pressed() -> void:
 	if _last_snap.is_empty():
 		return
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_choose_mulligan.rpc_id(1, true)
 	else:
 		_try_choose_mulligan(_my_player_for_action(), true)
@@ -6423,6 +6692,8 @@ func _on_exit_match_pressed() -> void:
 
 func _on_concede_confirmed() -> void:
 	if _is_network_client():
+		if _net_client_return_if_blocked():
+			return
 		submit_concede.rpc_id(1)
 	else:
 		_try_concede(_my_player_for_action())
